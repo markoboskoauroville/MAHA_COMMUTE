@@ -1,0 +1,6 @@
+# nothing that is or was a key
+*google-api.txt
+*gmaps-api.txt
+*gemini-api.txt
+.secret/
+*.new
