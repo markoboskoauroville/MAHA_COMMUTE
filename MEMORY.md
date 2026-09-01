@@ -127,10 +127,23 @@ frozen at 23:27:13.
 
 ## THE UPDATER, AND THE DECISION BEHIND IT
 
-*31.8.2026, v3.*
+*31.8.2026, v3, reversed 1.9.2026 for v4.*
 
-The repository stays **private**, because day.commute is built around one
-home stop and one commute, and that is an address.
+**The repository is PUBLIC.** Baba made that call knowing what it costs: the
+corridors day.commute is built around are his own commute, so the shape of
+where he lives and works is now readable. Weigh that before adding anything
+new to a payload.
+
+The whole history was scanned before the flip, 58 blobs across 5 commits
+against five key shapes, and two stray .pyc files were untracked. Going
+public exposes every commit, not just the current tree, so the scan has to
+be of the history and not of the working directory.
+
+What it bought is a one word update with no credential anywhere. The earlier
+private plan is below, kept because the reasoning still applies to any repo
+that stays private.
+
+*The earlier reasoning, no longer in force:*
 
 So automatic updates need a credential, and the credential is a **fine
 grained github token, read only, scoped to this one repository, with an

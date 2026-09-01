@@ -4,3 +4,5 @@
 *gemini-api.txt
 .secret/
 *.new
+__pycache__/
+*.pyc

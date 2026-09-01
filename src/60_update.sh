@@ -3,35 +3,28 @@
 #
 #   maha-commute-update              find a newer installer and run it
 #   maha-commute-update <file>       use this file
+#   maha-commute-update --check      say what is available, change nothing
 #
 # ONE UPDATER FOR ALL THREE APPS, and it updates them the way they are
 # actually delivered.
 #
-#   maha-commute-update --token     store a github token, once
-#   maha-commute-update --check      say what is available, change nothing
-#
 # WHERE IT LOOKS, IN ORDER
 #
 #   1  a file given on the command line
-#   2  github, if a token is stored, which is the automatic route
+#   2  github, anonymously, which is the automatic route
 #   3  a newer installer already downloaded on the phone
 #
-# THE GITHUB PROBLEM, AND WHY IT IS SOLVED THIS WAY
+# NO CREDENTIAL. MAHA_COMMUTE is public, so the fetch is a plain unsigned
+# request. Nothing is stored on the phone, so there is nothing on the phone
+# to lose, and an update over a borrowed connection reveals only that
+# somebody asked for a public file.
 #
-# MAHA_COMMUTE is private and stays private, because day.commute is built
-# around one particular home stop and one particular commute. That is an
-# address, and an address does not go in a public repository. An anonymous
-# fetch against a private repository 404s, so automatic updates need a
-# credential.
+# THE FROZEN ADDRESS IS VERSION, NOT THE INSTALLER. VERSION holds a single
+# number; the installer it names carries that number at both ends. That is
+# how the filename keeps its number at both ends while the updater still has
+# one fixed thing to ask for.
 #
-# The credential is a fine grained github token, read only, scoped to this
-# one repository, with an expiry. It is stored at 600 beside the google
-# key, and it is a smaller thing to lose than the google key already
-# sitting there: read access to one private repository of transit scripts.
-# If the phone goes missing, revoke it at github and it is over.
-#
-# Without a token this still works exactly as it did: the file arrives on
-# the phone however it arrives, and this finds it, checks it and runs it.
+#   maha-commute-update --check      say what is available, change nothing
 #
 # WHAT IT ADDS OVER RUNNING THE FILE BY HAND
 #
@@ -54,58 +47,16 @@ fi
 
 CAND=""
 MODE="run"
-GHTOKEN="$KEYDIR/github.txt"
-REPO="markoboskoauroville/MAHA_COMMUTE"
 
-for a in "$@"; do
-  case "$a" in
-    --token|--set-token) MODE="token" ;;
-    --check|--dry-run)   MODE="check" ;;
-    -h|--help)
-      printf 'maha-commute-update [file] [--token] [--check]\n'; exit 0 ;;
-    *) CAND="$a" ;;
-  esac
-done
+RAW="https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main"
 
-if [ "$MODE" = "token" ]; then
-  printf "\n  ${KEY}A GITHUB TOKEN, FOR AUTOMATIC UPDATES${OFF}\n\n"
-  printf "  ${DIM}github.com > Settings > Developer settings >${OFF}\n"
-  printf "  ${DIM}Personal access tokens > Fine-grained tokens${OFF}\n\n"
-  printf "  ${DIM}Repository access: only %s${OFF}\n" "$REPO"
-  printf "  ${DIM}Permissions: Contents, read only${OFF}\n"
-  printf "  ${DIM}Expiration: whatever you are willing to renew${OFF}\n\n"
-  printf "  ${DIM}Nothing else. A token with more than that on it is a${OFF}\n"
-  printf "  ${DIM}bigger thing to lose than this job is worth.${OFF}\n"
-  printf "\n  ${DIM}paste it, then Enter. It is not echoed back.${OFF}\n  ${AM}>${OFF} "
-  IFS= read -r T || T=""
-  T=$(printf '%s' "$T" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
-  if [ -z "$T" ]; then printf "\n  ${DIM}nothing was stored.${OFF}\n\n"; exit 0; fi
-  mkdir -p "$KEYDIR"; chmod 700 "$KEYDIR" 2>/dev/null || true
-  printf '%s\n' "$T" > "$GHTOKEN"; chmod 600 "$GHTOKEN"
-  printf "\n  ${DIM}checking it against %s${OFF}" "$REPO"
-  code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: token $T" \
-         "https://api.github.com/repos/$REPO/contents/VERSION" 2>/dev/null || echo 000)
-  case "$code" in
-    200) printf "\n  ${OK}it works.${OFF} ${DIM}maha-commute-update now updates on its own.${OFF}\n\n" ;;
-    401|403) rm -f "$GHTOKEN"
-      printf "\n  ${BAD}github refused it (%s). Nothing was stored.${OFF}\n\n" "$code"; exit 1 ;;
-    404) rm -f "$GHTOKEN"
-      printf "\n  ${BAD}404. The token cannot see %s.${OFF}\n" "$REPO"
-      printf "  ${DIM}Repository access has to name that repository.${OFF}\n\n"; exit 1 ;;
-    *) printf "\n  ${SAND}no answer from github (%s). Stored anyway.${OFF}\n\n" "$code" ;;
-  esac
-  exit 0
-fi
-
-# The version github is offering, when there is a token to ask with. VERSION
-# is a frozen address holding a number; the installer it names carries that
-# number at both ends. So the updater has a fixed thing to ask for and the
-# file it fetches still says its own version in its own name.
+# What github is offering. A plain unsigned request: no token, no header,
+# nothing kept afterwards.
 REMOTE_V=""
-if [ -s "$GHTOKEN" ] && command -v curl >/dev/null 2>&1; then
-  T=$(tr -d ' \r\n' < "$GHTOKEN")
-  REMOTE_V=$(curl -s -H "Authorization: token $T" -H "Accept: application/vnd.github.raw" \
-    "https://api.github.com/repos/$REPO/contents/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
+if command -v curl >/dev/null 2>&1; then
+  REMOTE_V=$(curl -fsSL --max-time 20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
+elif command -v wget >/dev/null 2>&1; then
+  REMOTE_V=$(wget -qO- --timeout=20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
 fi
 
 HERE="${MAHA_VERSION#v}"
@@ -117,19 +68,18 @@ if [ -n "$REMOTE_V" ]; then
     DL="$APPHOME/tmp/$NAME"
     mkdir -p "$APPHOME/tmp"
     printf "  ${DIM}fetching %s${OFF}\n" "$NAME"
-    if curl -fsSL -H "Authorization: token $T" -H "Accept: application/vnd.github.raw" \
-       "https://api.github.com/repos/$REPO/contents/$NAME" -o "$DL" 2>/dev/null; then
+    if curl -fsSL --max-time 300 "$RAW/$NAME" -o "$DL" 2>/dev/null ||
+       wget -qO "$DL" --timeout=300 "$RAW/$NAME" 2>/dev/null; then
       CAND="$DL"
     else
       printf "  ${BAD}the fetch failed. Nothing was changed.${OFF}\n\n"; exit 1
     fi
   else
     printf "\n  ${OK}v%s is the newest there is.${OFF}\n\n" "$HERE"
-    [ "$MODE" = "check" ] && exit 0
     exit 0
   fi
-elif [ -s "$GHTOKEN" ]; then
-  printf "\n  ${SAND}github did not answer. Looking on the phone instead.${OFF}\n"
+else
+  printf "\n  ${SAND}github did not answer.${OFF} ${DIM}Looking on the phone instead.${OFF}\n"
 fi
 
 # Where a phone puts a downloaded file, in the order it is likely to be.
