@@ -73,3 +73,32 @@ function.
 `day.commute` 8082, `all.commute` 8084, `night.commute` 8087. They do not
 collide, so all three can run at once. The menu reads them to say what is
 running, and a port that answers is the only claim it trusts.
+
+## WHAT ZET ACTUALLY PUBLISHES
+
+*Measured 31.8.2026, against the live feeds.*
+
+**Every weekday flag in `calendar.txt` is zero.** All six services, all seven
+days. ZET declares which service runs on which day only through
+`calendar_dates.txt`, which held 136 dated exceptions running to 31.12.2026.
+On Monday 31.8.2026 exactly one service ran, `0_45`.
+
+Two consequences, and both are faults in the apps rather than in the feed:
+
+An app selecting services with `row.get(weekday) == "1"` gets **nothing, every
+day**. An app selecting on the date window alone matches **all six services at
+once**, so it shows Sunday trams on a Monday mixed in with weekday trams. That
+is the wrong data that shows up in the field.
+
+**The live feed and the published schedule use different service ids.** Every
+live trip id carries `20` in its second field; the static build published
+18.8.2026 carries 45 to 50, which are its service ids. A join on the whole
+trip id therefore matches **zero of 501** live trips. Dropping that field and
+joining on the rest matches 78.7%, so they are the same trips wearing a
+different service id.
+
+**Nothing reads the feed header timestamp.** `day.commute` fetches the
+protobuf and has its own varint reader, but never looks at the header, so a
+feed that stopped moving an hour ago is drawn as if it were now. `stream.py`
+reads it, and cross checks it against the server's own Last-Modified, which is
+an independent witness of the same fact.

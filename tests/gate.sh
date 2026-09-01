@@ -46,12 +46,19 @@ hdr 'G2  SECRETS'
 n=$(grep -cE 'AIza[A-Za-z0-9_-]{30,}' "$ART" || true)
 if [ "$n" = 0 ]; then line "google key shapes in the artefact" "0 of 1 pattern"
 else block "google key shapes in the artefact" "$n"; fi
-n=$(grep -crEl 'AIza[A-Za-z0-9_-]{30,}|gsk_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|sk_[A-Za-z0-9_-]{30,}' \
+n=$(grep -crEl 'AIza[A-Za-z0-9_-]{30,}|AQ\\.[A-Za-z0-9_.-]{30,}|gsk_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|sk_[A-Za-z0-9_-]{30,}' \
       --include='*.sh' --include='*.md' . 2>/dev/null | wc -l | tr -d ' ')
-if [ "$n" = 0 ]; then line "key shapes anywhere in the repo" "0 files, 4 patterns"
+if [ "$n" = 0 ]; then line "key shapes anywhere in the repo" "0 files, 5 patterns"
 else block "key shapes anywhere in the repo" "$n files"; fi
 n=$(grep -c '__MAHA_GOOGLE_KEY__' "$ART" | tr -d ' ')
 line "the placeholder is what is carried" "$n occurrences"
+# The key tester handles keys and must never print one. A print of the
+# key variable itself is the shape to look for.
+if grep -nE 'print\((key|k|raw|secret)\)|print\(.*%.*, *(key|k|raw|secret)\)' src/55_keytest.py >/dev/null; then
+  block "the key tester never prints a key" "a print of the key itself"
+else
+  line "the key tester never prints a key" "0 findings, and Test 1 proves the namer"
+fi
 if [ -f .gitignore ] && grep -q 'google-api' .gitignore; then
   line "key files are ignored by git" "listed"
 else block "key files are ignored by git" "missing from .gitignore"; fi
@@ -66,6 +73,33 @@ for f in "$ART" tools/*.sh tests/*.sh src/*.sh src/payloads/*.sh; do
 done
 if [ "$bad" = 0 ]; then line "bash -n, no output at all" "$count files, 0 findings"
 else block "bash -n, no output at all" "$bad of $count"; fi
+pyc=0; pybad=0
+for f in src/*.py; do
+  pyc=$((pyc+1))
+  python3 -m py_compile "$f" 2>/dev/null || { pybad=$((pybad+1)); printf '      %s does not compile\n' "$f"; }
+done
+if [ "$pybad" = 0 ]; then line "python compiles" "$pyc files, 0 findings"
+else block "python compiles" "$pybad of $pyc"; fi
+# The tools are emitted through heredocs, so the copies that reach the
+# phone are what must compile, not only the sources they came from.
+emit=$(mktemp -d)
+# Between the heredoc delimiters, which is the only boundary that means
+# anything here. Ranging to the first line starting with } stops inside a
+# python dictionary and reports the truncation as a compile failure.
+extract() { # extract <delimiter prefix> <out>
+  awk -v pre="$1" '
+    $0 ~ ("cat <<.?" pre) { d=$0; sub(/.*cat <<.?/,"",d); gsub(/.$/,"",d); grab=1; next }
+    grab && $0 == d { grab=0; next }
+    grab { print }
+  ' "$ART" > "$2"
+}
+extract "MAHA_STREAM_" "$emit/stream.py"
+extract "MAHA_KEYTEST_" "$emit/keytest.py"
+eb=0
+for f in "$emit"/*.py; do python3 -m py_compile "$f" 2>/dev/null || eb=$((eb+1)); done
+if [ "$eb" = 0 ]; then line "the emitted copies compile" "2 files, 0 findings"
+else block "the emitted copies compile" "$eb of 2"; fi
+rm -rf "$emit"
 if command -v shellcheck >/dev/null 2>&1; then
   sc=$(shellcheck -S error -f gcc src/*.sh tools/*.sh 2>/dev/null | wc -l | tr -d ' ')
   line "shellcheck, errors only" "$sc findings"
@@ -114,7 +148,7 @@ pay=$(( $(wc -c < src/payloads/13-install-day-commute-termux-v13.sh) + \
         $(wc -c < src/payloads/9-night_commute_v9.sh) + \
         $(wc -c < src/payloads/39-install-all_commute-termux-v39.sh) ))
 line "of which the three apps" "$pay bytes, $(( (sz - pay) )) is the umbrella"
-line "commands added to \$PREFIX/bin" "1, called commute"
+line "commands added to \$PREFIX/bin" "1, called maha-commute"
 
 # ---- G8 upgrade ----------------------------------------------------
 hdr 'G8  UPGRADE'

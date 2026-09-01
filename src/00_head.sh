@@ -29,7 +29,7 @@
 
 set -e
 
-MAHA_VERSION="v1"
+MAHA_VERSION="v@@VERSION@@"
 MAHA_FILE="@@FILENAME@@"
 BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 APPHOME="$HOME/.maha.commute"
@@ -38,10 +38,16 @@ KEYDIR="$APPHOME/keys"
 KEYFILE="$KEYDIR/google-api.txt"
 STAMPDIR="$APPHOME/installed"
 
-# id | command | appdir | version | port | one line | server process
-MAHA_APPS="day|day.commute|.commute|@@VER_DAY@@|8082|the daytime ride|commute_server.py
-night|night.commute|.nightcommute|@@VER_NIGHT@@|8087|the four night trams|night_server.py
-all|all.commute|.all.commute|@@VER_ALL@@|8084|every station around you|all_commute_server.py"
+# id | command | appdir | version | port | one line | server process | short
+#
+# The last field is the same sentence written to fit a quadrant. Sizing a
+# word by a fraction of the line is a promise about width that a word
+# cannot keep: at twenty one characters "the four night trams" loses its
+# last letter and "every station around you" loses three. So the layout is
+# not narrowed and the words are not cut. A shorter sentence is written.
+MAHA_APPS="day|day.commute|.commute|@@VER_DAY@@|8082|the daytime ride|commute_server.py|the daytime ride
+night|night.commute|.nightcommute|@@VER_NIGHT@@|8087|the four night trams|night_server.py|four night trams
+all|all.commute|.all.commute|@@VER_ALL@@|8084|every station around you|all_commute_server.py|stations around you"
 
 MODE=""
 PICK=""

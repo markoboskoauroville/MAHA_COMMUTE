@@ -52,7 +52,7 @@ no_  "and writes nothing"              "[ -d '$T/nophone/.maha.commute' ]"
 fresh empty
 printf '\n' | bash "$ART" --offline --apps n >"$T/empty.log" 2>&1
 yes_ "n installs no apps"              "! command -v day.commute >/dev/null"
-yes_ "but the menu still arrives"      "command -v commute >/dev/null"
+yes_ "but the menu still arrives"      "command -v maha-commute >/dev/null"
 yes_ "and all three payloads are kept" "[ \$(ls '$HOME/.maha.commute/payloads'/*.payload.sh | wc -l) = 3 ]"
 # and the app can then be added from the menu with no download at all
 bash "$HOME/.maha.commute/install-one.sh" day --offline >"$T/add.log" 2>&1
@@ -94,7 +94,7 @@ no_  "and no half written .new files"     "ls '$HOME/.maha.commute'/*.new '$PREF
 fresh order
 printf '\n' | bash "$ART" --offline --apps n >/dev/null 2>&1
 rm -f "$HOME/.maha.commute/env.sh"
-out=$(commute status 2>&1 </dev/null || true)
+out=$(maha-commute status 2>&1 </dev/null || true)
 yes_ "a menu with no env says so plainly" "printf '%s' \"\$out\" | grep -q 'env.sh is missing'"
 no_  "and does not pretend to work"       "printf '%s' \"\$out\" | grep -q 'day.commute'"
 

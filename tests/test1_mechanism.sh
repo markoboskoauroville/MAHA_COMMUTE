@@ -125,5 +125,63 @@ sleep 0.7
 if port_live 18299; then ok; else bad "a bound port was not seen"; fi
 kill $srv 2>/dev/null; wait $srv 2>/dev/null
 
+# ---- the two python tools, mechanism only ------------------------
+# The protobuf reader is fed bytes assembled by hand from the wire
+# format, so a reader that only agrees with itself cannot pass.
+py_out=$(python3 - <<'PYEOF'
+import importlib.util, struct, time, sys
+spec = importlib.util.spec_from_file_location("stream", "src/50_stream.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+def vi(n):
+    o=b""
+    while True:
+        b=n&0x7F; n>>=7
+        o+=bytes([b|0x80]) if n else bytes([b])
+        if not n: return o
+ld=lambda f,p: vi(f<<3|2)+vi(len(p))+p
+vf=lambda f,v: vi(f<<3|0)+vi(v)
+f32=lambda f,v: vi(f<<3|5)+struct.pack("<f",v)
+now=int(time.time())
+feed=(ld(1, ld(1,b"2.0")+vf(3,now))
+      + ld(2, ld(1,b"e1")+ld(4, ld(1,ld(1,b"T-1"))+ld(2,f32(1,45.81)+f32(2,15.98))+vf(5,now)))
+      + ld(2, ld(1,b"e2")+ld(3, ld(1,ld(1,b"T-2"))+vf(4,now))))
+p=m.parse_feed(feed)
+ok=[]
+ok.append(("header timestamp read", p["header_ts"]==now))
+ok.append(("entities counted", p["entities"]==2))
+ok.append(("trip ids read", sorted(p["trip_ids"])==["T-1","T-2"]))
+ok.append(("position read", len(p["positions"])==1 and abs(p["positions"][0][0]-45.81)<0.01))
+for label, cut in (("truncated raises", feed[:len(feed)//2]), ("html raises", b"<html>x</html>")):
+    try:
+        m.parse_feed(cut); ok.append((label, False))
+    except Exception: ok.append((label, True))
+# the key namer must never contain the key
+import importlib.util as iu
+spec2 = iu.spec_from_file_location("kt","src/55_keytest.py")
+k = iu.module_from_spec(spec2); spec2.loader.exec_module(k)
+# Built from pieces so no key shaped literal exists in this repository.
+# A fixture that looks like a key is indistinguishable from one, both to
+# the secret scanner and to anybody reading the file in a hurry.
+secret = "AIza" + "Sy" + "NotARealKey_ForTest_" + "0123456789abc"
+nm=k.name_of(secret)
+ok.append(("the namer hides the key", secret not in nm and secret[4:] not in nm))
+ok.append(("the namer still tells two apart", k.name_of(secret)!=k.name_of(secret[:-1]+"2")))
+note="account marko 2026\nCANCELLED old one\nkey: "+secret+"\nsee https://x.y?srsltid=AbCdEfGhIjKlMnOpQrStUvWxYz012345\n"
+found=k.find_keys(note)
+ok.append(("the parser takes the key out of a note", found==[secret]))
+ok.append(("and leaves the tracking token alone", all("srsltid" not in f for f in found)))
+aq = "AQ." + "Ab8RN6Jm" + "NotARealKey" + "ForTestsOnly" + "1234567890ab"
+ok.append(("the newer AQ. format is found too", aq in k.find_keys("gemini "+aq)))
+for label, good in ok:
+    print(("PASS" if good else "FAIL")+" "+label)
+PYEOF
+)
+while IFS= read -r l; do
+  case "$l" in
+    PASS*) ok ;;
+    FAIL*) bad "${l#FAIL }" ;;
+  esac
+done <<< "$py_out"
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

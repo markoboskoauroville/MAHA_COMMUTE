@@ -64,7 +64,7 @@ yes_ "the installer exited clean"        "[ $rc = 0 ]"
 yes_ "day.commute is on the PATH"        "command -v day.commute >/dev/null"
 yes_ "night.commute is on the PATH"      "command -v night.commute >/dev/null"
 no_  "all.commute was NOT installed"     "command -v all.commute >/dev/null"
-yes_ "commute is on the PATH"            "command -v commute >/dev/null"
+yes_ "maha-commute is on the PATH"            "command -v maha-commute >/dev/null"
 
 # ---- the umbrella on disk -----------------------------------------
 A="$HOME/.maha.commute"
@@ -94,14 +94,19 @@ no_  "no key shape anywhere under HOME" \
      "grep -rqE 'AIza[A-Za-z0-9_-]{30,}' '$HOME' 2>/dev/null"
 
 # ---- the menu answers ---------------------------------------------
-out=$(commute --help 2>&1 || true)
-yes_ "commute --help speaks"             "printf '%s' \"\$out\" | grep -q 'commute \[day'"
-st=$(commute status 2>&1 < /dev/null || true)
-yes_ "commute status names day.commute"  "printf '%s' \"\$st\" | grep -q 'day.commute'"
-yes_ "commute status names the missing one" \
+out=$(maha-commute --help 2>&1 || true)
+yes_ "maha-commute --help speaks"             "printf '%s' \"\$out\" | grep -q 'maha-commute \[day'"
+st=$(maha-commute status 2>&1 < /dev/null || true)
+yes_ "maha-commute status names day.commute"  "printf '%s' \"\$st\" | grep -q 'day.commute'"
+yes_ "maha-commute status names the missing one" \
      "printf '%s' \"\$st\" | grep -q 'all.commute'"
-yes_ "commute status says one is absent" \
+yes_ "maha-commute status says one is absent" \
      "printf '%s' \"\$st\" | grep -q 'not installed'"
+
+if [ "$PHASE" = "install" ]; then
+  printf '\n  %s passed, %s failed  (install half)\n\n' "$pass" "$fail"
+  [ "$fail" = "0" ]; exit $?
+fi
 
 # ---- and now the real server, over real HTTP ----------------------
 ( day.commute > "$T/server.log" 2>&1 & echo $! > "$T/srv.pid" )

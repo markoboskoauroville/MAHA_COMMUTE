@@ -42,7 +42,7 @@ printf '\n' | bash "$UP/13-install-day-commute-termux-v13.sh" --offline >"$T/old
 printf '\n' | bash "$UP/9-night_commute_v9.sh" --offline >"$T/old_night.log" 2>&1
 yes_ "the old day.commute installed"   "[ -x '$PREFIX/bin/day.commute' ]"
 yes_ "the old night.commute installed" "[ -x '$PREFIX/bin/night.commute' ]"
-no_  "and there is no umbrella yet"    "[ -e '$PREFIX/bin/commute' ]"
+no_  "and there is no umbrella yet"    "[ -e '$PREFIX/bin/maha-commute' ]"
 
 # Assert the old is really old, or the test proves nothing at all.
 yes_ "the old day carries a key"       "[ -s '$HOME/.commute/google-api.txt' ]"
@@ -103,23 +103,24 @@ if [ -n "$OLDPID" ] && kill -0 "$OLDPID" 2>/dev/null; then
 else ok; fi
 
 # every executable replaced
-yes_ "the umbrella command is there"   "[ -x '$PREFIX/bin/commute' ]"
+yes_ "the umbrella command is there"   "[ -x '$PREFIX/bin/maha-commute' ]"
 yes_ "day.commute is still there"      "[ -x '$PREFIX/bin/day.commute' ]"
 yes_ "night.commute is still there"    "[ -x '$PREFIX/bin/night.commute' ]"
 no_  "no half written command left"    "ls '$PREFIX/bin'/*.new >/dev/null 2>&1"
 
 # the umbrella now knows what it inherited
-st=$(commute status 2>&1 </dev/null || true)
+st=$(maha-commute status 2>&1 </dev/null || true)
+inf=$(maha-commute info 2>&1 </dev/null || true)
 yes_ "status finds the inherited day"  "printf '%s' \"\$st\" | grep -q 'day.commute'"
-yes_ "status finds the inherited data" "printf '%s' \"\$st\" | grep -q '.commute,'"
-yes_ "status reports the key present"  "printf '%s' \"\$st\" | grep -q 'key      present'"
-no_  "status never prints the key"     "printf '%s' \"\$st\" | grep -qE 'AIza[A-Za-z0-9_-]{30,}'"
+yes_ "info finds the inherited data"   "printf '%s' \"\$inf\" | grep -q '.commute,'"
+yes_ "info reports the key present"    "printf '%s' \"\$inf\" | grep -q 'key      present'"
+no_  "info never prints the key"       "printf '%s' \"\$inf\" | grep -qE 'AIza[A-Za-z0-9_-]{30,}'"
 
 # ---- 6. and again, which must change nothing -----------------------
-SUM1=$(sha256sum "$PREFIX/bin/commute" | cut -d' ' -f1)
+SUM1=$(sha256sum "$PREFIX/bin/maha-commute" | cut -d' ' -f1)
 printf '\n' | bash "$ART" --offline --apps 12 >"$T/upgrade2.log" 2>&1
 yes_ "a second upgrade exits clean"    "[ \$? = 0 ]"
-yes_ "and the menu is unchanged"       "[ \"\$(sha256sum '$PREFIX/bin/commute' | cut -d' ' -f1)\" = '$SUM1' ]"
+yes_ "and the menu is unchanged"       "[ \"\$(sha256sum '$PREFIX/bin/maha-commute' | cut -d' ' -f1)\" = '$SUM1' ]"
 yes_ "and my data is still mine"       "[ -f '$HOME/.commute/pinned.txt' ]"
 
 # ---- 7. the app the upgrade did not include ------------------------

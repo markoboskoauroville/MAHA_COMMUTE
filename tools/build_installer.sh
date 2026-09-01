@@ -57,7 +57,9 @@ for line in $APPS; do
   if grep -qE 'AIza[A-Za-z0-9_-]{30,}' "$src"; then fail "$src still carries a key shape"; fi
 done
 IFS="$OLDIFS"
-for f in src/00_head.sh src/05_lib.sh src/20_menu.sh src/30_install_one.sh src/40_main.sh; do
+for f in src/00_head.sh src/05_lib.sh src/20_menu.sh src/30_install_one.sh \
+         src/40_main.sh src/50_stream.py src/55_keytest.py src/60_update.sh \
+         src/70_uninstall.sh; do
   [ -f "$f" ] || fail "missing $f"
 done
 for d in MAHA_MENU_${SALT} MAHA_INSTALLONE_${SALT}; do
@@ -81,8 +83,8 @@ for line in $APPS; do
     src="src/payloads/$(printf '%s' "$line" | cut -d: -f2)"
     ver=$(printf '%s' "$line" | cut -d: -f3)
     printf '#   %-6s %-4s %8s bytes  sha256 %s\n' \
-      "$id" "$ver" "$(wc -c < "$src" | tr -d ' ')" \
-      "$(sha256sum "$src" | cut -c1-16)"
+      "$id" "$ver" "$(python3 tools/patch_payload.py "$src" "$id" | wc -c | tr -d ' ')" \
+      "$(python3 tools/patch_payload.py "$src" "$id" | sha256sum | cut -c1-16)"
   done
   IFS="$OLDIFS"
   printf '#\n'
@@ -97,13 +99,14 @@ verd=$(printf '%s\n' "$APPS" | grep '^day:'   | cut -d: -f3)
 vern=$(printf '%s\n' "$APPS" | grep '^night:' | cut -d: -f3)
 vera=$(printf '%s\n' "$APPS" | grep '^all:'   | cut -d: -f3)
 
-python3 - "$ROOT" "$hdr" "$BUILD" "$OUT" "$verd" "$vern" "$vera" <<'PY'
+python3 - "$ROOT" "$hdr" "$BUILD" "$OUT" "$verd" "$vern" "$vera" "$VERSION" <<'PY'
 import sys, pathlib
 root, hdr, build, outname, vd, vn, va = sys.argv[1:8]
 root = pathlib.Path(root)
 head = (root / "src/00_head.sh").read_text()
 head = head.replace("# @@HEADER@@", pathlib.Path(hdr).read_text().rstrip())
 head = head.replace("@@FILENAME@@", outname)
+head = head.replace("@@VERSION@@", sys.argv[8])
 head = head.replace("@@VER_DAY@@", vd).replace("@@VER_NIGHT@@", vn).replace("@@VER_ALL@@", va)
 pathlib.Path(build).write_text(head)
 PY
@@ -120,7 +123,9 @@ for line in $APPS; do
     src="src/payloads/$(printf '%s' "$line" | cut -d: -f2)"
     delim="MAHA_PAY_${id}_${SALT}"
     printf "    %s) cat <<'%s'\n" "$id" "$delim"
-    cat "$src"
+    # Through the patcher, which is where the run reset is added. The source
+    # on disk stays the file that was handed over.
+    python3 tools/patch_payload.py "$src" "$id"
     printf '%s\n      ;;\n' "$delim"
   done
   IFS="$OLDIFS"
@@ -133,6 +138,22 @@ for line in $APPS; do
   printf 'maha_emit_install_one() {\n  cat <<%s\n' "'MAHA_INSTALLONE_${SALT}'"
   cat src/30_install_one.sh
   printf 'MAHA_INSTALLONE_%s\n}\n\n' "$SALT"
+
+  printf 'maha_emit_stream() {\n  cat <<%s\n' "'MAHA_STREAM_${SALT}'"
+  cat src/50_stream.py
+  printf 'MAHA_STREAM_%s\n}\n\n' "$SALT"
+
+  printf 'maha_emit_keytest() {\n  cat <<%s\n' "'MAHA_KEYTEST_${SALT}'"
+  cat src/55_keytest.py
+  printf 'MAHA_KEYTEST_%s\n}\n\n' "$SALT"
+
+  printf 'maha_emit_uninstall() {\n  cat <<%s\n' "'MAHA_UNINST_${SALT}'"
+  cat src/70_uninstall.sh
+  printf 'MAHA_UNINST_%s\n}\n\n' "$SALT"
+
+  printf 'maha_emit_update() {\n  cat <<%s\n' "'MAHA_UPDATE_${SALT}'"
+  cat src/60_update.sh
+  printf 'MAHA_UPDATE_%s\n}\n\n' "$SALT"
 
   cat src/40_main.sh
 } >> "$BUILD"

@@ -216,7 +216,7 @@ fi
 if [ "$ASK_KEY" = "1" ]; then
   printf "\n  ${KEY}no google maps key on this phone${OFF}\n"
   printf "  ${DIM}the apps work without one. The maps draw, the photographs${OFF}\n"
-  printf "  ${DIM}and the 360 view do not. It can be added later with${OFF} ${SAND}commute key${OFF}\n"
+  printf "  ${DIM}and the 360 view do not. It can be added later with${OFF} ${SAND}maha-commute key${OFF}\n"
   printf "\n  ${KEY}Enter${OFF} ${DIM}carry on without it${OFF}   ${KEY}p${OFF} ${DIM}paste one now${OFF}\n"
   printf "\n  ${AM}>${OFF} "
   IFS= read -r ANS || ANS=""
@@ -280,9 +280,48 @@ step "the install routine"
 maha_emit_install_one | install_command "$APPHOME/install-one.sh"
 done_
 
-step "the commute menu"
-maha_emit_menu | install_command "$BIN/commute"
+step "the stream checker"
+maha_emit_stream > "$APPHOME/stream.py.new"
+mv -f "$APPHOME/stream.py.new" "$APPHOME/stream.py"
 done_
+
+step "the key tester"
+maha_emit_keytest > "$APPHOME/keytest.py.new"
+mv -f "$APPHOME/keytest.py.new" "$APPHOME/keytest.py"
+done_
+
+step "the updater"
+maha_emit_update | install_command "$APPHOME/update.sh"
+done_
+
+step "the uninstaller"
+maha_emit_uninstall | install_command "$APPHOME/uninstall.sh"
+done_
+
+step "the launcher"
+maha_emit_menu | install_command "$BIN/maha-commute"
+done_
+
+step "the updater command"
+printf '#!%s\nexec bash "%s/update.sh" "$@"\n' "$BIN/bash" "$APPHOME" \
+  | install_command "$BIN/maha-commute-update"
+done_
+
+# v1 of this umbrella left a command called commute. Leaving it behind
+# means two launchers on the PATH, one of them stale, and the stale one is
+# the shorter word so it is the one that gets typed. It is replaced by a
+# line that points at the new name rather than deleted, because a command
+# that vanishes with no explanation reads as a broken install.
+if [ -f "$BIN/commute" ] && ! grep -q 'maha-commute' "$BIN/commute" 2>/dev/null; then
+  step "the old commute command"
+  {
+    printf '#!%s\n' "$BIN/bash"
+    printf '# left by MAHA COMMUTE v2. The launcher is called maha-commute now.\n'
+    printf 'printf "\\n  this is maha-commute now.\\n\\n"\n'
+    printf 'exec "%s/maha-commute" "$@"\n' "$BIN"
+  } | install_command "$BIN/commute"
+  done_
+fi
 
 # ---------------------------------------------------------------
 # the apps
@@ -314,7 +353,7 @@ done
 if [ -n "$FAILED" ]; then
   printf "\n    ${BAD}did not finish:${OFF}${DIM}%s${OFF}\n" "$FAILED"
 fi
-printf "\n  type ${KEY}commute${OFF} ${DIM}for the menu${OFF}\n"
+printf "\n  type ${KEY}maha-commute${OFF} ${DIM}for the launcher${OFF}\n"
 printf "  ${DIM}or the app name on its own: day.commute, night.commute, all.commute${OFF}\n"
 printf "\n  ${DIM}the three payloads are kept in %s${OFF}\n" "$PAYDIR"
 printf "  ${DIM}so any app can be added or removed later with no download${OFF}\n"
