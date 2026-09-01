@@ -183,5 +183,33 @@ while IFS= read -r l; do
   esac
 done <<< "$py_out"
 
+# ---- the midnight countdown, in a real javascript engine ----------
+# The bug that showed minus 1405 minutes at 23:27 for a 00:02 bus. The
+# patched function is pulled out of the ARTEFACT, not out of a copy typed
+# into this test, so what is measured is what ships.
+if command -v node >/dev/null 2>&1; then
+  V=$(cat VERSION); ART="$V-maha_commute_v$V.sh"
+  JS=$(mktemp); trap 'rm -f "$JS"' EXIT
+  {
+    printf 'const NOW = new Date("2026-08-31T23:27:13+02:00").getTime();\n'
+    printf 'const R = Date;\n'
+    printf 'global.Date = class extends R { constructor(...a){ return a.length ? new R(...a) : new R(NOW); } static now(){ return NOW; } };\n'
+    sed -n '/^function hhmmToTodaySecs/,/^}/p' "$ART"
+    printf 'const mins = s => Math.round((s*1000 - Date.now())/60000);\n'
+    printf 'const out = {};\n'
+    printf 'for (const t of ["23:21","23:32","23:47","00:02","00:12","00:24","24:02"]) out[t] = mins(hhmmToTodaySecs(t));\n'
+    printf 'console.log(JSON.stringify(out));\n'
+  } > "$JS"
+  R=$(TZ=Europe/Zagreb node "$JS" 2>/dev/null)
+  eq "00:02 is 35 minutes away, not -1405" '"00:02":35' "$(printf '%s' "$R" | grep -o '"00:02":[-0-9]*')"
+  eq "00:12 agrees with the schedule row"  '"00:12":45' "$(printf '%s' "$R" | grep -o '"00:12":[-0-9]*')"
+  eq "00:24 agrees with the schedule row"  '"00:24":57' "$(printf '%s' "$R" | grep -o '"00:24":[-0-9]*')"
+  eq "a just missed bus stays negative"    '"23:21":-6' "$(printf '%s' "$R" | grep -o '"23:21":[-0-9]*')"
+  eq "a bus in five minutes is unchanged"  '"23:32":5'  "$(printf '%s' "$R" | grep -o '"23:32":[-0-9]*')"
+  eq "the GTFS 24:xx form also works"      '"24:02":35' "$(printf '%s' "$R" | grep -o '"24:02":[-0-9]*')"
+else
+  printf '  node is not here, so the 6 midnight countdown checks did not run\n'
+fi
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

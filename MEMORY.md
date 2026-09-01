@@ -102,3 +102,25 @@ protobuf and has its own varint reader, but never looks at the header, so a
 feed that stopped moving an hour ago is drawn as if it were now. `stream.py`
 reads it, and cross checks it against the server's own Last-Modified, which is
 an independent witness of the same fact.
+
+## THE MIDNIGHT COUNTDOWN, day.commute v13
+
+*Found 31.8.2026 from a screenshot at 23:27, fixed the same day.*
+
+A 00:02 bus showed **minus 1405 minutes**, which is 1440 minus the 35 it
+should have said.
+
+`hhmmToTodaySecs` built the departure with `setHours` on **today**, so 00:02
+became 00:02 that morning, 23 hours 25 minutes in the past. Only the LIVE
+rows went through it: the scheduled rows get their minutes from Python, where
+the rollover is already handled, which is why one row in six was wrong while
+the two rows below it were right.
+
+The same file already had `minsUntil` doing this correctly with a three hour
+threshold. Two functions answering one question, and only one of them knew
+the answer. The fix uses the same threshold so they cannot disagree.
+
+It is applied by `tools/patch_payload.py` at build time, with a witness that
+fails the build if the function is edited upstream, and six checks in Test 1
+that run the shipped function in a real javascript engine against a clock
+frozen at 23:27:13.

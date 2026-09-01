@@ -5,9 +5,9 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-09-01 20:42 UTC
+# built            2026-09-01 21:29 UTC
 # payloads, as carried, key stripped:
-#   day    v13    186031 bytes  sha256 2b4657e630314930
+#   day    v13    186621 bytes  sha256 fa9edd9b2ead2e2e
 #   night  v9      90416 bytes  sha256 4afc5edb03984941
 #   all    v39    206727 bytes  sha256 05b1beeab768e3ef
 #
@@ -3458,6 +3458,14 @@ function hhmmToTodaySecs(hhmm) {
   if (!m) return null;
   const d = new Date();
   d.setHours(+m[1], +m[2], 0, 0);
+  // A departure after midnight is tomorrow's, and setHours puts it on
+  // today. At 23:27 that made 00:02 into 00:02 THIS MORNING, so the live
+  // countdown read minus 1405 minutes, which is 1440 minus the 35 it should
+  // have said. The scheduled rows were right because their minutes are
+  // worked out in Python, where the rollover is already handled; only the
+  // live rows came through here, which is why one row in six was wrong.
+  // Same three hour threshold as minsUntil, so the two cannot disagree.
+  if (d.getTime() - Date.now() < -180 * 60000) d.setDate(d.getDate() + 1);
   return Math.floor(d.getTime() / 1000);
 }
 function secsToHHMM(secs) {
@@ -13343,4 +13351,4 @@ printf "\n  ${DIM}run termux-setup-storage once, by hand, if you have not:${OFF}
 printf "  ${DIM}nothing can do it for you, and without it the phone's own${OFF}\n"
 printf "  ${DIM}Downloads folder is not reachable from here.${OFF}\n\n"
 
-# MAHA_COMMUTE_SENTINEL v2 85f3051163495c51
+# MAHA_COMMUTE_SENTINEL v2 d266ea1086a854da

@@ -71,6 +71,14 @@ WITNESS = {
     "night": [],
 }
 
+# A fix, not a feature: the live countdown across midnight. It lives here
+# with the reset patch because the rule is the same, that src/payloads
+# stays what was handed over and every change to it is one visible
+# transformation with a witness and a test.
+FIXES = {
+    "day": [('function hhmmToTodaySecs(hhmm) {\n  const m = /^(\\d{1,2}):(\\d{2})/.exec(hhmm || "");\n  if (!m) return null;\n  const d = new Date();\n  d.setHours(+m[1], +m[2], 0, 0);\n  return Math.floor(d.getTime() / 1000);\n}', 'function hhmmToTodaySecs(hhmm) {\n  const m = /^(\\d{1,2}):(\\d{2})/.exec(hhmm || "");\n  if (!m) return null;\n  const d = new Date();\n  d.setHours(+m[1], +m[2], 0, 0);\n  // A departure after midnight is tomorrow\'s, and setHours puts it on\n  // today. At 23:27 that made 00:02 into 00:02 THIS MORNING, so the live\n  // countdown read minus 1405 minutes, which is 1440 minus the 35 it should\n  // have said. The scheduled rows were right because their minutes are\n  // worked out in Python, where the rollover is already handled; only the\n  // live rows came through here, which is why one row in six was wrong.\n  // Same three hour threshold as minsUntil, so the two cannot disagree.\n  if (d.getTime() - Date.now() < -180 * 60000) d.setDate(d.getDate() + 1);\n  return Math.floor(d.getTime() / 1000);\n}')],
+}
+
 SNIPPET = '''
 /* ---- MAHA COMMUTE, reset on a new run ---------------------------------
    Runs before anything below reads localStorage, which is the only reason
@@ -101,6 +109,14 @@ def main():
         if w not in src:
             sys.exit("patch_payload: %s no longer contains %s, so the reset list "
                      "is out of date for this version" % (app, w))
+
+    for old, new in FIXES.get(app, []):
+        if src.count(old) != 1:
+            sys.exit("patch_payload: %s, the midnight countdown fix no longer "
+                     "matches exactly once (found %d). The function was edited "
+                     "upstream and the fix has to be re-read against it."
+                     % (app, src.count(old)))
+        src = src.replace(old, new, 1)
 
     keys = RESET.get(app, [])
     if not keys:
