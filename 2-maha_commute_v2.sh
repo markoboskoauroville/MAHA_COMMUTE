@@ -5,7 +5,7 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-09-01 19:16 UTC
+# built            2026-09-01 20:42 UTC
 # payloads, as carried, key stripped:
 #   day    v13    186031 bytes  sha256 2b4657e630314930
 #   night  v9      90416 bytes  sha256 4afc5edb03984941
@@ -12742,8 +12742,10 @@ printf "  ${DIM}%s things, %s in total${OFF}\n" "$COUNT" \
   "$(du -shc $(printf '%s' "$LIST" | cut -d'|' -f2 | tr '\n' ' ') 2>/dev/null | tail -1 | cut -f1)"
 
 if [ "$ALL" != 1 ]; then
-  printf "\n  ${KEY}a${OFF} ${DIM}everything, all of it${OFF}\n"
+  printf "\n  ${KEY}o${OFF} ${DIM}old versions only: the names earlier installs left${OFF}\n"
+  printf "  ${DIM}    behind, keeping everything that works today${OFF}\n"
   printf "  ${KEY}u${OFF} ${DIM}the umbrella only, leaving the three apps working${OFF}\n"
+  printf "  ${KEY}a${OFF} ${DIM}everything, all of it${OFF}\n"
   printf "  ${KEY}q${OFF} ${DIM}nothing, go back${OFF}\n"
   printf "\n  ${AM}>${OFF} "
   IFS= read -r ANS || ANS="q"
@@ -12756,6 +12758,25 @@ if [ "$ALL" != 1 ]; then
       remove_one "$APPHOME"
       printf "\n  ${OK}done.${OFF} ${DIM}day.commute, night.commute and all.commute${OFF}\n"
       printf "  ${DIM}still work exactly as they did before.${OFF}\n\n"
+      exit 0 ;;
+    o|O)
+      # Only what an earlier version left. Nothing here is in use: the v1
+      # launcher was replaced by maha-commute, and nightram and
+      # nightcommute are names night.commute has not answered to for a
+      # long time. The apps and all their data are untouched.
+      printf "\n  ${DIM}clearing what earlier versions left behind${OFF}\n\n"
+      gone=0
+      for old in "$BIN/commute" "$BIN/nightram" "$BIN/nightcommute" \
+                 "$HOME/.local/bin/nightram" "$HOME/.local/bin/nightcommute" \
+                 "$HOME/.nightram"; do
+        [ -e "$old" ] && { remove_one "$old"; gone=$((gone+1)); }
+      done
+      if [ "$gone" = 0 ]; then
+        printf "  ${DIM}nothing old was found. This phone is already clean.${OFF}\n"
+      else
+        printf "\n  ${OK}%s removed.${OFF} ${DIM}Every working app is untouched.${OFF}\n" "$gone"
+      fi
+      printf "\n"
       exit 0 ;;
     a|A) : ;;
     *) printf "\n  ${DIM}nothing was changed.${OFF}\n\n"; exit 0 ;;
@@ -13322,4 +13343,4 @@ printf "\n  ${DIM}run termux-setup-storage once, by hand, if you have not:${OFF}
 printf "  ${DIM}nothing can do it for you, and without it the phone's own${OFF}\n"
 printf "  ${DIM}Downloads folder is not reachable from here.${OFF}\n\n"
 
-# MAHA_COMMUTE_SENTINEL v2 9299e7c6148e1a9d
+# MAHA_COMMUTE_SENTINEL v2 85f3051163495c51
