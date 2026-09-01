@@ -124,3 +124,34 @@ It is applied by `tools/patch_payload.py` at build time, with a witness that
 fails the build if the function is edited upstream, and six checks in Test 1
 that run the shipped function in a real javascript engine against a clock
 frozen at 23:27:13.
+
+## THE UPDATER, AND THE DECISION BEHIND IT
+
+*31.8.2026, v3.*
+
+The repository stays **private**, because day.commute is built around one
+home stop and one commute, and that is an address.
+
+So automatic updates need a credential, and the credential is a **fine
+grained github token, read only, scoped to this one repository, with an
+expiry**, stored at 600 beside the google key. Losing it means read access to
+one private repository of transit scripts, which is a smaller thing than the
+google key already on that phone, and revoking it at github ends it.
+
+    maha-commute-update --token     once
+    maha-commute-update             from then on
+
+Without a token it still works the old way: the file arrives on the phone
+however it arrives and the updater finds it, checks it four ways and runs it.
+
+**The frozen address is `VERSION`, not the installer.** VERSION holds a
+number, and the installer it names carries that number at both ends. That is
+how the filename keeps its number at both ends while the updater still has a
+fixed thing to ask for.
+
+## A PROCESS FAILURE WORTH REMEMBERING
+
+*31.8.2026.* The midnight countdown fix was shipped inside v2 without a
+version bump. A change is a new version, always, and a fix is a change. Baba
+caught it. Anything that alters the artefact gets a number, however small it
+looks while writing it.
