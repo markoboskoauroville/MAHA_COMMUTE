@@ -188,3 +188,33 @@ Also visible in that screenshot and NOT fixed: the CARTO basemap tiles now
 say API KEY REQUIRED across them, so the dark basemap needs a Carto key or a
 different tile source. And the location line read "no provider answered" at
 ±71 m.
+
+## WHY PRESSING 1 LOOKED LIKE IT DID NOTHING
+
+*1.9.2026, v6.* A browser tab opened on 127.0.0.1 with nothing behind it,
+and the launcher said the app had not come up.
+
+Two causes, both in the launcher and neither in the app.
+
+**The wait was sixteen seconds.** day.commute execs its server, and that
+server fetches an eleven megabyte schedule from ZET and builds its caches
+BEFORE it binds anything. On a phone on mobile data that is minutes. So the
+launcher announced failure while the app was still working, and the app,
+which opens its own browser tab, had already opened one. A tab with nothing
+behind it yet.
+
+Now the wait is three minutes, it prints the seconds and the app's own last
+line while waiting, and any key leaves it working in the background instead
+of killing it.
+
+**The app inherited the terminal.** It was backgrounded with nohup but with
+stdin still attached, so a server and the menu were both attached to the
+same keyboard. Now it gets setsid and `</dev/null`: its own session, no
+terminal, so it cannot eat a keypress meant for the menu and it does not die
+when the menu is quit.
+
+**A test failure that was not a bug.** Test 2 went red on "the server's own
+record agrees with the socket" because a stray server from a manual
+reproduction was still holding 8082, so the test's own server took 8083 and
+recorded 8083. The test was right and the machine was dirty. Kill strays
+before believing a port assertion.

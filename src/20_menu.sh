@@ -154,24 +154,60 @@ offer_install() {
 }
 
 start_app() {
-  local id="$1" cmd port i
+  local id="$1" cmd port i last shown=""
   cmd=$(field "$(app_row "$id")" 2)
   if ! is_installed "$id"; then offer_install "$id"; return; fi
   if running "$id"; then LAST="$id"; open_url "http://127.0.0.1:$(app_port "$id")/?run=$RUN"; return; fi
+
   printf "\n  ${DIM}starting %s${OFF}\n" "$cmd"
-  ( cd "$HOME" && nohup "$BIN/$cmd" > "$RUNDIR/$id.log" 2>&1 & echo $! > "$RUNDIR/$id.pid" )
-  # Wait for the port to answer, not for a number of seconds. A timer is a
-  # guess about how long a phone takes to bind a socket, and guessing low
-  # shows connection refused to somebody who then closes the tab.
-  for i in $(seq 1 40); do running "$id" && break; sleep 0.4; done
+
+  # setsid and </dev/null. The app gets its own session and no terminal, so
+  # it cannot compete with this menu for a keypress and it does not die when
+  # the menu is quit. Inheriting the terminal is how a backgrounded server
+  # ends up eating the key you pressed for something else.
+  ( cd "$HOME" && setsid nohup "$BIN/$cmd" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+    echo $! > "$RUNDIR/$id.pid" ) 2>/dev/null ||
+  ( cd "$HOME" && nohup "$BIN/$cmd" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+    echo $! > "$RUNDIR/$id.pid" )
+
+  # A FIRST start is not a restart. day.commute fetches an eleven megabyte
+  # schedule from ZET and builds its caches before it binds anything, which
+  # on a phone on mobile data is minutes. The old wait here was sixteen
+  # seconds, so it announced failure while the app was still working, and
+  # the app opened its own browser tab in the meantime. That is the whole
+  # bug: a tab with nothing behind it yet, and a menu saying it did not
+  # come up.
+  #
+  # So the wait is long, it says how long it has been, it shows the app's
+  # own last line, and a keypress leaves it running rather than killing it.
+  printf "  ${DIM}first start builds the schedule, this can take minutes${OFF}\n"
+  printf "  ${DIM}any key to leave it working and go back${OFF}\n\n"
+  for i in $(seq 1 450); do
+    running "$id" && break
+    if [ $((i % 5)) = 0 ]; then
+      last=$(tail -1 "$RUNDIR/$id.log" 2>/dev/null | tr -d '\r' | sed 's/\x1b\[[0-9;]*[A-Za-z]//g' | cut -c1-40)
+      [ -n "$last" ] && [ "$last" != "$shown" ] && { printf "  ${DIM}%s${OFF}\n" "$last"; shown="$last"; }
+      printf "\r  ${AM}%ss${OFF}${DIM} waiting for port %s${OFF}   " "$((i * 2 / 5))" "$(app_port "$id")"
+    fi
+    # A key means stop waiting, not stop the app.
+    if read -rsn1 -t 0.4 _k 2>/dev/null; then
+      printf "\n\n  ${SAND}left working in the background.${OFF}\n"
+      printf "  ${DIM}the quadrant fills when it answers${OFF}\n"
+      sleep 1; return
+    fi
+  done
+  printf "\r                                                  \r"
+
   if running "$id"; then
     port=$(app_port "$id"); LAST="$id"
     printf "  ${OK}up${OFF} ${DIM}on %s${OFF}\n" "$port"
     open_url "http://127.0.0.1:$port/?run=$RUN"
     sleep 1
   else
-    printf "  ${BAD}%s did not come up${OFF}\n" "$cmd"
-    printf "  ${DIM}its own words are in %s${OFF}\n" "$RUNDIR/$id.log"
+    printf "  ${BAD}%s has not answered in three minutes${OFF}\n" "$cmd"
+    printf "  ${DIM}it may still be working. Its own words:${OFF}\n\n"
+    tail -6 "$RUNDIR/$id.log" 2>/dev/null | sed 's/^/    /'
+    printf "\n  ${DIM}%s${OFF}\n" "$RUNDIR/$id.log"
     anykey
   fi
 }
