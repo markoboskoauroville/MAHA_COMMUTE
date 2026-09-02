@@ -67,7 +67,7 @@ RESET = {
 # a reset that silently clears nothing.
 WITNESS = {
     "day":   ['localStorage.getItem("commute_pick")', 'localStorage.getItem("bus_dir")'],
-    "all":   ['LS.get("watch"', 'LS.get("view"'],
+    "all":   ['LS.get("watch"', 'LS.get("view"', 'function starHTML', 'function drawStars'],
     "night": [],
 }
 
@@ -76,6 +76,7 @@ WITNESS = {
 # stays what was handed over and every change to it is one visible
 # transformation with a witness and a test.
 FIXES = {
+    "all": [('    \'</span></span>\' + starHTML(c, on) +\n    \'<span class="pinchip">', '    // The star marks the one station being watched and appears nowhere\n    // else. Every station carrying one made the star mean "a station is\n    // here", which the pills already say, and left nothing to say "this is\n    // the one you picked".\n    \'</span></span>\' + (on ? starHTML(c, on) : "") +\n    \'<span class="pinchip">'), ('async function openPop(stop){\n  SEL = stop;', 'async function openPop(stop){\n  SEL = stop;\n  // Opening a station IS watching it. Tap the number or tap the name, and\n  // that station is the one being watched until another is opened. The\n  // separate toggle still lets a station be dropped, but nothing has to be\n  // toggled on any more: picking is the whole gesture.\n  if (!WATCH || WATCH.stop_id !== stop.stop_id) {\n    WATCH = { stop_id: stop.stop_id, name: stop.name, lat: stop.lat, lon: stop.lon };\n    LS.set("watch", WATCH);\n    document.body.classList.add("watching");\n    const _db = document.getElementById("dashBtn");\n    if (_db) _db.classList.add("hasbar");\n    if (!COLOUR[stop.stop_id]) COLOUR[stop.stop_id] = stationColour(stop.stop_id);\n    drawStars(); updateWatchBar();\n    if (!boardTimer) boardTimer = setInterval(refreshBoards, 20000);\n  }')],
     "day": [('function hhmmToTodaySecs(hhmm) {\n  const m = /^(\\d{1,2}):(\\d{2})/.exec(hhmm || "");\n  if (!m) return null;\n  const d = new Date();\n  d.setHours(+m[1], +m[2], 0, 0);\n  return Math.floor(d.getTime() / 1000);\n}', 'function hhmmToTodaySecs(hhmm) {\n  const m = /^(\\d{1,2}):(\\d{2})/.exec(hhmm || "");\n  if (!m) return null;\n  const d = new Date();\n  d.setHours(+m[1], +m[2], 0, 0);\n  // A departure after midnight is tomorrow\'s, and setHours puts it on\n  // today. At 23:27 that made 00:02 into 00:02 THIS MORNING, so the live\n  // countdown read minus 1405 minutes, which is 1440 minus the 35 it should\n  // have said. The scheduled rows were right because their minutes are\n  // worked out in Python, where the rollover is already handled; only the\n  // live rows came through here, which is why one row in six was wrong.\n  // Same three hour threshold as minsUntil, so the two cannot disagree.\n  if (d.getTime() - Date.now() < -180 * 60000) d.setDate(d.getDate() + 1);\n  return Math.floor(d.getTime() / 1000);\n}')],
 }
 

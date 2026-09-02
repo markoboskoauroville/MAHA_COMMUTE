@@ -168,3 +168,23 @@ fixed thing to ask for.
 version bump. A change is a new version, always, and a fix is a change. Baba
 caught it. Anything that alters the artefact gets a number, however small it
 looks while writing it.
+
+## THE STAR IN ALL.COMMUTE
+
+*1.9.2026, v5.* Every station wore a star, which made the star mean "a
+station is here", something the number pill and the name pill already said.
+It left nothing to mean "this is the one you picked".
+
+Now the star appears on the watched station only, beside its name, and
+**opening a station is what watching means**. Tap the number or tap the name,
+either one, and that station is being watched until another is opened. The
+pills were already one click target, so both halves worked from the start;
+what was missing was that the tap did not make it the watched one.
+
+The separate toggle still drops a station. Nothing has to be toggled on any
+more: picking is the whole gesture.
+
+Also visible in that screenshot and NOT fixed: the CARTO basemap tiles now
+say API KEY REQUIRED across them, so the dark basemap needs a Carto key or a
+different tile source. And the location line read "no provider answered" at
+±71 m.

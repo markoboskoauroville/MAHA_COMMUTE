@@ -211,5 +211,31 @@ else
   printf '  node is not here, so the 6 midnight countdown checks did not run\n'
 fi
 
+# ---- the star marks one station, not every station -----------------
+# pinHTML is pulled out of the ARTEFACT and run for real, with a watched
+# station and an unwatched one, so what is measured is what ships.
+if command -v node >/dev/null 2>&1; then
+  V=$(cat VERSION); ART="$V-maha_commute_v$V.sh"
+  JS2=$(mktemp)
+  {
+    printf 'const STAR_PTS="0,0"; const COLOUR={A:"#d4a017",B:"#39d0d8"};\n'
+    printf 'let WATCHED="A";\n'
+    printf 'const esc = t => String(t); const dirAbbr = () => "N";\n'
+    printf 'const isWatched = id => id === WATCHED;\n'
+    sed -n "/^function starHTML/,/^}/p" "$ART"
+    sed -n "/^function pinHTML/,/^}/p" "$ART"
+    printf 'const A = pinHTML({stop_id:"A",name:"Trg",bearing:0});\n'
+    printf 'const B = pinHTML({stop_id:"B",name:"Ilica",bearing:0});\n'
+    printf 'console.log(JSON.stringify({watchedHasStar:/class="star/.test(A), otherHasStar:/class="star/.test(B), watchedHasId:/pinid/.test(A), otherHasId:/pinid/.test(B), otherHasName:/pinchip/.test(B)}));\n'
+  } > "$JS2"
+  R2=$(node "$JS2" 2>/dev/null); rm -f "$JS2"
+  eq "the watched station has a star"    "true"  "$(printf '%s' "$R2" | grep -o '"watchedHasStar":[a-z]*' | cut -d: -f2)"
+  eq "every other station has none"      "false" "$(printf '%s' "$R2" | grep -o '"otherHasStar":[a-z]*' | cut -d: -f2)"
+  eq "the number is still there"         "true"  "$(printf '%s' "$R2" | grep -o '"otherHasId":[a-z]*' | cut -d: -f2)"
+  eq "the name is still there"           "true"  "$(printf '%s' "$R2" | grep -o '"otherHasName":[a-z]*' | cut -d: -f2)"
+else
+  printf '  node is not here, so the 4 star checks did not run\n'
+fi
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]
