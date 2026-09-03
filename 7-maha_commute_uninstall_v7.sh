@@ -1,9 +1,9 @@
 #!/data/data/com.termux/files/usr/bin/bash
-# 6-maha_commute_uninstall_v6.sh
+# 7-maha_commute_uninstall_v7.sh
 #
 # The MAHA COMMUTE uninstaller, on its own. Run it anywhere:
 #
-#     bash 6-maha_commute_uninstall_v6.sh
+#     bash 7-maha_commute_uninstall_v7.sh
 #
 # It needs nothing installed and it changes nothing until asked. It
 # looks on disk, lists what it finds with sizes, and offers four
@@ -11,7 +11,7 @@
 # everything, or nothing. The full wipe asks for a typed word.
 #
 # Generated from src/70_uninstall.sh by tools/build_uninstaller.sh.
-# built 2026-09-02 10:23 UTC
+# built 2026-09-03 18:02 UTC
 # uninstall.sh, written by the MAHA COMMUTE installer.
 #
 #   maha-commute uninstall        the panel, decide item by item
@@ -212,4 +212,4 @@ done
 [ "$LEFT" = 0 ] && printf "  ${DIM}checked six names, none remains${OFF}\n"
 printf "\n"
 
-# MAHA_UNINSTALL_SENTINEL v6
+# MAHA_UNINSTALL_SENTINEL v7

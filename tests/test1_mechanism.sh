@@ -211,9 +211,11 @@ else
   printf '  node is not here, so the 6 midnight countdown checks did not run\n'
 fi
 
-# ---- the star marks one station, not every station -----------------
-# pinHTML is pulled out of the ARTEFACT and run for real, with a watched
-# station and an unwatched one, so what is measured is what ships.
+# ---- the pin is the number and nothing else ------------------------
+# pinHTML is pulled out of the ARTEFACT and run for real. The star is gone
+# and so is the name: three labels per station, six stations in view, and
+# the map was a pile of text. The name comes back in the popup, which is
+# the only place it is needed.
 if command -v node >/dev/null 2>&1; then
   V=$(cat VERSION); ART="$V-maha_commute_v$V.sh"
   JS2=$(mktemp)
@@ -229,10 +231,10 @@ if command -v node >/dev/null 2>&1; then
     printf 'console.log(JSON.stringify({watchedHasStar:/class="star/.test(A), otherHasStar:/class="star/.test(B), watchedHasId:/pinid/.test(A), otherHasId:/pinid/.test(B), otherHasName:/pinchip/.test(B)}));\n'
   } > "$JS2"
   R2=$(node "$JS2" 2>/dev/null); rm -f "$JS2"
-  eq "the watched station has a star"    "true"  "$(printf '%s' "$R2" | grep -o '"watchedHasStar":[a-z]*' | cut -d: -f2)"
-  eq "every other station has none"      "false" "$(printf '%s' "$R2" | grep -o '"otherHasStar":[a-z]*' | cut -d: -f2)"
-  eq "the number is still there"         "true"  "$(printf '%s' "$R2" | grep -o '"otherHasId":[a-z]*' | cut -d: -f2)"
-  eq "the name is still there"           "true"  "$(printf '%s' "$R2" | grep -o '"otherHasName":[a-z]*' | cut -d: -f2)"
+  eq "no station wears a star, watched or not" "false" "$(printf '%s' "$R2" | grep -o '"watchedHasStar":[a-z]*' | cut -d: -f2)"
+  eq "and none of the others either"     "false" "$(printf '%s' "$R2" | grep -o '"otherHasStar":[a-z]*' | cut -d: -f2)"
+  eq "the number is what is left"        "true"  "$(printf '%s' "$R2" | grep -o '"otherHasId":[a-z]*' | cut -d: -f2)"
+  eq "the name is off the map"           "false" "$(printf '%s' "$R2" | grep -o '"otherHasName":[a-z]*' | cut -d: -f2)"
 else
   printf '  node is not here, so the 4 star checks did not run\n'
 fi

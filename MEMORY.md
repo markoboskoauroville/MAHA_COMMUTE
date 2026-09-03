@@ -218,3 +218,27 @@ record agrees with the socket" because a stray server from a manual
 reproduction was still holding 8082, so the test's own server took 8083 and
 recorded 8083. The test was right and the machine was dirty. Kill strays
 before believing a port assertion.
+
+## THE MAP PIN IS THE NUMBER
+
+*1.9.2026, v7.* The pin carried three things: a number, a star and a name.
+On a phone in the middle of the city that is three overlapping labels per
+station with half a dozen stations in view, so the map became a pile of text
+with a map underneath it.
+
+Now it is the number and the direction letter. Tap the number, get the
+arrivals.
+
+**The star is gone entirely**, and with it the idea of a station being
+"watched", which was a second concept stacked on top of simply picking one.
+Baba asked for it removed twice: first to appear only on the picked station,
+then not at all. The second ask is the right one, and the first was me
+keeping a mechanism alive that had already been declined.
+
+**The name is gone from the map** because the number identifies the station
+and the name is in the popup, which is the only place it is needed. The
+direction letter stays because two stops sharing a number on opposite sides
+of a road is the confusion a map has to resolve rather than add to.
+
+The internal WATCH still exists because the arrivals board and the dashboard
+read it. Nothing draws it any more.
