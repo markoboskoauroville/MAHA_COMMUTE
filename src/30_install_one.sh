@@ -128,4 +128,12 @@ fi
 
 mkdir -p "$STAMPDIR"
 printf '%s\n' "$VER" > "$STAMPDIR/$APP"
+# The checksum of the payload that is now on this phone. The next install
+# compares against it and leaves this app alone when it has not moved, so an
+# update touches the apps that changed and no others.
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256sum "$SRC" | cut -d" " -f1 > "$STAMPDIR/$APP.sha"
+else
+  wc -c < "$SRC" | tr -d ' ' > "$STAMPDIR/$APP.sha"
+fi
 exit 0

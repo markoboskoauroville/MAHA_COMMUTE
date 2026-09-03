@@ -91,92 +91,44 @@ printf "\n"
 # ---------------------------------------------------------------
 # which apps
 #
-# All three are on the screen whether they are wanted or not, and one
-# already on the phone says so, so the choice is made against what is
-# actually here rather than against a memory of it.
+# All three, always. There used to be a picker here and it was the wrong
+# question: the answer was always all three, and asking it once per install
+# was a keystroke charged for nothing. --apps still exists for a test that
+# needs to install a subset, and nobody types it.
 # ---------------------------------------------------------------
-CHOSEN=""
 if [ -n "$PICK" ]; then
   CHOSEN=$(maha_parse_pick "$PICK") || {
     printf "  ${BAD}--apps %s is not something I can read${OFF}\n\n" "$PICK"; exit 2; }
 else
-  while :; do
-    printf "  ${KEY}which apps${OFF}\n"
-    n=0
-    for id in $(app_ids); do
-      n=$((n+1)); row=$(app_row "$id")
-      cmd=$(field "$row" 2); ver=$(field "$row" 4); desc=$(field "$row" 6)
-      if is_installed "$id"; then
-        printf "    ${KEY}%s${OFF}  ${SAND}%-15s${OFF} ${DIM}%-4s %s${OFF} ${OK}installed${OFF}\n" \
-          "$n" "$cmd" "$ver" "$desc"
-      else
-        printf "    ${KEY}%s${OFF}  ${SAND}%-15s${OFF} ${DIM}%-4s %s${OFF}\n" \
-          "$n" "$cmd" "$ver" "$desc"
-      fi
-    done
-    printf "\n    ${DIM}type the numbers together, 13 for two of them${OFF}\n"
-    printf "    ${KEY}Enter${OFF} ${DIM}all three${OFF}      ${KEY}n${OFF} ${DIM}none, just the menu${OFF}\n"
-    printf "\n  ${AM}>${OFF} "
-    IFS= read -r ANS || ANS=""
-    if CHOSEN=$(maha_parse_pick "$ANS"); then break; fi
-    printf "\n  ${SAND}1, 2 and 3 are the ones there are. Try again.${OFF}\n\n"
+  CHOSEN=$(app_ids | tr '\n' ' ')
+fi
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------
+# dependencies, decided rather than asked
+#
+# Present ones are left alone. Missing ones are fetched if anything is
+# missing at all and the network answers. There is no question here because
+# there was never a real choice in it: nobody wants a half installed app,
+# and the offline case is what happens on its own when the network does not
+# answer. --offline still forces the old behaviour for a test.
+# ---------------------------------------------------------------
+NEED=""
+[ "$HAVE_PY" = "0" ]    && NEED="$NEED python"
+[ "$HAVE_OPEN" = "0" ]  && NEED="$NEED termux-api"
+[ "$HAVE_FUSER" = "0" ] && NEED="$NEED psmisc"
+
+if [ "$MODE" = "offline" ]; then
+  step "dependencies"; skip_
+elif [ -z "$NEED" ]; then
+  step "dependencies"; printf " ${OK}all present${OFF}\n"
+else
+  printf "  ${DIM}missing:${OFF}%s\n" "$NEED"
+  for pkgname in $NEED; do
+    step "installing $pkgname"
+    if pkg install -y "$pkgname" >/dev/null 2>&1; then done_; else fail_ "not fetched"; fi
   done
+  command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 && HAVE_PY=1
 fi
-
-if [ -z "$CHOSEN" ]; then
-  printf "\n  ${DIM}no apps chosen. The menu and all three payloads go on anyway,${OFF}\n"
-  printf "  ${DIM}so any of them can be added later from inside commute.${OFF}\n"
-else
-  printf "\n  ${DIM}installing:${OFF}"
-  for id in $CHOSEN; do printf " ${SAND}%s${OFF}" "$(field "$(app_row "$id")" 2)"; done
-  printf "\n"
-fi
-
-# ---------------------------------------------------------------
-# offline or online
-# ---------------------------------------------------------------
-if [ -z "$MODE" ]; then
-  printf "\n  ${KEY}install mode${OFF}\n"
-  printf "    ${KEY}Enter${OFF}  ${DIM}offline, use what is already here${OFF}\n"
-  printf "    ${KEY}y${OFF}      ${DIM}fetch the missing dependencies first${OFF}\n"
-  if [ "$REQ_MISSING" -gt 0 ]; then
-    printf "\n    ${SAND}python is not here, so y is the one to press${OFF}\n"
-  fi
-  printf "\n  ${AM}>${OFF} "
-  IFS= read -r ANS || ANS=""
-  case "$ANS" in [yY]*) MODE="online" ;; *) MODE="offline" ;; esac
-fi
-printf "  ${DIM}mode: %s${OFF}\n\n" "$MODE"
-
-if [ "$MODE" = "online" ]; then
-  step "python runtime"
-  if [ "$HAVE_PY" = "0" ]; then
-    printf " ${SAND}installing${OFF}\n"
-    pkg install -y python >/dev/null 2>&1 || yes | pkg install python || true
-    step "python runtime"; done_
-  else
-    done_
-  fi
-  step "termux-api tools"
-  if [ "$HAVE_OPEN" = "0" ]; then
-    printf " ${SAND}installing${OFF}\n"
-    pkg install -y termux-api >/dev/null 2>&1 || true
-    step "termux-api tools"; done_
-  else
-    done_
-  fi
-  step "psmisc, for fuser"
-  if [ "$HAVE_FUSER" = "0" ]; then
-    printf " ${SAND}installing${OFF}\n"
-    pkg install -y psmisc >/dev/null 2>&1 || true
-    step "psmisc, for fuser"; done_
-  else
-    done_
-  fi
-else
-  step "dependency install"; skip_
-fi
-
 # ---------------------------------------------------------------
 # the google key
 #
@@ -214,26 +166,9 @@ else
 fi
 
 if [ "$ASK_KEY" = "1" ]; then
-  printf "\n  ${KEY}no google maps key on this phone${OFF}\n"
-  printf "  ${DIM}the apps work without one. The maps draw, the photographs${OFF}\n"
-  printf "  ${DIM}and the 360 view do not. It can be added later with${OFF} ${SAND}maha-commute key${OFF}\n"
-  printf "\n  ${KEY}Enter${OFF} ${DIM}carry on without it${OFF}   ${KEY}p${OFF} ${DIM}paste one now${OFF}\n"
-  printf "\n  ${AM}>${OFF} "
-  IFS= read -r ANS || ANS=""
-  case "$ANS" in
-    p|P)
-      printf "\n  ${DIM}paste the key, then Enter${OFF}\n  ${AM}>${OFF} "
-      IFS= read -r NEWKEY || NEWKEY=""
-      NEWKEY=$(printf '%s' "$NEWKEY" | maha_clean_key)
-      if [ -n "$NEWKEY" ]; then
-        printf '%s\n' "$NEWKEY" > "$KEYFILE"; chmod 600 "$KEYFILE"
-        printf "\n  ${OK}stored${OFF} ${DIM}%s characters${OFF}\n" "${#NEWKEY}"
-      else
-        printf "\n  ${DIM}nothing was pasted, carrying on without${OFF}\n"
-      fi ;;
-  esac
+  printf "  ${DIM}no google key here yet. The apps work without one: the maps${OFF}\n"
+  printf "  ${DIM}draw, the photographs do not.${OFF} ${SAND}maha-commute key${OFF} ${DIM}adds one.${OFF}\n"
 fi
-printf "\n"
 
 # ---------------------------------------------------------------
 # the umbrella itself
@@ -326,9 +261,31 @@ fi
 # ---------------------------------------------------------------
 # the apps
 # ---------------------------------------------------------------
+# What actually moved.
+#
+# An update that reinstalls all three every time is three apps rebuilding
+# their caches to no purpose, and it hides the one thing worth reading: which
+# app changed. So each app is compared against the checksum of the payload
+# that is on the phone, and an app whose payload is identical is not touched
+# at all.
+payload_sha() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$PAYDIR/$1.payload.sh" | cut -d" " -f1
+  else
+    wc -c < "$PAYDIR/$1.payload.sh" | tr -d ' '
+  fi
+}
+
 FAILED=""
 INSTALLED=""
+UNCHANGED=""
 for id in $CHOSEN; do
+  want=$(payload_sha "$id")
+  have=$(cat "$STAMPDIR/$id.sha" 2>/dev/null || printf 'none')
+  if is_installed "$id" && [ "$want" = "$have" ]; then
+    UNCHANGED="$UNCHANGED $id"
+    continue
+  fi
   if bash "$APPHOME/install-one.sh" "$id" "--$MODE"; then
     INSTALLED="$INSTALLED $id"
   else
@@ -350,6 +307,15 @@ for id in $(app_ids); do
     printf "    ${DIM}off  %-15s add it from the menu${OFF}\n" "$cmd"
   fi
 done
+if [ -n "$INSTALLED" ]; then
+  printf "\n    ${OK}updated:${OFF}"
+  for id in $INSTALLED; do printf " ${SAND}%s${OFF}" "$(field "$(app_row "$id")" 2)"; done
+  printf "\n"
+fi
+if [ -n "$UNCHANGED" ]; then
+  printf "    ${DIM}already current, left alone:%s${OFF}\n" \
+    "$(for id in $UNCHANGED; do printf ' %s' "$(field "$(app_row "$id")" 2)"; done)"
+fi
 if [ -n "$FAILED" ]; then
   printf "\n    ${BAD}did not finish:${OFF}${DIM}%s${OFF}\n" "$FAILED"
 fi

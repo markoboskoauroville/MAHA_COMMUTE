@@ -75,6 +75,7 @@ fresh nokey
 printf '\n' | bash "$ART" --offline --apps 1 >"$T/nokey.log" 2>&1
 yes_ "with no key it still installs"   "command -v day.commute >/dev/null"
 yes_ "and says the key is optional"    "grep -q 'work without one' '$T/nokey.log'"
+yes_ "and asked nothing to do it"      "! grep -q 'paste one now' '$T/nokey.log'"
 
 # ---- TWICE: the same install, twice in a row ----------------------
 fresh twice

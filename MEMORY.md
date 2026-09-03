@@ -242,3 +242,28 @@ of a road is the confusion a map has to resolve rather than add to.
 
 The internal WATCH still exists because the arrivals board and the dashboard
 read it. Nothing draws it any more.
+
+## THE INSTALL ASKS NOTHING NOW
+
+*1.9.2026, v8.* Three questions were removed because none of them had a real
+choice behind it.
+
+**Which apps.** The answer was always all three. `--apps` still exists for a
+test that installs a subset; nobody types it.
+
+**Offline or online.** Missing dependencies are fetched, present ones are
+left alone, and offline is what happens on its own when the network does not
+answer. `--offline` still forces it.
+
+**The key.** If there is no key it says so in one line and carries on. It
+does not stop and ask.
+
+So the installer reads no input at all now, which is also what makes it safe
+for `maha-commute-update` to run unattended.
+
+**AN UPDATE TOUCHES ONLY WHAT MOVED.** Each install records the sha256 of the
+payload it installed in `installed/<app>.sha`. The next run compares, and an
+app whose payload is identical is not reinstalled. Reinstalling all three
+every time meant three apps rebuilding caches for nothing, and it buried the
+one line worth reading. The closing now says `updated: night.commute` and
+`already current, left alone: day.commute all.commute`.
