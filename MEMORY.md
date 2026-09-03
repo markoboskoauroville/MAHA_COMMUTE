@@ -267,3 +267,30 @@ app whose payload is identical is not reinstalled. Reinstalling all three
 every time meant three apps rebuilding caches for nothing, and it buried the
 one line worth reading. The closing now says `updated: night.commute` and
 `already current, left alone: day.commute all.commute`.
+
+## NO DEAD ZONE BETWEEN THE TAP AND THE DATA
+
+*1.9.2026, v9.* Tapping a station went straight to the network, so the first
+thing that happened after touching one was nothing, for as long as the
+request took. On a phone that reads as a dead app and the finger taps again.
+
+**The outline lands on the tap. The fetch waits 333ms.** Long enough to
+change your mind after a mis-tap, short enough that a deliberate tap does not
+feel held back. Tap three stations in a row and only the third is fetched:
+each tap moves the white outline and cancels the one before it.
+
+**SELGEN is what makes a cancelled fetch stay cancelled.** A request already
+in flight cannot be recalled, but its answer can be thrown away, and the
+generation it was started under is how it knows it is stale. Without that,
+three quick taps race and the slowest answer wins, which is the wrong one.
+
+The white outline is white on purpose: every other colour on that map means a
+line or a station, and this one has to mean "you touched this" and nothing
+else.
+
+**hud() kept its signature** and gained a Braille spinner, so every existing
+caller works unchanged. A turning spinner also distinguishes working from
+died, which the old static dot did not.
+
+Measured in node at real timings, taps at 0, 80 and 160ms: one fetch, of the
+third station, with three outlines before it.

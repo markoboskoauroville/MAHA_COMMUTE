@@ -239,5 +239,32 @@ else
   printf '  node is not here, so the 4 star checks did not run\n'
 fi
 
+# ---- three taps in a row fetch once ---------------------------------
+# armStation is pulled out of the ARTEFACT and driven at real timings: a tap,
+# another 80ms later, a third at 160ms. Only the last one may reach the
+# network, and every tap must have moved the outline before it.
+if command -v node >/dev/null 2>&1; then
+  V=$(cat VERSION); ART="$V-maha_commute_v$V.sh"
+  J3=$(mktemp)
+  {
+    printf 'const calls=[]; let hudLog=[];\n'
+    printf 'global.document={querySelectorAll:()=>[],getElementById:()=>({set innerHTML(v){}})};\n'
+    printf 'const esc=t=>String(t); const MARKS={};\n'
+    printf 'function hud(h,b){hudLog.push((b?"spin ":"still ")+h.replace(/<[^>]+>/g,""));}\n'
+    printf 'function openPop(s,g){calls.push(s.stop_id+"@"+g);}\n'
+    sed -n "/^let ARM_T = null, SELGEN = 0;/,/^}/p" "$ART"
+    printf 'armStation({stop_id:"A"});\n'
+    printf 'setTimeout(()=>armStation({stop_id:"B"}),80);\n'
+    printf 'setTimeout(()=>armStation({stop_id:"C"}),160);\n'
+    printf 'setTimeout(()=>console.log(JSON.stringify({n:calls.length,last:calls[0]||"",taps:hudLog.filter(x=>/selected/.test(x)).length})),700);\n'
+  } > "$J3"
+  R3=$(node "$J3" 2>/dev/null); rm -f "$J3"
+  eq "three quick taps fetch once"        '"n":1'     "$(printf '%s' "$R3" | grep -o '"n":[0-9]*')"
+  eq "and it is the last one tapped"      '"last":"C@3"' "$(printf '%s' "$R3" | grep -o '"last":"[^"]*"')"
+  eq "every tap moved the outline first"  '"taps":3'  "$(printf '%s' "$R3" | grep -o '"taps":[0-9]*')"
+else
+  printf '  node is not here, so the 3 arming checks did not run\n'
+fi
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]
