@@ -266,5 +266,220 @@ else
   printf '  node is not here, so the 3 arming checks did not run\n'
 fi
 
+# ---- the live feed, reader and placing, alone ---------------------
+# night.commute v10 reads the ZET realtime protobuf. Nothing here touches
+# the network: the feed is assembled byte by byte from the wire format, so
+# a reader that merely agrees with itself cannot pass.
+live_out=$(python3 - <<'PYEOF'
+import struct, sys, threading, time, json, urllib.request, datetime
+
+# What live.py inherits from night_server.py when it is spliced into it.
+NIGHT_ROUTES = ("31", "32", "33", "34")
+NIGHT_JSON = "/nonexistent/night.json"
+COORDS_JSON = "/nonexistent/coords.json"
+SCHED_JSON = "/nonexistent/night_sched.json"
+def _log(m): pass
+
+g = dict(globals())
+exec(compile(open("src/payloads/night-v10/live.py", encoding="utf-8").read(),
+             "live.py", "exec"), g)
+
+ok = []
+def check(label, cond): ok.append((label, bool(cond)))
+
+# ---- the wire ----
+def vi(n):
+    o = b""
+    while True:
+        b = n & 0x7F; n >>= 7
+        o += bytes([b | 0x80]) if n else bytes([b])
+        if not n: return o
+ld  = lambda f, p: vi(f << 3 | 2) + vi(len(p)) + p
+vf  = lambda f, v: vi(f << 3 | 0) + vi(v)
+f32 = lambda f, v: vi(f << 3 | 5) + struct.pack("<f", v)
+# A negative int64 goes on the wire as its two's complement, which is how an
+# early tram arrives looking like 18446744073709551526.
+neg = lambda v: v & ((1 << 64) - 1)
+
+NOW = int(time.time())
+TRIP = b"0_23_3302_33_10017"
+desc = ld(1, TRIP) + ld(5, b"33")
+def stu(stop, t, d):
+    ev = (vf(1, neg(d)) if d is not None else b"") + (vf(2, t) if t else b"")
+    return ld(4, stop) + ld(3, ev)
+
+# The shape ZET actually publishes: the delay and the position for ONE tram
+# arrive as TWO entities that never appear together. 31 carried a TripUpdate,
+# 35 carried a VehiclePosition, 0 carried both.
+feed = (ld(1, ld(1, b"2.0") + vf(3, NOW))
+        + ld(2, ld(1, b"X8HIDLT03R")
+               + ld(3, ld(1, desc) + ld(2, stu(b"314_1", NOW + 60, -160))))
+        + ld(2, ld(1, b"X8HIDLT03R_460")
+               + ld(4, ld(1, desc) + ld(2, f32(1, 45.8004) + f32(2, 15.9850))
+                      + vf(5, NOW - 5) + ld(8, ld(1, b"460")))))
+p = g["parse_rt"](feed)
+check("the feed header timestamp is read", p["ts"] == NOW)
+check("both entities are counted", p["entities"] == 2)
+check("two entities become ONE tram", len(p["trips"]) == 1)
+t = p["trips"][TRIP.decode()]
+check("the merged tram has its position", t["lat"] is not None)
+check("and its stop updates", len(t["stops"]) == 1)
+check("the route comes off the descriptor", t["route_id"] == "33")
+check("the car number is read", t["veh"] == "460")
+check("an early tram is early, not 18 quintillion seconds late",
+      t["stops"]["314_1"]["d"] == -160)
+
+# ---- a coordinate that is not in Zagreb is not a Zagreb tram ----
+for label, lat, lon in (("0,0 is a missing coordinate, not the Atlantic", 0.0, 0.0),
+                        ("a tram in the Adriatic is refused", 43.50, 16.44),
+                        ("and one in the next country", 47.50, 19.04)):
+    bad = (ld(1, vf(3, NOW))
+           + ld(2, ld(1, b"e") + ld(4, ld(1, desc) + ld(2, f32(1, lat) + f32(2, lon)))))
+    check(label, g["parse_rt"](bad)["trips"][TRIP.decode()]["lat"] is None)
+
+# ---- malformed ----
+for label, cut in (("a feed truncated mid field raises", feed[:len(feed) - 3]),
+                   ("a web page is not a feed", b"<html><body>portal</body></html>")):
+    try:
+        g["parse_rt"](cut); check(label, False)
+    except Exception: check(label, True)
+check("an empty feed is empty, not an error", g["parse_rt"](b"")["entities"] == 0)
+
+# ---- the delay rule, which is where the feed lies ----
+BD = g["_best_delay"]
+check("a delay with no time beside it is not a delay",
+      BD({"a": {"t": None, "d": 0}}, NOW) is None)
+check("thirty of those in a row still say nothing",
+      BD({str(i): {"t": None, "d": 0} for i in range(30)}, NOW) is None)
+check("a delay of 24000 seconds is not a delay",
+      BD({"a": {"t": NOW + 10, "d": 24000}}, NOW) is None)
+check("nor is 3605, which is a clock an hour out",
+      BD({"a": {"t": NOW + 10, "d": 3605}}, NOW) is None)
+check("a real one is taken", BD({"a": {"t": NOW + 10, "d": 120}}, NOW) == 120)
+check("a genuinely late tram survives", BD({"a": {"t": NOW + 10, "d": 900}}, NOW) == 900)
+check("an early one does too", BD({"a": {"t": NOW + 10, "d": -420}}, NOW) == -420)
+check("the boundary itself is allowed",
+      BD({"a": {"t": NOW + 10, "d": 1800}}, NOW) == 1800)
+check("and one second past it is not",
+      BD({"a": {"t": NOW + 10, "d": 1801}}, NOW) is None)
+check("a stop still ahead beats one already passed",
+      BD({"past": {"t": NOW - 30, "d": 60}, "next": {"t": NOW + 30, "d": 90}}, NOW) == 90)
+check("with nothing ahead, the most recent past one is used",
+      BD({"old": {"t": NOW - 900, "d": 60}, "recent": {"t": NOW - 30, "d": 90}}, NOW) == 90)
+check("no updates at all is no delay", BD({}, NOW) is None)
+
+# ---- placing a tram on a line ----
+NAMES = ["A", "B", "C", "D", "E", "F"]
+NET = {"lines": {"33": {"termA": "A", "termB": "F", "stations": NAMES,
+                        "stopmap": {n: [n + "_0", n + "_1"] for n in NAMES}},
+                 "31": {"termA": "X", "termB": "Y", "stations": ["X", "Y"],
+                        "stopmap": {"X": ["X_0", "X_1"], "Y": ["Y_0", "Y_1"]}}}}
+# A straight line east, about 780 m a step, and X sits right on top of C.
+COORDS = {n: [45.80, 15.90 + 0.01 * i] for i, n in enumerate(NAMES)}
+COORDS["X"] = [45.80, 15.92]
+COORDS["Y"] = [45.90, 16.20]
+
+idx = g["_stop_index"](NET)
+check("a stop id knows its line", idx["C_0"][0] == "33")
+check("and its direction", idx["C_1"][1] == 1)
+check("and its place in the order", idx["D_0"][3] == 3)
+check("a stop id nobody has is not invented", "Z_0" not in idx)
+
+DO = g["_direction_of"]
+check("the stops it still has ahead say which way it is going",
+      DO({"trip_id": "x", "stops": {"C_1": {}, "D_1": {}}}, "33", idx) == (1, "stops"))
+check("and the other way", DO({"trip_id": "x", "stops": {"C_0": {}}}, "33", idx) == (0, "stops"))
+check("another line's stops do not vote",
+      DO({"trip_id": "0_23_3301_33_1", "stops": {"X_1": {}}}, "33", idx)[1] == "pattern")
+check("with no stops, pattern 01 is direction 0",
+      DO({"trip_id": "0_23_3301_33_10032", "stops": {}}, "33", idx) == (0, "pattern"))
+check("and pattern 02 is direction 1",
+      DO({"trip_id": "0_23_3302_33_10017", "stops": {}}, "33", idx) == (1, "pattern"))
+check("a trip id that says nothing admits it",
+      DO({"trip_id": "rubbish", "stops": {}}, "33", idx) == (None, "unknown"))
+
+NS = g["_nearest_station"]
+check("a tram is at the station it is standing on", NS(NET, COORDS, "33", 45.80, 15.92)[0] == "C")
+check("and that station's index comes with it", NS(NET, COORDS, "33", 45.80, 15.92)[1] == 2)
+check("the distance is in metres, and small", NS(NET, COORDS, "33", 45.80, 15.9201)[2] < 30)
+# X is a 31's stop at the same coordinate as C. A 33 standing there is at C.
+check("a 33 is never at a 31's stop", NS(NET, COORDS, "33", 45.80, 15.92)[0] != "X")
+check("a line with no coordinates places nothing",
+      NS({"lines": {"33": {"stations": ["Q"]}}}, {}, "33", 45.8, 15.9)[0] is None)
+
+# ---- how long it takes, out of the app's own timetable ----
+# Two minutes a stop out, and the same back. One trip dawdles at D to prove
+# the median is taken and not the worst.
+def trip0(base, slow=0):
+    return {NAMES[i] + "_0": base + i * 120 + (slow if i >= 3 else 0) for i in range(6)}
+def trip1(base):
+    return {NAMES[i] + "_1": base + (5 - i) * 120 for i in range(6)}
+SCHED = {"33": {"0": [trip0(0), trip0(3000), trip0(6000, slow=600)],
+                "1": [trip1(0), trip1(3000)]}}
+run = g["_running_times"](NET, SCHED)
+r0, r1 = run["33"]["0"], run["33"]["1"]
+check("direction 0 counts up from its first station", r0[0] == 0 and r0[5] == 600)
+# Both directions are measured from the same end of the same listed order, so
+# direction 1, which travels the other way along it, counts downhill into
+# negative numbers. That is not a bug to be corrected into looking tidy: it is
+# what makes the one subtraction below come out positive in both directions.
+check("direction 1 runs downhill along the same order", r1[0] == 0 and r1[5] == -600)
+check("the median ignores the one trip that dawdled", r0[3] == 360)
+# The property everything downstream leans on, in both directions.
+check("dir 0: from the tram to me comes out positive", r0[4] - r0[1] == 360)
+check("dir 1: the same subtraction is still positive", r1[1] - r1[4] == 360)
+check("a line no trip runs has no times",
+      all(x is None for x in g["_running_times"](NET, {})["33"]["0"]))
+
+# ---- the service window ----
+W = g["_in_night_window"]
+D = datetime.datetime
+check("23:49 is too early", W(D(2026, 9, 16, 23, 49)) is False)
+check("23:50 is the first minute", W(D(2026, 9, 16, 23, 50)) is True)
+check("midnight is the middle of it", W(D(2026, 9, 16, 0, 30)) is True)
+check("04:40 is the last minute", W(D(2026, 9, 16, 4, 40)) is True)
+check("04:41 is over", W(D(2026, 9, 16, 4, 41)) is False)
+check("the afternoon is not the night", W(D(2026, 9, 16, 15, 0)) is False)
+
+# ---- it answers even when it cannot answer ----
+# NIGHT_JSON above points at nothing, so this is the un-built app. It must
+# come back with a reason rather than raise into a 500.
+p = g["live_payload"]()
+check("a live payload is always a payload", isinstance(p, dict) and "trams" in p)
+check("and says why it is empty", p["trams"] == [])
+
+for label, good in ok:
+    print(("PASS" if good else "FAIL") + " " + label)
+PYEOF
+)
+while IFS= read -r l; do
+  case "$l" in
+    PASS*) ok ;;
+    FAIL*) bad "${l#FAIL }" ;;
+  esac
+done <<< "$live_out"
+
+# ---- the live feed, in the page, out of the ARTEFACT ---------------
+# live_page.js pulls night.html out of the artefact, stubs a browser round
+# it and drives the shipped code. The direction comparison is the one worth
+# the trouble: get it backwards and the app confidently lists the trams that
+# have already gone past you.
+if command -v node >/dev/null 2>&1; then
+  V=$(cat VERSION); ART="$V-maha_commute_v$V.sh"
+  page_out=$(node tests/page_v10.js "$ART" 2>&1)
+  while IFS= read -r l; do
+    case "$l" in
+      PASS*) ok ;;
+      FAIL*) bad "${l#FAIL }" ;;
+    esac
+  done <<< "$page_out"
+  case "$page_out" in
+    *COUNT*) ;;
+    *) bad "page_v10.js did not finish, so its checks did not run" ;;
+  esac
+else
+  printf '  node is not here, so the 45 live page checks did not run\n'
+fi
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

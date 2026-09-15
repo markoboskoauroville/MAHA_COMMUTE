@@ -1,0 +1,44 @@
+
+  /* ---- the live feed, night.commute v10 -------------------------------
+     A tram that is really out there has to look different from a time in a
+     timetable, or the two read as one thing and the live one is believed
+     about the parts it does not know. Live rows are lit from the left by a
+     bar in the line's own colour; scheduled times stay exactly as they were. */
+  .livewrap { margin:2px 0 10px 42px; display:flex; flex-direction:column; gap:5px; }
+  .liverow { display:flex; align-items:baseline; gap:8px; font-size:.79rem;
+    color:var(--text); background:rgba(90,209,255,.07); border-left:3px solid var(--lc,#5ad1ff);
+    border-radius:0 9px 9px 0; padding:6px 10px; }
+  .liverow .lvcar { font-weight:800; font-variant-numeric:tabular-nums; color:var(--lc,#5ad1ff); }
+  .liverow .lvwhere { color:var(--muted); flex:1; min-width:0; }
+  .liverow .lveta { font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .liverow.est .lveta { color:var(--muted); font-weight:700; }
+  .livenone { font-size:.75rem; color:var(--muted); margin:2px 0 10px 42px; }
+
+  /* The pulse says the page is receiving, not merely holding a number it was
+     given once. It stops the moment the feed goes stale, which is the only
+     honest thing a live dot can do when nothing is arriving. */
+  .lvdot { width:7px; height:7px; border-radius:50%; background:var(--lc,#5ad1ff);
+    flex:none; align-self:center; animation:lvpulse 1.6s ease-in-out infinite; }
+  @keyframes lvpulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.35;transform:scale(.72)} }
+  .lvdot.flat { animation:none; opacity:.4; }
+
+  /* the status strip under the map */
+  .livebar { display:flex; align-items:center; gap:8px; font-size:.76rem; color:var(--muted);
+    background:var(--card); border:1px solid var(--border); border-radius:11px;
+    padding:8px 11px; margin-bottom:10px; }
+  .livebar b { color:var(--text); font-variant-numeric:tabular-nums; }
+  .livebar.warn { border-color:rgba(255,180,84,.55); color:var(--accent); }
+  .livebar.bad  { border-color:rgba(255,107,107,.55); color:#ff6b6b; }
+  .livebar .lvspacer { flex:1; }
+  .livebar .lvlost { color:var(--muted); }
+
+  /* the tram itself, on the map */
+  .tram { display:flex; align-items:center; justify-content:center;
+    width:26px; height:26px; margin:-13px 0 0 -13px; border-radius:50%;
+    background:var(--c,#5ad1ff); color:#0b0f1a; font-weight:900; font-size:.72rem;
+    border:2px solid #0b0f1a; box-shadow:0 0 0 2px rgba(255,255,255,.55), 0 2px 8px rgba(0,0,0,.6);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif; }
+  /* Reckoned and last-seen positions are inferences. They are drawn hollow so
+     a glance can tell a tram ZET is locating from one this app is guessing at. */
+  .tram.guess { background:transparent; color:var(--c,#5ad1ff); border-style:dashed;
+    border-color:var(--c,#5ad1ff); box-shadow:none; }

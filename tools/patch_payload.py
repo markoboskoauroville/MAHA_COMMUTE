@@ -37,13 +37,15 @@ thrown away, so the two are on opposite lists.
                          ac2_view        where the map was left sitting
                   kept   ac2_mode, ac2_engine, ac2_radius, ac2_layers
 
-  night.commute   reset  nothing, because it stores no selection. Its four
-                         keys are the map engine, the basemap, which lines
-                         are shown and the stops you added yourself, and
-                         every one of those is a preference or your own
-                         work. Saying "night resets nothing" is the honest
-                         answer; inventing a reset for symmetry would throw
-                         away typed stops.
+  night.commute   reset  nothing, because it stores no selection. Its keys
+                         are the map engine, the basemap, which lines are
+                         shown, the stops you added yourself and nc_fav, the
+                         stations you starred. Every one of those is a
+                         preference or your own work. Saying "night resets
+                         nothing" is the honest answer; inventing a reset for
+                         symmetry would throw away a list somebody built by
+                         hand, and the favourites are the clearest case of
+                         that there is.
 
 WHAT COUNTS AS A NEW RUN
 
@@ -53,8 +55,17 @@ was typed or came from a bookmark, a fresh navigation counts as new and a
 reload does not, so pulling to refresh does not wipe your pick mid journey.
 """
 
+import os
 import re
 import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night-v10")
+
+
+def _part(name):
+    with open(os.path.join(NIGHT_LIVE, name), encoding="utf-8") as f:
+        return f.read()
 
 RESET = {
     "day":   ["commute_pick", "bus_dir", "commute_watch"],
@@ -68,13 +79,42 @@ RESET = {
 WITNESS = {
     "day":   ['localStorage.getItem("commute_pick")', 'localStorage.getItem("bus_dir")'],
     "all":   ['LS.get("watch"', 'LS.get("view"', 'function starHTML', 'function drawStars'],
-    "night": [],
+    # Everything the live feed reaches into. It does not edit any of these, it
+    # wraps them, and a wrapper around a function that has been renamed or
+    # reshaped upstream is not an error anywhere: it is a page that loads,
+    # runs, and quietly never shows a tram. These turn that silence into a
+    # failed build.
+    "night": [
+        'function legHtml(ln, a, b, markNext)',   # the live rows hang off this
+        'function dirIndex(ln,a,b)',              # which way you are travelling
+        'async function initMap()',               # the trams are drawn after it
+        'function resetMap()',                    # and taken off in it
+        'function switchTab(t)',                  # what starts and stops polling
+        'const GEng = {',                         # both engines are taught
+        'const LEng = {',                         # to draw a vehicle
+        'let MAP=null',                           # which map they draw on
+        'id="lineChecks"',                        # what the status strip sits above
+        '"stopmap"',                              # station name -> its two stop ids
+        'NIGHT_ROUTES = ("31", "32", "33", "34")',
+        'SCHED_JSON = os.path.join(APPDIR, "night_sched.json")',
+        # and what the star reaches into
+        'function searchStations(q)',             # favourites are sorted to the top
+        'function wireSearch(inputId, sugId, which)',   # the picker they are starred in
+        'function computeRoute(target)',          # a chip fills a field and re-plans
+        'id="tab-plan"',                          # where the chips are inserted
+        'class="picker"',                         # and just above which one
+    ],
 }
 
-# A fix, not a feature: the live countdown across midnight. It lives here
-# with the reset patch because the rule is the same, that src/payloads
-# stays what was handed over and every change to it is one visible
-# transformation with a witness and a test.
+# Everything else that is done to a payload on its way out: the midnight
+# countdown fix in day, the tap and the pin in all, and night's live feed.
+# They live here rather than in src/payloads for one reason, which is that
+# src/payloads holds the files as they were handed over, so importing
+# day.commute v14 is dropping a file in rather than merging one.
+#
+# Each entry is an anchor and its replacement. The anchor must appear exactly
+# once or the build stops: a change that lands twice, or not at all, is worse
+# than one that refuses, because both of those ship.
 FIXES = {
     "all": [
         ('function pinHTML(s){\n  const c = COLOUR[s.stop_id], on = isWatched(s.stop_id), ab = dirAbbr(s.bearing);\n  return \'<div class="pin">\' +\n    \'<span class="pinid"><span style="--c:\' + c + \'">\' + esc(s.stop_id) +\n    \'</span></span>\' + starHTML(c, on) +\n    \'<span class="pinchip"><span style="--c:\' + c + \'">\' + esc(s.name) +\n    (ab ? \' <i>\' + ab + \'</i>\' : "") + \'</span></span></div>\';\n}',
@@ -91,6 +131,73 @@ FIXES = {
          '  await refreshPop();\n  if (gen !== undefined && gen !== SELGEN) return;\n  hud("<b>" + esc(stop.stop_id) + "</b> " + esc(stop.name), false);'),
         ('  .starwrap{background:none;border:0;}',
          '  .starwrap{background:none;border:0;}\n  /* The armed outline. White, because every other colour on this map means\n     a line or a station, and this one has to mean "you touched this" and\n     nothing else. */\n  .pin.armed .pinid span{box-shadow:0 0 0 2px #fff,0 0 10px rgba(255,255,255,.55);}'),
+    ],
+    # night.commute v10: it reads the live feed and says where the tram is.
+    #
+    # The new code is in src/payloads/night-v10/ as ordinary .py, .js and
+    # .css files rather than as string literals in here, because four hundred
+    # lines quoted inside this file would be four hundred lines nothing can
+    # lint, diff or run. What this table holds is the JOIN: an anchor that
+    # must appear exactly once, and what goes next to it.
+    "night": [
+        # The app's own version. A change is a new version, and the app has
+        # to say the number it is, not the number it grew out of.
+        ('NIGHT_VERSION="v9 (a)"',
+         'NIGHT_VERSION="v10 (a)"'),
+        ('APP_VERSION = "v9"\nAPP_BUILD = "n9-a"',
+         'APP_VERSION = "v10"\nAPP_BUILD = "n10-a"'),
+        ('installed  night.commute v9 (a)',
+         'installed  night.commute v10 (a)'),
+        ('(v.version||"v9")',
+         '(v.version||"v10")'),
+        ('.catch(()=>{ document.getElementById("verLine").textContent="v9 (a)"; });',
+         '.catch(()=>{ document.getElementById("verLine").textContent="v10 (a)"; });'),
+
+        # The reader and the placing, ahead of the handler that serves them.
+        ('class H(http.server.BaseHTTPRequestHandler):',
+         _part("live.py") + '\n\nclass H(http.server.BaseHTTPRequestHandler):'),
+
+        # One route. It never raises, so it needs no guard around it.
+        ('        if r=="/version": return self._json({"version":APP_VERSION,"build":APP_BUILD})',
+         '        if r=="/version": return self._json({"version":APP_VERSION,"build":APP_BUILD})\n'
+         '        if r=="/live": return self._json(live_payload())'),
+
+        # The look of a live row, of a tram on the map, and of a starred
+        # station.
+        ('</style>', _part("live.css") + _part("star.css") + '</style>'),
+
+        # A star on each row of the station picker. It is its own target, and
+        # it carries the station's name on itself, because the handler below
+        # fires from the button rather than from the row around it.
+        ('''    sug.innerHTML = list.map((s,i)=>
+      '<div class="sg-item'+(i===hi?" hi":"")+'" data-i="'+i+'">'+s+
+      '<span class="sg-lines">'+ST_LINES[s].map(lineBadge).join("")+'</span></div>').join("");''',
+         '''    sug.innerHTML = list.map((s,i)=>
+      '<div class="sg-item'+(i===hi?" hi":"")+(isFav(s)?" fav":"")+'" data-i="'+i+'">'+
+      '<button class="sg-star" data-st="'+esc(s)+'" title="Keep this station">'+
+      (isFav(s)?STAR_ON:STAR_OFF)+'</button>'+esc(s)+
+      '<span class="sg-lines">'+ST_LINES[s].map(lineBadge).join("")+'</span></div>').join("");'''),
+
+        # and the two taps kept apart. A tap on the star must not also choose
+        # the station, or starring the stop you are standing at sends you to it.
+        ('''    sug.querySelectorAll(".sg-item").forEach(el=>{
+      el.addEventListener("mousedown",(e)=>{ e.preventDefault(); choose(list[+el.dataset.i]); });
+    });''',
+         '''    sug.querySelectorAll(".sg-item").forEach(el=>{
+      el.addEventListener("mousedown",(e)=>{
+        if (e.target && e.target.closest && e.target.closest(".sg-star")) return;
+        e.preventDefault(); choose(list[+el.dataset.i]); });
+    });
+    sug.querySelectorAll(".sg-star").forEach(b=>{
+      b.addEventListener("mousedown",(e)=>{
+        e.preventDefault(); e.stopPropagation();
+        toggleFav(b.dataset.st); render(); });
+    });'''),
+
+        # The front end, after everything it wraps and before the page boots.
+        # The live feed goes in first: the star code wraps initMap and
+        # resetMap in its turn, and a wrapper has to go round the finished one.
+        ('/* boot */', _part("live.js") + _part("star.js") + '\n/* boot */'),
     ],
     "day": [
         ('function hhmmToTodaySecs(hhmm) {\n  const m = /^(\\d{1,2}):(\\d{2})/.exec(hhmm || "");\n  if (!m) return null;\n  const d = new Date();\n  d.setHours(+m[1], +m[2], 0, 0);\n  return Math.floor(d.getTime() / 1000);\n}',
@@ -131,10 +238,11 @@ def main():
 
     for old, new in FIXES.get(app, []):
         if src.count(old) != 1:
-            sys.exit("patch_payload: %s, the midnight countdown fix no longer "
-                     "matches exactly once (found %d). The function was edited "
-                     "upstream and the fix has to be re-read against it."
-                     % (app, src.count(old)))
+            sys.exit("patch_payload: %s, this anchor matches %d times, not "
+                     "once, so the change cannot be placed:\n    %s\n"
+                     "The payload was edited upstream and the change has to "
+                     "be re-read against it."
+                     % (app, src.count(old), old.splitlines()[0][:70]))
         src = src.replace(old, new, 1)
 
     keys = RESET.get(app, [])

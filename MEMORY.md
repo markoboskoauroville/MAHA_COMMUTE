@@ -294,3 +294,124 @@ died, which the old static dot did not.
 
 Measured in node at real timings, taps at 0, 80 and 160ms: one fetch, of the
 third station, with three outlines before it.
+
+## NIGHT.COMMUTE V10 READS THE LIVE FEED
+
+*16.9.2026, v10. Measured against the live tap at 01:03 and again at 01:20,
+which is inside the night service window, so the night trams were out.*
+
+`night.commute` reads `https://zet.hr/gtfs-rt-protobuf` and says where the
+tram is: on the map as a moving car number, and under each leg on the Plan
+tab as "car 460, at Kruge, 2 stops away, ~4 min".
+
+**The trip descriptor carries `route_id`, and that is the whole join.** Field
+5, plain text, on every entity. Nothing has to be matched against the static
+schedule to know a tram is a 33. This is the reason the reader is short, and
+it is the reason it does not depend on the agreement below holding.
+
+**The live ids and the published build agree again.** On 31.8.2026 this
+project measured the whole-trip-id join at **zero of 501**, because the live
+feed carried service id 20 and the static build 45 to 50. Measured again on
+16.9.2026: **56 of 57, 98.2 per cent**, with both sides saying `0_23`. ZET
+changed it. The earlier measurement was not wrong, it was earlier, and the
+lesson is that this particular agreement is something ZET moves without
+telling anybody. Read `route_id` off the feed and it does not matter which
+way it has moved this month.
+
+**One tram arrives as TWO entities that never appear together.**
+
+    X8HIDLT03R       a TripUpdate       trip 0_23_3302_33_10017, route 33
+    X8HIDLT03R_460   a VehiclePosition  same trip, car 460, 45.7997,15.9713
+
+Thirty one carried a TripUpdate, thirty five a VehiclePosition, and **zero
+carried both**. The delay and the position for one tram are joined on the
+trip id, in `parse_rt`.
+
+**What a position does not carry.** No bearing, no speed, no `stop_id`, no
+`current_stop_sequence`, no `current_status`: measured absent on all thirty
+five. So which stop a tram is at is worked out here, from the coordinate
+against that line's own stations, and which way it faces from the stop ids
+its TripUpdate still has ahead of it.
+
+### THE DELAY FIELD LIES, IN TWO TELLABLE WAYS
+
+Of sixty two stop time updates in one reading, **thirty carried no time at
+all, and every single one of those thirty claimed a delay of exactly zero**.
+That is ZET's shape for "nothing known", and read naively it writes "on time"
+against every tram ZET has lost track of. So **a delay needs a time beside
+it** or it is not a delay.
+
+Of the thirty two that did carry a time, the delays included **3605 and
+24000 seconds**. A night tram on a fifty minute headway is not six hours
+late. 3605 is an hour and five seconds, which is the shape of a clock an hour
+out rather than of a late tram. So a delay over **thirty minutes** is thrown
+away, and the bound is in `DELAY_SANE_S`.
+
+### THE FEED IS GOOD AT WHERE AND BAD AT WHEN
+
+Most stop time updates are for stops the tram has **already passed**, some by
+the best part of an hour; only a handful are ahead of it. So the feed is
+believed about where a tram is, which it is good at, and **the timetable the
+app already holds answers how long it takes to get here**. `_running_times`
+builds that from tonight's own trips, taking the median at each station so
+one tram sitting at a terminal with its doors open does not become the
+running time for everybody. It measures 43 to 48 minutes end to end on all
+four lines, both directions agreeing within a minute, which is the internal
+check that it is right.
+
+A prediction from the feed is used only when it exists for the stop being
+asked about and has not already happened. Those rows are exact; the rest
+wear a `~`, and the two never look alike.
+
+### A SIZE FLOOR THAT NEARLY BROKE IT AT THE HOUR IT IS FOR
+
+The first reader refused any body under two hundred bytes as too small. The
+feed measures 6327 bytes for 65 vehicles, which is about **97 bytes each**,
+so that floor would have thrown away a perfectly good feed at half past four
+in the morning with two trams left running. That is exactly the hour this app
+exists for, and the app would have said "no live feed" on the night it was
+most needed.
+
+Found by Test 3, which builds small feeds by hand. The floor is now only what
+cannot be a feed at all, and the real check is that **a feed says either what
+time it is or what is moving**; something that says neither is not one.
+
+### THE STAR, AND WHY IT IS NOT THE ONE THAT WAS REMOVED
+
+`all.commute` put a star on **every** station, which made it mean "a station
+is here" — something the number and the name already said — and left nothing
+to mean "this is one of mine". It was taken off, twice, and rightly.
+
+night.commute v10's star is the opposite: **it is only ever on a station the
+person put it on.** Four stations out of a hundred and eight wearing a mark
+says exactly one thing. It earns its keep in three places, all the same idea:
+kept stations sort to the top of the picker, they sit as chips above the
+pickers so the usual trip needs no search, and they are starred on the map
+whether or not their line is switched on.
+
+**Stored as names, not stop ids**, under `nc_fav`, because ZET renumbers
+stops between schedule builds and this list has to outlive that. A name the
+network no longer has stays in the store and is simply not drawn, so a
+station that comes back brings its star with it.
+
+**The star is its own tap target and the row is another.** Without that
+guard, starring the stop you are standing at also sends you to it. Test 1
+drives the real listener and proves it: with the guard taken out, the tap
+lands on station B.
+
+### HOW V10 IS BUILT, AND THE HOLE IT FOUND IN THE GATE
+
+The new code is in `src/payloads/night-v10/` as ordinary `.py`, `.js` and
+`.css` files, spliced into the payload at build time by `patch_payload.py`
+against anchors that must match exactly once. It is not string literals
+inside the patcher, because four hundred lines quoted in there would be four
+hundred lines nothing can lint, diff or run.
+
+**The gate was compiling the wrong copies.** It put `src/*.py` and the two
+emitted tools through their interpreters, and nothing at all put
+`night_server.py` or `night.html` through theirs. A splice that broke either
+would have built, passed `bash -n`, and failed only on the phone. The gate
+now pulls both back out of the artefact, compiles the python, runs
+`node --check` over the page, and **checks that the splice actually happened**
+— a patcher that quietly puts nothing in leaves a file that compiles
+perfectly and does nothing.

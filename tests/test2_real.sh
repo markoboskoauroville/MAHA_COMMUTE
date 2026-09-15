@@ -31,6 +31,7 @@ T=$(mktemp -d)
 cleanup() {
   [ -n "${SRV:-}" ] && kill "$SRV" 2>/dev/null
   pkill -f "$T/home/.commute/commute_server.py" 2>/dev/null
+  pkill -f "$T/home/.nightcommute/night_server.py" 2>/dev/null
   rm -rf "$T"
 }
 trap cleanup EXIT
@@ -139,6 +140,127 @@ except Exception as e:
 
   kill "$SRV" 2>/dev/null
   pkill -f "$HOME/.commute/commute_server.py" 2>/dev/null
+  sleep 1
+fi
+
+# ---- night.commute v10, reading the live ZET feed for real ---------
+# The installed app is started by its own launcher, left to build tonight's
+# network from the real ZET zip, and then asked where the trams are. Nothing
+# here is mocked: this talks to zet.hr.
+#
+# The number an outside party confirms is the feed's age. The app reads the
+# timestamp out of the PROTOBUF BODY, written by whoever builds the feed.
+# This test reads Last-Modified off the HTTP response, written by the server
+# that hands it out. Two different parties, and a protobuf reader that was
+# wrong about the body could not land within minutes of the header.
+night.commute > "$T/night.log" 2>&1
+up=0
+for i in $(seq 1 60); do
+  if (exec 3<>/dev/tcp/127.0.0.1/8087) 2>/dev/null; then exec 3<&-; up=1; break; fi
+  sleep 0.5
+done
+yes_ "the night server bound its port"   "[ $up = 1 ]"
+
+if [ "$up" = "1" ]; then
+  # Tonight's network is built from a fourteen megabyte download on first
+  # start, so it is waited for rather than assumed.
+  built=0
+  for i in $(seq 1 240); do
+    s=$(python3 -c "
+import urllib.request
+try: print(urllib.request.urlopen('http://127.0.0.1:8087/night-status', timeout=5).read().decode())
+except Exception: print('')" 2>/dev/null)
+    case "$s" in *'"source": "gtfs"'*|*'"source":"gtfs"'*) built=1; break ;; esac
+    sleep 1
+  done
+  yes_ "tonight's network was built from ZET" "[ $built = 1 ]"
+
+  python3 -c "
+import urllib.request
+open('$T/live.json','wb').write(
+    urllib.request.urlopen('http://127.0.0.1:8087/live', timeout=40).read())" 2>/dev/null
+  yes_ "the live endpoint answers"      "[ -s '$T/live.json' ]"
+
+  R=$(python3 - "$T/live.json" "$HOME/.nightcommute/night.json" <<'PYEOF'
+import json, sys, urllib.request, email.utils
+out = []
+def say(k, v): out.append("%s=%s" % (k, v))
+try:
+    d = json.load(open(sys.argv[1], encoding="utf-8"))
+    net = json.load(open(sys.argv[2], encoding="utf-8"))
+except Exception:
+    print("ok=False"); raise SystemExit
+
+say("ok", d.get("ok")); say("state", d.get("state"))
+say("age", d.get("age") if d.get("age") is not None else "none")
+say("window", d.get("window")); say("entities", d.get("entities"))
+trams = d.get("trams") or []
+say("trams", len(trams))
+say("located", sum(1 for t in trams if t.get("lat") is not None))
+
+# Every tram must be a night tram, inside Zagreb, sitting on a station its
+# own line actually has.
+bad_route = bad_box = bad_stop = bad_dir = 0
+for t in trams:
+    if t.get("line") not in ("31", "32", "33", "34"): bad_route += 1
+    if t.get("dir") not in (0, 1, None): bad_dir += 1
+    if t.get("lat") is not None:
+        if not (45.60 <= t["lat"] <= 46.05 and 15.65 <= t["lon"] <= 16.30): bad_box += 1
+        L = (net.get("lines") or {}).get(t["line"]) or {}
+        if t.get("near") and t["near"] not in (L.get("stations") or []): bad_stop += 1
+say("bad_route", bad_route); say("bad_box", bad_box)
+say("bad_stop", bad_stop); say("bad_dir", bad_dir)
+
+# The running times, worked out of the app's own timetable. A Zagreb night
+# tram takes about three quarters of an hour from end to end.
+spans = []
+for ln, dirs in (d.get("run") or {}).items():
+    for dd, cum in dirs.items():
+        vals = [x for x in cum if x is not None]
+        if len(vals) > 1: spans.append(abs(max(vals) - min(vals)) / 60.0)
+say("runs", len(spans))
+say("run_min", int(min(spans)) if spans else -1)
+say("run_max", int(max(spans)) if spans else -1)
+
+try:
+    req = urllib.request.Request("https://zet.hr/gtfs-rt-protobuf", method="HEAD",
+                                 headers={"User-Agent": "maha-test/1"})
+    with urllib.request.urlopen(req, timeout=20) as r:
+        lm = r.headers.get("Last-Modified")
+    say("witness", abs(int(email.utils.parsedate_to_datetime(lm).timestamp())
+                       - (d.get("feed_ts") or 0)))
+except Exception:
+    say("witness", -1)
+print(" ".join(out))
+PYEOF
+)
+  g() { printf '%s' "$R" | tr ' ' '\n' | grep "^$1=" | cut -d= -f2; }
+
+  yes_ "it read the feed"                "[ \"\$(g ok)\" = True ]"
+  yes_ "and the feed is live, not stale" "[ \"\$(g state)\" = live ] || [ \"\$(g state)\" = late ]"
+  yes_ "the feed is minutes old at most" "[ \"\$(g age)\" != none ] && [ \"\$(g age)\" -lt 600 ]"
+  yes_ "ZET is publishing vehicles"      "[ \"\$(g entities)\" -gt 10 ]"
+  yes_ "every tram found is a night tram" "[ \"\$(g bad_route)\" = 0 ]"
+  yes_ "every position is inside Zagreb"  "[ \"\$(g bad_box)\" = 0 ]"
+  yes_ "every tram sits on its own line's station" "[ \"\$(g bad_stop)\" = 0 ]"
+  yes_ "every direction is one of the two" "[ \"\$(g bad_dir)\" = 0 ]"
+  yes_ "all four lines got running times, both ways" "[ \"\$(g runs)\" = 8 ]"
+  yes_ "a night tram takes 30 to 70 minutes end to end" \
+       "[ \"\$(g run_min)\" -ge 30 ] && [ \"\$(g run_max)\" -le 70 ]"
+  yes_ "the body's timestamp and the server's own agree" \
+       "[ \"\$(g witness)\" != -1 ] && [ \"\$(g witness)\" -lt 300 ]"
+
+  # The trams run 23:50 to 04:40. "None found" is the right answer for most of
+  # the day, and only a failure inside the window.
+  if [ "$(g window)" = "True" ]; then
+    yes_ "inside the service window, trams are on the map" "[ \"\$(g located)\" -gt 0 ]"
+  else
+    printf '  it is not night in Zagreb, so 0 trams is correct and was not asserted\n'
+    yes_ "outside the window the list is empty rather than broken" "[ \"\$(g trams)\" -ge 0 ]"
+  fi
+
+  pkill -f "$HOME/.nightcommute/night_server.py" 2>/dev/null
+  pkill -f night_server.py 2>/dev/null
   sleep 1
 fi
 

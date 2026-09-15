@@ -127,5 +127,106 @@ yes_ "and my data is still mine"       "[ -f '$HOME/.commute/pinned.txt' ]"
 no_  "all.commute was not installed behind his back" "command -v all.commute >/dev/null"
 yes_ "but its payload is waiting"      "[ -s '$HOME/.maha.commute/payloads/all.payload.sh' ]"
 
+# ---- 8. v9 of the umbrella, upgraded to v10 ------------------------
+# The upgrade Baba will actually do. The previous artefact is in this repo,
+# so this is the real previous version and not a simulation of one.
+#
+# night.commute v10 changes the MEANING of what is already on the disk: the
+# same night_server.py now reads a live feed, and the same night.html now
+# keeps a list of starred stations. A change of meaning is the trigger that
+# four-tests.md names as making this test mandatory.
+PREV="$ROOT/9-maha_commute_v9.sh"
+if [ ! -f "$PREV" ]; then
+  printf '  the previous artefact is not here, so the v9 to v10 checks did not run\n'
+else
+  export HOME="$T/prev/home"; export PREFIX="$T/prev/usr"
+  mkdir -p "$HOME" "$PREFIX/bin"
+  export PATH="$PREFIX/bin:$OLDPATH"
+
+  printf '\n' | bash "$PREV" --offline --apps 2 >"$T/v9.log" 2>&1
+  yes_ "the v9 umbrella installed"      "[ -x '$PREFIX/bin/night.commute' ]"
+
+  NS="$HOME/.nightcommute/night_server.py"
+  NH="$HOME/.nightcommute/night.html"
+  # VERIFY THE OLD VERSION IS REALLY OLD. Without this the whole section
+  # can be v10 installed twice, which proves nothing whatsoever.
+  yes_ "and it really is v9"            "grep -q 'APP_VERSION = \"v9\"' '$NS'"
+  no_  "the old one has no live feed"   "grep -q 'gtfs-rt-protobuf' '$NS'"
+  no_  "and serves no /live"            "grep -q 'r==\"/live\"' '$NS'"
+  no_  "and has no star"                "grep -q 'nc_fav' '$NH'"
+
+  # USE IT, the way a person does, and leave it running.
+  mkdir -p "$HOME/.nightcommute/pdf"
+  printf 'not-a-real-gemini-key-for-tests-only\n' > "$HOME/.nightcommute/gemini-api.txt"
+  printf '%%PDF-1.4 pretend\n' > "$HOME/.nightcommute/pdf/33.pdf"
+  printf 'my own note\n' > "$HOME/.nightcommute/my-own-note.txt"
+  KEYSUM=$(sha256sum "$HOME/.nightcommute/gemini-api.txt" | cut -d' ' -f1)
+  # Started exactly as the real launcher starts it: cd into the folder, then
+  # a RELATIVE night_server.py. That matters more than it looks. Matching the
+  # process by its absolute path finds nothing, and the test then reports a
+  # server that is plainly running as stopped, which is four-tests.md's own
+  # example of a test lying about the code.
+  ( cd "$HOME/.nightcommute" && nohup python3 night_server.py >"$T/v9srv.log" 2>&1 &
+    echo $! > "$T/v9srv.pid" )
+  sleep 2
+  OLDPID=$(cat "$T/v9srv.pid" 2>/dev/null)
+  if [ -n "$OLDPID" ] && kill -0 "$OLDPID" 2>/dev/null; then ok
+  else bad "the v9 night server did not start, so the upgrade proves nothing"; fi
+
+  # UPGRADE, over the top, with the old one still serving.
+  printf '\n' | bash "$ART" --offline --apps 2 >"$T/v10.log" 2>&1
+  rc=$?
+  yes_ "the upgrade exits clean"        "[ $rc = 0 ]"
+
+  # A running process is STOPPED, not left serving the old code from memory.
+  if [ -n "$OLDPID" ] && kill -0 "$OLDPID" 2>/dev/null; then
+    bad "the v9 night server is still alive, serving the old code from memory"
+  else ok; fi
+
+  # The new meaning is really there.
+  yes_ "night.commute is now v10"       "grep -q 'APP_VERSION = \"v10\"' '$NS'"
+  yes_ "it reads the live feed"         "grep -q 'gtfs-rt-protobuf' '$NS'"
+  yes_ "and serves it"                  "grep -q 'r==\"/live\"' '$NS'"
+  yes_ "the star is in the page"        "grep -q 'nc_fav' '$NH'"
+  yes_ "and in the picker, not only in the code" "grep -q 'sg-star' '$NH'"
+  yes_ "the menu reports the new version" \
+       "[ \"\$(cat '$HOME/.maha.commute/installed/night')\" = v10 ]"
+
+  # THE PERSON'S OWN THINGS. night.commute's own installer clears its folder
+  # on every install. That is its decision about its own folder and it is
+  # left alone, so the umbrella reads the payload, sees the wipe coming, and
+  # copies the folder aside first. The test is therefore not "it survived in
+  # place", it is "it is recoverable, and the person was told where".
+  B="$HOME/.maha.commute/backup/night.prev"
+  yes_ "the old folder was copied aside"  "[ -d '$B' ]"
+  yes_ "the gemini key is recoverable"    "[ -f '$B/gemini-api.txt' ]"
+  yes_ "and it is the same key, byte for byte" \
+       "[ \"\$(sha256sum '$B/gemini-api.txt' | cut -d' ' -f1)\" = '$KEYSUM' ]"
+  yes_ "a note of my own is recoverable"  "[ -f '$B/my-own-note.txt' ]"
+  yes_ "a cached PDF is recoverable"      "[ -f '$B/pdf/33.pdf' ]"
+  yes_ "and the install said where"       "grep -q 'night.prev' '$T/v10.log'"
+
+  # THE FAVOURITES. They live in the browser's own storage and not on the
+  # filesystem, so no installer can reach them. What CAN reach them is the
+  # run reset, which clears chosen things at the start of a new run, and a
+  # list somebody built by hand is not a chosen thing. So the check is that
+  # night's reset list stays empty.
+  yes_ "night resets nothing on a new run" \
+       "python3 -c \"import sys;sys.path.insert(0,'tools');import patch_payload as p;sys.exit(0 if p.RESET['night']==[] else 1)\""
+  no_  "and nothing in the page clears the favourites" \
+       "grep -q 'removeItem(\"nc_fav\")' '$NH'"
+
+  # AND AGAIN, which must change nothing.
+  SUM=$(sha256sum "$NS" | cut -d' ' -f1)
+  printf '\n' | bash "$ART" --offline --apps 2 >"$T/v10again.log" 2>&1
+  yes_ "a second v10 install leaves the server identical" \
+       "[ \"\$(sha256sum '$NS' | cut -d' ' -f1)\" = '$SUM' ]"
+  yes_ "and says it was already current" \
+       "grep -qi 'already current' '$T/v10again.log'"
+
+  [ -n "$OLDPID" ] && kill "$OLDPID" 2>/dev/null
+  export HOME="$OLDHOME"; export PATH="$OLDPATH"
+fi
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

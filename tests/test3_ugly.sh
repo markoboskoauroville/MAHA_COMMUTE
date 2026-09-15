@@ -179,6 +179,219 @@ took=$(( $(date +%s) - start ))
 yes_ "a silent socket does not hang the check" "[ $took -le 3 ]"
 kill $QUIET 2>/dev/null
 
+# ---- the live feed, when the feed misbehaves ----------------------
+# Every one of these is a real way a transit feed goes wrong, and most of
+# them arrive at the app looking exactly like success. The app's own reader
+# is pointed at a local server that tells each lie in turn.
+ugly_out=$(python3 - <<'PYEOF'
+import http.server, json, os, socket, socketserver, struct, sys
+import tempfile, threading, time, urllib.request, datetime
+
+NIGHT_ROUTES = ("31", "32", "33", "34")
+TMP = tempfile.mkdtemp()
+NIGHT_JSON = os.path.join(TMP, "night.json")
+COORDS_JSON = os.path.join(TMP, "coords.json")
+SCHED_JSON = os.path.join(TMP, "night_sched.json")
+def _log(m): pass
+
+SRC = open("src/payloads/night-v10/live.py", encoding="utf-8").read()
+ok = []
+def check(label, cond): ok.append((label, bool(cond)))
+
+def fresh():
+    """A new copy of the module, so one case's cache cannot feed the next."""
+    g = {"threading": threading, "time": time, "json": json, "os": os,
+         "urllib": urllib, "datetime": datetime, "NIGHT_ROUTES": NIGHT_ROUTES,
+         "NIGHT_JSON": NIGHT_JSON, "COORDS_JSON": COORDS_JSON,
+         "SCHED_JSON": SCHED_JSON, "_log": _log, "__name__": "live"}
+    exec(compile(SRC, "live.py", "exec"), g)
+    return g
+
+NAMES = ["A", "B", "C"]
+json.dump({"lines": {"33": {"termA": "A", "termB": "C", "stations": NAMES,
+           "stopmap": {n: [n + "_0", n + "_1"] for n in NAMES}}}},
+          open(NIGHT_JSON, "w"))
+json.dump({n: [45.80, 15.90 + i * 0.01] for i, n in enumerate(NAMES)},
+          open(COORDS_JSON, "w"))
+json.dump({"33": {"0": [{"A_0": 0, "B_0": 120, "C_0": 240}],
+                  "1": [{"A_1": 240, "B_1": 120, "C_1": 0}]}}, open(SCHED_JSON, "w"))
+
+def vi(n):
+    o = b""
+    while True:
+        b = n & 0x7F; n >>= 7
+        o += bytes([b | 0x80]) if n else bytes([b])
+        if not n: return o
+ld  = lambda f, p: vi(f << 3 | 2) + vi(len(p)) + p
+vf  = lambda f, v: vi(f << 3 | 0) + vi(v)
+f32 = lambda f, v: vi(f << 3 | 5) + struct.pack("<f", v)
+
+def build(ts, n=1, route=b"33"):
+    body = ld(1, ld(1, b"2.0") + (vf(3, ts) if ts is not None else b""))
+    for i in range(n):
+        desc = ld(1, b"0_23_3301_" + route + b"_" + str(i).encode()) + ld(5, route)
+        body += ld(2, ld(1, b"e%d" % i)
+                   + ld(4, ld(1, desc) + ld(2, f32(1, 45.80) + f32(2, 15.91))))
+    return body
+
+LIE = {"body": b"", "ctype": "application/x-protobuf", "quiet": False}
+class Liar(http.server.BaseHTTPRequestHandler):
+    def log_message(self, *a): pass
+    def do_GET(self):
+        if LIE["quiet"]:
+            time.sleep(40)          # accepts the connection, then says nothing
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", LIE["ctype"])
+        self.send_header("Content-Length", str(len(LIE["body"])))
+        self.end_headers()
+        self.wfile.write(LIE["body"])
+class Srv(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True; allow_reuse_address = True
+srv = Srv(("127.0.0.1", 0), Liar)
+URL = "http://127.0.0.1:%d/feed" % srv.server_address[1]
+threading.Thread(target=srv.serve_forever, daemon=True).start()
+
+def payload(url=URL, timeout=None):
+    g = fresh()
+    g["GTFS_RT_URL"] = url
+    if timeout: g["RT_TIMEOUT"] = timeout
+    return g["live_payload"]()
+
+NOW = int(time.time())
+
+# ABSENT: nothing is listening at all.
+s = socket.socket(); s.bind(("127.0.0.1", 0)); dead = s.getsockname()[1]; s.close()
+p = payload("http://127.0.0.1:%d/feed" % dead)
+check("a feed that is not there is reported, not raised", p["ok"] is False)
+check("and it is named unreachable", p["state"] == "unreachable")
+check("and no tram is invented from it", p["trams"] == [])
+
+# HOSTILE: a captive portal answers 200 with a web page.
+LIE["body"] = b"<html><head><title>Sign in</title></head><body>wifi</body></html>"
+LIE["ctype"] = "text/html"
+check("a captive portal is not a feed", payload()["ok"] is False)
+LIE["ctype"] = "application/x-protobuf"
+
+# EMPTY, and nearly empty.
+LIE["body"] = b""
+check("an empty answer is refused", payload()["ok"] is False)
+LIE["body"] = b"\x00" * 12
+check("a page of zeroes says neither the time nor what is moving, and is refused",
+      payload()["ok"] is False)
+
+# SMALL, BUT TRUE. At 04:30 there may be two trams left in the whole city,
+# and at about a hundred bytes a vehicle that is a very small feed. It is
+# still a feed, and refusing it would break the app at exactly the hour it
+# exists for.
+LIE["body"] = build(NOW, n=2)
+p = payload()
+check("a feed of two trams at half past four is accepted", p["ok"] is True)
+check("and both of them are on it", len(p["trams"]) == 2)
+check("even though it is under two hundred bytes", len(LIE["body"]) < 200)
+
+# MALFORMED: a real feed cut off in the middle of a field.
+whole = build(NOW, n=3)
+LIE["body"] = whole[:len(whole) - 4]
+p = payload()
+check("a feed truncated mid field is refused", p["ok"] is False)
+check("and none of it is half drawn", p["trams"] == [])
+
+# ENORMOUS.
+LIE["body"] = build(NOW, n=600)
+p = payload()
+check("six hundred vehicles parse", p["ok"] is True)
+check("and all of them are placed", len(p["trams"]) == 600)
+
+# The same feed, five different clocks.
+LIE["body"] = build(NOW - 2400)
+p = payload()
+check("a feed forty minutes old is stale", p["state"] == "stale")
+check("and its age travels with the answer", p["age"] >= 2400)
+LIE["body"] = build(NOW - 300)
+check("five minutes old is late, not stale", payload()["state"] == "late")
+LIE["body"] = build(NOW - 30)
+check("thirty seconds old is live", payload()["state"] == "live")
+LIE["body"] = build(NOW + 1200)
+check("a feed from the future is not called fresh", payload()["state"] == "ahead")
+LIE["body"] = build(None)
+check("a feed with no timestamp says undated", payload()["state"] == "undated")
+
+# The city asleep, and the city awake but not at night.
+LIE["body"] = build(NOW, n=0)
+p = payload()
+check("an empty but valid feed is not an error", p["ok"] is True)
+check("and holds no trams", p["trams"] == [])
+LIE["body"] = build(NOW, n=5, route=b"7")
+p = payload()
+check("a feed of daytime trams yields no night trams", p["trams"] == [])
+check("but it is still a working feed", p["ok"] is True)
+
+# ABSENT: the app's own network has not been built yet.
+LIE["body"] = build(NOW, n=2)
+os.rename(NIGHT_JSON, NIGHT_JSON + ".away")
+p = payload()
+check("with no network built, it still answers", p["ok"] is True)
+check("and says why it has nothing", "reason" in p)
+check("rather than raising", p["trams"] == [])
+os.rename(NIGHT_JSON + ".away", NIGHT_JSON)
+
+# MALFORMED: the app's own data is corrupt.
+good = open(NIGHT_JSON).read()
+open(NIGHT_JSON, "w").write("{not json at all")
+p = payload()
+check("a corrupt night.json does not take the endpoint down", p["ok"] is True)
+check("and is reported", "reason" in p)
+open(NIGHT_JSON, "w").write(good)
+
+# TWICE, AND AT THE SAME MOMENT.
+LIE["body"] = build(NOW, n=2)
+g = fresh()
+g["GTFS_RT_URL"] = URL
+hits = {"n": 0}
+_open = urllib.request.urlopen
+def counting(*a, **k):
+    hits["n"] += 1
+    return _open(*a, **k)
+g["urllib"] = type("U", (), {"request": type("R", (), {
+    "Request": staticmethod(urllib.request.Request),
+    "urlopen": staticmethod(counting)})})
+g["fetch_rt"](); g["fetch_rt"](); g["fetch_rt"]()
+check("three fetches inside the cache window are one download", hits["n"] == 1)
+
+errs = []
+def hammer():
+    try: g["live_payload"]()
+    except Exception as e: errs.append(repr(e))
+ths = [threading.Thread(target=hammer) for _ in range(8)]
+[t.start() for t in ths]; [t.join() for t in ths]
+check("eight callers at once and none of them raised", errs == [])
+
+# NEVER ANSWERS. A socket that accepts and then says nothing has no error for
+# a catch block to catch, and without a deadline this waits for ever.
+LIE["quiet"] = True
+t0 = time.time()
+p = payload(timeout=3)
+took = time.time() - t0
+LIE["quiet"] = False
+check("a feed that never answers is given up on", p["ok"] is False)
+check("and it is given up on quickly", took < 25)
+
+for label, good in ok:
+    print(("PASS" if good else "FAIL") + " " + label)
+PYEOF
+)
+while IFS= read -r l; do
+  case "$l" in
+    PASS*) ok ;;
+    FAIL*) bad "${l#FAIL }" ;;
+  esac
+done <<< "$ugly_out"
+case "$ugly_out" in
+  *PASS*) ;;
+  *) bad "the live feed ugly cases did not run at all" ;;
+esac
+
 export HOME="$OLDHOME"; export PATH="$OLDPATH"
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

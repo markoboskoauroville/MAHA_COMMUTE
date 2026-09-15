@@ -74,10 +74,24 @@ done
 if [ "$bad" = 0 ]; then line "bash -n, no output at all" "$count files, 0 findings"
 else block "bash -n, no output at all" "$bad of $count"; fi
 pyc=0; pybad=0
-for f in src/*.py; do
+for f in src/*.py src/payloads/night-v10/*.py; do
+  [ -f "$f" ] || continue
   pyc=$((pyc+1))
   python3 -m py_compile "$f" 2>/dev/null || { pybad=$((pybad+1)); printf '      %s does not compile\n' "$f"; }
 done
+# The spliced javascript, at its source, before it is anywhere near a
+# heredoc. A syntax error here is far easier to read than the same error
+# found two heredocs deep in the artefact.
+if command -v node >/dev/null 2>&1; then
+  jsc=0; jsbad=0
+  for f in src/payloads/night-v10/*.js tests/*.js; do
+    [ -f "$f" ] || continue
+    jsc=$((jsc+1))
+    node --check "$f" 2>/dev/null || { jsbad=$((jsbad+1)); printf '      %s does not parse\n' "$f"; }
+  done
+  if [ "$jsbad" = 0 ]; then line "javascript parses" "$jsc files, 0 findings"
+  else block "javascript parses" "$jsbad of $jsc"; fi
+else line "javascript parses" "node is not here, not run"; fi
 if [ "$pybad" = 0 ]; then line "python compiles" "$pyc files, 0 findings"
 else block "python compiles" "$pybad of $pyc"; fi
 # The tools are emitted through heredocs, so the copies that reach the
@@ -99,6 +113,47 @@ eb=0
 for f in "$emit"/*.py; do python3 -m py_compile "$f" 2>/dev/null || eb=$((eb+1)); done
 if [ "$eb" = 0 ]; then line "the emitted copies compile" "2 files, 0 findings"
 else block "the emitted copies compile" "$eb of 2"; fi
+
+# night.commute is SPLICED at build time: a python module goes into
+# night_server.py and a block of javascript into night.html. Both land
+# inside two nested heredocs, so a splice that broke either one would
+# still build, still pass bash -n, and fail only on the phone. These are
+# pulled back out of the artefact and put through their own interpreters.
+python3 - "$ART" "$emit" <<'PY'
+import pathlib, sys
+art = pathlib.Path(sys.argv[1]).read_text(encoding="utf-8", errors="surrogateescape")
+out = pathlib.Path(sys.argv[2])
+for name, delim in (("night_server.py", "NC_SERVER_PY"), ("night.html", "NC_HTML")):
+    head = 'cat > "$APPDIR/%s" << \'%s\'\n' % (name, delim)
+    if head not in art:
+        continue
+    body = art.split(head, 1)[1].split("\n%s\n" % delim, 1)[0]
+    (out / name).write_text(body, encoding="utf-8", errors="surrogateescape")
+    if name.endswith(".html") and "<script>" in body:
+        (out / "night_page.js").write_text(
+            body.split("<script>", 1)[1].rsplit("</script>", 1)[0],
+            encoding="utf-8", errors="surrogateescape")
+PY
+nb=0; nn=0
+if [ -s "$emit/night_server.py" ]; then
+  nn=$((nn+1))
+  python3 -m py_compile "$emit/night_server.py" 2>/dev/null || nb=$((nb+1))
+else nb=$((nb+1)); fi
+if [ -s "$emit/night_page.js" ]; then
+  nn=$((nn+1))
+  if command -v node >/dev/null 2>&1; then
+    node --check "$emit/night_page.js" 2>/dev/null || nb=$((nb+1))
+  fi
+else nb=$((nb+1)); fi
+if [ "$nb" = 0 ]; then line "the spliced night app compiles" "$nn files, 0 findings"
+else block "the spliced night app compiles" "$nb bad"; fi
+# The splice has to have actually happened. A patcher that quietly put
+# nothing in leaves a file that compiles perfectly and does nothing.
+liv=$(grep -c 'gtfs-rt-protobuf' "$emit/night_server.py" 2>/dev/null | tr -d ' ')
+sta=$(grep -c 'nc_fav' "$emit/night.html" 2>/dev/null | tr -d ' ')
+if [ "${liv:-0}" -gt 0 ] && [ "${sta:-0}" -gt 0 ]; then
+  line "and carries what was spliced into it" "live feed and star both present"
+else block "and carries what was spliced into it" "live $liv, star $sta"; fi
 rm -rf "$emit"
 if command -v shellcheck >/dev/null 2>&1; then
   sc=$(shellcheck -S error -f gcc src/*.sh tools/*.sh 2>/dev/null | wc -l | tr -d ' ')

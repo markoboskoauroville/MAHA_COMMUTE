@@ -1,0 +1,30 @@
+
+  /* ---- favourite stations, night.commute v10 ---------------------------
+     The star is the accent colour and nothing else on this screen is, so a
+     starred station is findable by colour before it is read. */
+  .favstrip { margin:0 0 12px; }
+  .favhint { font-size:.75rem; color:var(--muted); padding:2px 2px 0; }
+  .favrow { display:flex; flex-wrap:wrap; gap:7px; }
+  .favchip { display:inline-flex; align-items:center; gap:6px;
+    background:var(--card); border:1px solid var(--border); color:var(--text);
+    border-radius:11px; padding:8px 11px; font:inherit; font-size:.84rem;
+    font-weight:600; cursor:pointer; color:var(--accent); }
+  .favchip i { font-style:normal; font-size:.62rem; font-weight:800; letter-spacing:.8px;
+    text-transform:uppercase; color:#0b0f1a; background:var(--accent);
+    border-radius:6px; padding:1px 5px; }
+  .favchip.isfrom { border-color:var(--cyan); }
+  .favchip.isto   { border-color:var(--accent); }
+
+  /* The star in the picker. It is a target of its own, so tapping it keeps
+     the station rather than choosing it, and the two are far enough apart
+     that a thumb does not have to be careful. */
+  .sg-item { display:flex; align-items:center; gap:9px; }
+  .sg-star { flex:0 0 auto; background:none; border:none; cursor:pointer;
+    color:var(--muted); font-size:1.05rem; line-height:1; padding:6px 2px; margin:-6px 0; }
+  .sg-item.fav .sg-star { color:var(--accent); }
+  .sg-item.fav { background:rgba(255,180,84,.07); }
+  .sg-item .sg-lines { float:none; margin-left:auto; }
+
+  /* and on the map, where it is drawn whether its line is switched on or not */
+  .favmark { margin:-12px 0 0 -9px; color:#ffb454; font-size:1.15rem; line-height:1;
+    text-shadow:0 0 3px #0b0f1a, 0 0 6px #0b0f1a, 0 1px 2px #000; }

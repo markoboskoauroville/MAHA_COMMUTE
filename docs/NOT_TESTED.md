@@ -40,3 +40,21 @@ nothing about Android.
 - The uninstaller ran no wipe. The listing and the refusal paths were exercised; the full `wipe` was never typed against a real install.
 - The stream sanity checks ran against the live ZET feed from a Linux box. They have never run from Termux.
 - The key tester was run against real keys and proved its verdicts, but only for Google Maps and Gemini. The other providers in its table are untested.
+
+## Added for v10, the live feed and the star, and unproven
+
+- **None of it has been seen in a browser.** The live rows, the status strip, the trams on the map, the chips and the star in the picker were all built and driven in a javascript engine with a small DOM standing in for a real one. No page has been loaded, so nothing here proves any of it is legible, or even visible, at 390px at one in the morning.
+- **Neither map engine has drawn a tram.** `LEng.vehicle` and `GEng.vehicle` and their two favourite markers were written against Leaflet's and Google's APIs and are exercised by nothing: the harness has no map in it. A wrong option name in either would show as a marker that never appears, and every test here would still be green.
+- **Google Maps was never the engine.** Everything that ran, ran with no key and no map at all. The Google half of both new markers is code inspection only.
+- The live feed was read from a Linux box under proot, over wifi. It has never been read from Termux, and never on mobile data, where the twelve second timeout is the number that matters and is untested.
+- **The trams were seen once, at night.** Test 2 asserts trams are on the map only when it is inside the 23:50 to 04:40 window, and it was inside it when this was built. Outside the window the test asserts only that the list is empty rather than broken, so the hours the app is actually for have been exercised and the hours it is not have not.
+- The stale, late, ahead and undated feed states were all built by hand and proved. **A genuinely stalled ZET feed has never been met.** What is proven is that a feed carrying an old timestamp is refused, not that ZET's failure looks like that when it comes.
+- The direction of a tram is taken from the stop ids its TripUpdate still carries, and falls back to reading the pattern digits out of the trip id. **The fallback has never been the answer against real data**: every live tram measured had stop ids to vote with. It is proven only against hand-made trips.
+- `_locate_from_stops`, which places a tram ZET is not locating, fired for none of the eleven trams measured. It is proven on hand-made input only, and the "it was at this stop N seconds ago" branch has never been drawn.
+- Favourites survive an install because they are in the browser's storage, and Test 4 proves the reset list stays empty. **No favourite has ever actually survived a reinstall**, because no favourite has ever been made in a real browser.
+- The star was never tapped with a thumb. Whether its tap target is genuinely far enough from the row it sits in is a question about fingers, and it has only been answered about event targets.
+
+## Known and left alone on purpose, still
+
+- `night.commute` still deletes `~/.nightcommute` at the start of every install. v10 added the live feed and the star and deliberately did not touch the installer's own housekeeping, so the umbrella's copy to `~/.maha.commute/backup/night.prev` is still what saves anything kept there. Still worth fixing.
+- ZET's delay field is read and carried in the `/live` answer and **is not shown anywhere**. Measured values included 3605 and 24000 seconds and a suspiciously constant -600. It is kept because it is information, and not drawn because it has not earned it.
