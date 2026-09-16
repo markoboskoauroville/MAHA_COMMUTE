@@ -74,7 +74,7 @@ done
 if [ "$bad" = 0 ]; then line "bash -n, no output at all" "$count files, 0 findings"
 else block "bash -n, no output at all" "$bad of $count"; fi
 pyc=0; pybad=0
-for f in src/*.py src/payloads/night-v10/*.py; do
+for f in src/*.py src/payloads/night/*.py; do
   [ -f "$f" ] || continue
   pyc=$((pyc+1))
   python3 -m py_compile "$f" 2>/dev/null || { pybad=$((pybad+1)); printf '      %s does not compile\n' "$f"; }
@@ -84,7 +84,7 @@ done
 # found two heredocs deep in the artefact.
 if command -v node >/dev/null 2>&1; then
   jsc=0; jsbad=0
-  for f in src/payloads/night-v10/*.js tests/*.js; do
+  for f in src/payloads/night/*.js tests/*.js; do
     [ -f "$f" ] || continue
     jsc=$((jsc+1))
     node --check "$f" 2>/dev/null || { jsbad=$((jsbad+1)); printf '      %s does not parse\n' "$f"; }

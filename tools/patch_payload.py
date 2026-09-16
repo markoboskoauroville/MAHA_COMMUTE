@@ -60,7 +60,7 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night-v10")
+NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
 
 
 def _part(name):
@@ -132,9 +132,10 @@ FIXES = {
         ('  .starwrap{background:none;border:0;}',
          '  .starwrap{background:none;border:0;}\n  /* The armed outline. White, because every other colour on this map means\n     a line or a station, and this one has to mean "you touched this" and\n     nothing else. */\n  .pin.armed .pinid span{box-shadow:0 0 0 2px #fff,0 0 10px rgba(255,255,255,.55);}'),
     ],
-    # night.commute v10: it reads the live feed and says where the tram is.
+    # night.commute v11: it reads the live feed, says where the tram is, marks a
+# broadcasting tram with day.commute's wifi, and keeps starred stations.
     #
-    # The new code is in src/payloads/night-v10/ as ordinary .py, .js and
+    # The new code is in src/payloads/night/ as ordinary .py, .js and
     # .css files rather than as string literals in here, because four hundred
     # lines quoted inside this file would be four hundred lines nothing can
     # lint, diff or run. What this table holds is the JOIN: an anchor that
@@ -143,15 +144,15 @@ FIXES = {
         # The app's own version. A change is a new version, and the app has
         # to say the number it is, not the number it grew out of.
         ('NIGHT_VERSION="v9 (a)"',
-         'NIGHT_VERSION="v10 (a)"'),
+         'NIGHT_VERSION="v11 (a)"'),
         ('APP_VERSION = "v9"\nAPP_BUILD = "n9-a"',
-         'APP_VERSION = "v10"\nAPP_BUILD = "n10-a"'),
+         'APP_VERSION = "v11"\nAPP_BUILD = "n11-a"'),
         ('installed  night.commute v9 (a)',
-         'installed  night.commute v10 (a)'),
+         'installed  night.commute v11 (a)'),
         ('(v.version||"v9")',
-         '(v.version||"v10")'),
+         '(v.version||"v11")'),
         ('.catch(()=>{ document.getElementById("verLine").textContent="v9 (a)"; });',
-         '.catch(()=>{ document.getElementById("verLine").textContent="v10 (a)"; });'),
+         '.catch(()=>{ document.getElementById("verLine").textContent="v11 (a)"; });'),
 
         # The reader and the placing, ahead of the handler that serves them.
         ('class H(http.server.BaseHTTPRequestHandler):',
@@ -193,6 +194,31 @@ FIXES = {
         e.preventDefault(); e.stopPropagation();
         toggleFav(b.dataset.st); render(); });
     });'''),
+
+        # The wifi mark and the live arrival, INSIDE the scheduled rows.
+        #
+        # This one is a replacement rather than a wrapper because it is about
+        # what a row says, and the row is built inside legHtml. The live feed
+        # wraps legHtml from outside to add the "where is it" lines underneath;
+        # this changes the times themselves, which nothing outside can reach.
+        ('''      ? rt.map((u,i)=>'<span class="legtime'+(markNext&&i===0?" next":"")+'">'+
+          secClk(u.dep)+' <small>('+fmtMin(u.min)+')</small>'+
+          '<small class="arr"> → '+secClk(u.arr)+'</small></span>').join("")''',
+         '''      ? (function(){
+          const M = liveMatchRows(ln,a,b,rt);
+          return rt.map((u,i)=>{ const m = M[i];
+            return '<span class="legtime'+(markNext&&i===0?" next":"")+(m?" haslive":"")+'">'+
+              secClk(u.dep)+(m?liveAt(m,u.dep):"")+
+              ' <small>('+fmtMin(liveMins(m,u))+')</small>'+
+              '<small class="arr"> → '+secClk(u.arr)+'</small></span>'; }).join("");
+        })()'''),
+
+        # and one sentence saying what the mark means, in the one place on the
+        # Plan tab that is always on screen.
+        ('and where to change if there is no direct one.</div>',
+         'and where to change if there is no direct one. A tram that is '
+         'broadcasting carries a <b>green wifi</b> mark, and the yellow time '
+         'beside the scheduled one is when it will really reach you.</div>'),
 
         # The front end, after everything it wraps and before the page boots.
         # The live feed goes in first: the star code wraps initMap and

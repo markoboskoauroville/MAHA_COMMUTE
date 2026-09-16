@@ -1,6 +1,6 @@
-/* page_v10.js — night.commute v10's page, run the way the page runs it.
+/* page.js — night.commute v10's page, run the way the page runs it.
  *
- *     node tests/page_v10.js <artefact.sh>
+ *     node tests/page.js <artefact.sh>
  *
  * Both of v10's additions are here: the live feed, which says where the tram
  * is, and the star, which keeps a station where it can be found again.
@@ -129,7 +129,8 @@ ctx.globalThis = ctx;
 const EXPORTS = ["liveApproaching","liveRunSecs","liveEtaText","liveLegHtml",
                  "liveBarHtml","liveUsable","liveTrams","liveLocated","esc",
                  "isFav","toggleFav","favLive","favPick","renderFavStrip",
-                 "searchStations","wireSearch"];
+                 "searchStations","wireSearch",
+                 "liveMatchRows","liveAt","liveMins","legHtml","nowNightSecs"];
 const epilogue = "\n;globalThis.__T={" +
   EXPORTS.map(n => n + ":" + n).join(",") +
   ",setLive(v){LIVE=v;},setErr(v){LIVE_ERR=v;},setNet(v){NET=v;}," +
@@ -427,6 +428,87 @@ inp.fire("focus");
 is("a hostile station name cannot open a tag in the picker", false,
    /<img/.test(sug.innerHTML));
 T.setStations(NAMES.slice(), ST_LINES);
+
+/* =======================================================================
+   THE WIFI MARK AND THE LIVE TIME IN A SCHEDULED ROW
+
+   A wrong pairing is worse than no mark: it writes a live time against a
+   departure that is not that tram. So the pairing is what is attacked here.
+   ======================================================================= */
+
+// nowNightSecs() reads the real clock, so every expectation below is built
+// from it rather than from a number typed here.
+const NS = T.nowNightSecs();
+function rows(){ return [
+  {dep: NS + 240,  arr: NS + 900,  min: 4},     // in 4 minutes
+  {dep: NS + 3240, arr: NS + 3900, min: 54},    // the next one, 50 min later
+]; }
+
+// A tram whose eta lands right on the first scheduled row.
+T.setLive(feed([ tram({near_i:1, car:"460"}) ]));   // eta 240s from the run table
+let M = T.liveMatchRows("33","D","F", rows());
+is("a tram is paired with its own departure", true, !!M[0]);
+is("and not with the one after it", null, M[1]);
+is("the pairing keeps the tram", "460", M[0] && M[0].tram.car);
+
+// Outside the window, nothing is claimed. 50 minute headways mean a tram
+// more than twelve minutes out is a different trip.
+T.setLive(feed([ tram({near_i:1}) ]));
+M = T.liveMatchRows("33","D","F", [{dep: NS + 3000, arr: NS + 3600, min: 50}]);
+is("a tram thirteen minutes from a slot claims nothing", null, M[0]);
+M = T.liveMatchRows("33","D","F", [{dep: NS + 900, arr: NS + 1500, min: 15}]);
+is("but eleven minutes is still that tram", true, !!M[0]);
+
+// Two trams running close together may not both claim one departure.
+T.setLive(feed([ tram({near_i:1, car:"A"}), tram({near_i:2, car:"B"}) ]));
+M = T.liveMatchRows("33","D","F", rows());
+is("two trams cannot claim the same row", true, !(M[0] && M[1] && M[0].tram.car === M[1].tram.car));
+// B is two minutes away and A is four. The next departure is the tram that
+// arrives next, not the one that happens to sit nearest the timetable.
+is("the tram arriving first takes the first row", "B", M[0] && M[0].tram.car);
+is("and the one behind it claims nothing fifty minutes out", null, M[1]);
+
+// Nothing live: every row is left exactly as the timetable had it.
+T.setLive(feed([], {state:"stale", age:3000}));
+M = T.liveMatchRows("33","D","F", rows());
+is("a stale feed marks nothing", "null,null", M.map(String).join(","));
+T.setLive(feed([]));
+is("and no trams marks nothing either", null, T.liveMatchRows("33","D","F", rows())[0]);
+is("no rows at all is not an error", 0, T.liveMatchRows("33","D","F", []).length);
+
+/* ---- what the row then says ---- */
+T.setLive(feed([ tram({near_i:1, car:"460"}) ]));
+M = T.liveMatchRows("33","D","F", rows());
+let lrow = T.liveAt(M[0], NS + 240);
+is("a tram dead on its timetable says so", true, /le-ok/.test(lrow));
+is("and wears the wifi", true, /class="wifi"/.test(lrow));
+lrow = T.liveAt({at: NS + 480}, NS + 240);
+is("a tram four minutes late says +4", true, /le-d">\+4</.test(lrow));
+// Early is not a delay. A night tram ahead of its slot arrives and waits,
+// because four trams on a fifty minute timetable are not allowed to drift,
+// so nothing claims the departure moved.
+lrow = T.liveAt({at: NS + 60}, NS + 240);
+is("a tram three minutes early claims no delay", false, /le-d/.test(lrow));
+is("but its arrival is still shown", true, /le-t/.test(lrow));
+is("and it still wears the wifi", true, /class="wifi"/.test(lrow));
+lrow = T.liveAt({at: NS + 180}, NS + 240);
+is("one minute out is still dead on time", true, /le-ok/.test(lrow));
+
+// The countdown counts to when the tram can actually take you.
+is("a late tram leaves when it arrives", 8,
+   T.liveMins({at: NS + 480}, {dep: NS + 240, min: 4}));
+is("an early tram waits for its departure", 16,
+   T.liveMins({at: NS + 300}, {dep: NS + 960, min: 16}));
+is("and with no tram the timetable stands", 4, T.liveMins(null, {dep: NS + 240, min: 4}));
+
+/* ---- and the whole row, through the shipped legHtml ---- */
+T.setLive(feed([ tram({near_i:1, car:"460"}) ]));
+// legHtml needs a real schedule to draw its rows, which the fixture has not
+// got, so this checks the one thing that is reachable: no live tram may
+// produce a wifi mark on a leg that has no scheduled rows at all.
+const leg = T.legHtml("33","D","F",true);
+is("a leg with no timetable still draws", true, leg.length > 0);
+is("and invents no live time from nothing", false, /le-t/.test(leg));
 
 console.log("COUNT " + pass + " " + fail);
 // The page's own timers are stubbed out, but the boot code leaves a pending

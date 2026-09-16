@@ -29,12 +29,14 @@ table, so nothing else needs touching. The picker in `src/05_lib.sh` currently
 understands 1, 2 and 3 only, and that is the one place a fourth app needs code
 rather than a row.
 
-**night.commute v11, to stop it clearing its own folder.** This was the job
-pencilled in for v10, and v10 went to the live feed and the star instead. The
+**Stop night.commute clearing its own folder.** This was pencilled in for v10,
+and v10 went to the live feed and the star; v11 went to the wifi mark. The
 wipe is still there, the umbrella still copies the folder aside first, and the
-fix is still one careful edit to the installer's own housekeeping.
+fix is still one careful edit to the installer's own housekeeping. It costs a
+fourteen megabyte re-download on every install, which is the part that is
+actually felt.
 
-**Seeing v10 in a browser.** The live rows, the trams on the map, the chips
+**Seeing any of this in a browser.** The live rows, the trams on the map, the chips
 and the star have all been driven in a javascript engine, and not one of them
 has been looked at. Neither map engine has actually drawn a tram: both
 `vehicle` and `favourite` markers were written against Leaflet's and Google's
@@ -77,23 +79,23 @@ build, and it is the only thing that does.
 
 ## The state it was left in
 
-*Updated 16.9.2026, at the end of the session that built v10.*
+*Updated 16.9.2026, at the end of the session that built v10 and v11.*
 
-Four tests: **213, 43, 67 and 43 passed**, with 0, 2, 4 and 13 failed. The
-gate runs clean, 0 blocking findings.
+Four tests: **236, 45, 71 and 25 passed, 0 failed**. The gate runs clean, 0
+blocking findings.
 
-**Those nineteen failures are the machine and not the build.** This was built
-on a Linux box under proot rather than on a phone. The previous release was
-checked out beside it and run there too, and it fails the same nineteen in the
-same places: they want a real Termux, and Test 4's first half wants the
-original hand-built installers, which are on the phone and not in this
-repository. Establish that baseline again before believing any failure here is
-yours. Every check added for v10 passes and none of the nineteen moved.
+**Nineteen checks used to fail here and six of them were a real fault in the
+tests**, which asked `command -v` and so got answers about the phone rather
+than about the sandbox. See `MEMORY.md`. The other thirteen need the original
+hand-built installers, which carry the key and are not in this repository;
+they now skip with a printed reason, and `MAHA_ORIGINALS` points at them where
+they exist.
 
 Each new check was made to fail on purpose first. Reversing the direction
 comparison turns exactly two red; letting a stale feed through turns three
 red and prints the tram it would have drawn from a forty minute old reading;
 removing the star's tap guard sends the tap to station B.
 
-Nothing has been run on an Android phone, and `docs/NOT_TESTED.md` now lists
-thirty two things that are unproven because of it.
+v10 and v11 were both installed on the real phone, over the real previous
+version, and the live feed was read from it. **Nothing has been seen in a
+browser**, and `docs/NOT_TESTED.md` lists thirty six things that are unproven.

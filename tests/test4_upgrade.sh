@@ -13,7 +13,10 @@ cd "$(dirname "$0")/.."
 ROOT=$(pwd)
 V=$(cat VERSION)
 ART="$ROOT/$V-maha_commute_v$V.sh"
-UP=/mnt/user-data/uploads
+# The three ORIGINAL hand-built installers, as they were handed over, key and
+# all. They are not in this repository and never will be: they carry the key.
+# Point MAHA_ORIGINALS at them to run the first half of this test.
+UP=${MAHA_ORIGINALS:-/mnt/user-data/uploads}
 
 pass=0; fail=0
 ok()  { pass=$((pass+1)); }
@@ -34,6 +37,17 @@ trap cleanup EXIT
 export HOME="$T/home"; export PREFIX="$T/usr"
 mkdir -p "$HOME" "$PREFIX/bin"
 export PATH="$PREFIX/bin:$OLDPATH"
+
+# Sections 1 to 7 upgrade the three apps as they were installed by hand,
+# months before the umbrella existed. That needs the original installers, and
+# without them the right answer is to say so once. Thirteen red lines saying
+# a file is missing is not a test result, it is a test that did not run
+# wearing the clothes of one that failed.
+if [ ! -f "$UP/9-night_commute_v9.sh" ]; then
+  printf '  the original hand-built installers are not here, so the 13 checks\n'
+  printf '  for upgrading over them did not run. Set MAHA_ORIGINALS to the\n'
+  printf '  folder holding them to include that half.\n\n'
+else
 
 # ---- 1. the PREVIOUS version, for real ----------------------------
 # The originals as they were handed over, key and all. Not the stripped
@@ -124,10 +138,14 @@ yes_ "and the menu is unchanged"       "[ \"\$(sha256sum '$PREFIX/bin/maha-commu
 yes_ "and my data is still mine"       "[ -f '$HOME/.commute/pinned.txt' ]"
 
 # ---- 7. the app the upgrade did not include ------------------------
-no_  "all.commute was not installed behind his back" "command -v all.commute >/dev/null"
+# This sandbox's bin, not the PATH: the phone itself has all.commute, and
+# asking the PATH asks the phone.
+no_  "all.commute was not installed behind his back" "[ -x '$PREFIX/bin/all.commute' ]"
 yes_ "but its payload is waiting"      "[ -s '$HOME/.maha.commute/payloads/all.payload.sh' ]"
 
-# ---- 8. v9 of the umbrella, upgraded to v10 ------------------------
+fi   # end of the half that needs the original installers
+
+# ---- 8. the previous release, upgraded to this one -----------------
 # The upgrade Baba will actually do. The previous artefact is in this repo,
 # so this is the real previous version and not a simulation of one.
 #
@@ -135,25 +153,28 @@ yes_ "but its payload is waiting"      "[ -s '$HOME/.maha.commute/payloads/all.p
 # same night_server.py now reads a live feed, and the same night.html now
 # keeps a list of starred stations. A change of meaning is the trigger that
 # four-tests.md names as making this test mandatory.
-PREV="$ROOT/9-maha_commute_v9.sh"
+PV=$((V-1))
+PREV="$ROOT/$PV-maha_commute_v$PV.sh"
 if [ ! -f "$PREV" ]; then
-  printf '  the previous artefact is not here, so the v9 to v10 checks did not run\n'
+  printf '  v%s is not here, so the v%s to v%s checks did not run\n' "$PV" "$PV" "$V"
 else
   export HOME="$T/prev/home"; export PREFIX="$T/prev/usr"
   mkdir -p "$HOME" "$PREFIX/bin"
   export PATH="$PREFIX/bin:$OLDPATH"
 
   printf '\n' | bash "$PREV" --offline --apps 2 >"$T/v9.log" 2>&1
-  yes_ "the v9 umbrella installed"      "[ -x '$PREFIX/bin/night.commute' ]"
+  yes_ "the previous umbrella installed" "[ -x '$PREFIX/bin/night.commute' ]"
 
   NS="$HOME/.nightcommute/night_server.py"
   NH="$HOME/.nightcommute/night.html"
-  # VERIFY THE OLD VERSION IS REALLY OLD. Without this the whole section
-  # can be v10 installed twice, which proves nothing whatsoever.
-  yes_ "and it really is v9"            "grep -q 'APP_VERSION = \"v9\"' '$NS'"
-  no_  "the old one has no live feed"   "grep -q 'gtfs-rt-protobuf' '$NS'"
-  no_  "and serves no /live"            "grep -q 'r==\"/live\"' '$NS'"
-  no_  "and has no star"                "grep -q 'nc_fav' '$NH'"
+  # VERIFY THE OLD VERSION IS REALLY OLD. Without this the whole section can
+  # be this version installed twice, which proves nothing whatsoever. Two
+  # assertions, because a version string is a claim and the absence of the
+  # feature is the fact.
+  yes_ "and it really is the previous version" \
+       "grep -q \"APP_VERSION = .v\$PV.\" '$NS'"
+  no_  "the old one cannot mark a broadcasting tram" "grep -q 'liveMatchRows' '$NH'"
+  no_  "and has no wifi in its rows"    "grep -q 'class=\"wifi\"' '$NH'"
 
   # USE IT, the way a person does, and leave it running.
   mkdir -p "$HOME/.nightcommute/pdf"
@@ -180,17 +201,20 @@ else
 
   # A running process is STOPPED, not left serving the old code from memory.
   if [ -n "$OLDPID" ] && kill -0 "$OLDPID" 2>/dev/null; then
-    bad "the v9 night server is still alive, serving the old code from memory"
+    bad "the previous night server is still alive, serving the old code from memory"
   else ok; fi
 
   # The new meaning is really there.
-  yes_ "night.commute is now v10"       "grep -q 'APP_VERSION = \"v10\"' '$NS'"
+  yes_ "night.commute is now the new version" \
+       "grep -q \"APP_VERSION = .v\$V.\" '$NS'"
   yes_ "it reads the live feed"         "grep -q 'gtfs-rt-protobuf' '$NS'"
   yes_ "and serves it"                  "grep -q 'r==\"/live\"' '$NS'"
+  yes_ "a broadcasting tram can be marked" "grep -q 'liveMatchRows' '$NH'"
+  yes_ "and the wifi is in the page"    "grep -q 'class=\"wifi\"' '$NH'"
   yes_ "the star is in the page"        "grep -q 'nc_fav' '$NH'"
   yes_ "and in the picker, not only in the code" "grep -q 'sg-star' '$NH'"
   yes_ "the menu reports the new version" \
-       "[ \"\$(cat '$HOME/.maha.commute/installed/night')\" = v10 ]"
+       "[ \"\$(cat '$HOME/.maha.commute/installed/night')\" = \"v\$V\" ]"
 
   # THE PERSON'S OWN THINGS. night.commute's own installer clears its folder
   # on every install. That is its decision about its own folder and it is
@@ -219,7 +243,7 @@ else
   # AND AGAIN, which must change nothing.
   SUM=$(sha256sum "$NS" | cut -d' ' -f1)
   printf '\n' | bash "$ART" --offline --apps 2 >"$T/v10again.log" 2>&1
-  yes_ "a second v10 install leaves the server identical" \
+  yes_ "a second install leaves the server identical" \
        "[ \"\$(sha256sum '$NS' | cut -d' ' -f1)\" = '$SUM' ]"
   yes_ "and says it was already current" \
        "grep -qi 'already current' '$T/v10again.log'"

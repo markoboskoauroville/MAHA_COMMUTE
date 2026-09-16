@@ -14,7 +14,7 @@ roof, whole and unchanged:
 | | what it is | version | port |
 |---|---|---|---|
 | `day.commute` | the daytime ride, corridors that pick themselves | v13 | 8082 |
-| `night.commute` | the four night trams, and where they are now | v10 | 8087 |
+| `night.commute` | the four night trams, and where they are now | v11 | 8087 |
 | `all.commute` | every station around you, in colour | v39 | 8084 |
 
 ## Installing
@@ -22,7 +22,7 @@ roof, whole and unchanged:
 One file, and it carries all three apps inside it.
 
 ```
-bash 10-maha_commute_v10.sh
+bash 11-maha_commute_v11.sh
 ```
 
 **It asks nothing.** All three are installed, missing dependencies are fetched
@@ -51,11 +51,11 @@ state and nothing else, so green is running, sand is installed and ready, grey
 is present but not available.
 
 ```
-  ॐ  MAHA COMMUTE  v10
+  ॐ  MAHA COMMUTE  v11
 
   1  day.commute      v13   running 8082
      the daytime ride
-  2  night.commute    v10   ready
+  2  night.commute    v11   ready
      the four night trams
   3  all.commute      -     not installed
      every station around you
@@ -74,9 +74,26 @@ The one shot forms are there for when the menu is one keystroke too many:
 
 ## Where the tram is
 
-`night.commute` v10 reads ZET's live feed, `zet.hr/gtfs-rt-protobuf`, and puts
+`night.commute` reads ZET's live feed, `zet.hr/gtfs-rt-protobuf`, and puts
 the four night trams on the map as moving car numbers. Under each leg of a
 journey it says which one is coming:
+
+```
+  02:24  02:17 ᯤ   (11 min)  → 02:42
+  03:17            (64 min)  → 03:35
+```
+
+The first row has a tram behind it. The yellow **02:17** is when that tram
+reaches your stop, the green wifi says it is broadcasting its position right
+now, and a **+n** appears beside it when it is running late. The second row
+has no tram near it yet and stands exactly as the timetable wrote it.
+
+**Early is not a delay.** A night tram ahead of its slot arrives and waits,
+because four trams on a fifty minute timetable are not allowed to drift, so
+nothing claims the departure moved. The countdown counts to the moment the
+tram can actually take you, which is the later of the two.
+
+Underneath, the trams themselves:
 
 ```
   ● 460   at Kruge, 2 stops away              ~4 min
@@ -138,7 +155,7 @@ it fails closed, and never for redaction, where it would fail open.
 The delivered file is generated, never edited:
 
 ```
-tools/build_installer.sh          write 10-maha_commute_v10.sh
+tools/build_installer.sh          write 11-maha_commute_v11.sh
 tools/build_installer.sh --check  fail if the artefact is stale
 tools/verify_installer.sh <file>  check a file you have not run yet
 ```
@@ -151,7 +168,7 @@ two copies with a rule about keeping them in step are still two copies.
 What a payload gains on its way out is spliced in by `tools/patch_payload.py`
 against anchors that must match **exactly once**, so an upstream version that
 renamed the thing being patched fails the build rather than shipping a silence.
-night.commute v10's live feed and star are in `src/payloads/night-v10/` as
+night.commute's live feed and star are in `src/payloads/night/` as
 ordinary `.py`, `.js` and `.css` files: four hundred lines quoted inside the
 patcher would be four hundred lines nothing can lint, diff or run.
 
@@ -162,20 +179,19 @@ and miss the other.
 ## The tests
 
 ```
-bash tests/test1_mechanism.sh   213 passed,  0 failed
-bash tests/test2_real.sh          43 passed,  2 failed
-bash tests/test3_ugly.sh          67 passed,  4 failed
-bash tests/test4_upgrade.sh       43 passed, 13 failed
+bash tests/test1_mechanism.sh   236 passed, 0 failed
+bash tests/test2_real.sh          45 passed, 0 failed
+bash tests/test3_ugly.sh          71 passed, 0 failed
+bash tests/test4_upgrade.sh       25 passed, 0 failed
 bash tests/gate.sh               0 blocking findings
 ```
 
-**Those nineteen failures are the machine, not the build, and that claim was
-checked rather than assumed.** v10 was built and tested on a Linux box under
-proot rather than on a phone. The previous release was checked out beside it
-and run there too, and it fails the same nineteen, in the same places: they
-need a real Termux, and Test 4's first half needs the original hand-built
-installers, which live on the phone and not in this repository. Every check
-added for v10 passes, and none of the nineteen moved.
+Test 4 also names thirteen checks it did **not** run: they upgrade over the
+three apps as they were installed by hand before the umbrella existed, which
+needs the original installers, and those carry the key and are not in this
+repository. Point `MAHA_ORIGINALS` at them to include that half. Thirteen red
+lines saying a file is missing is not a test result; it is a test that did not
+run wearing the clothes of one that failed.
 
 Each was made to fail on purpose before it was believed. Breaking the rename
 into a truncating write turns Test 1 red on the held file descriptor; taking

@@ -281,7 +281,7 @@ SCHED_JSON = "/nonexistent/night_sched.json"
 def _log(m): pass
 
 g = dict(globals())
-exec(compile(open("src/payloads/night-v10/live.py", encoding="utf-8").read(),
+exec(compile(open("src/payloads/night/live.py", encoding="utf-8").read(),
              "live.py", "exec"), g)
 
 ok = []
@@ -460,13 +460,13 @@ while IFS= read -r l; do
 done <<< "$live_out"
 
 # ---- the live feed, in the page, out of the ARTEFACT ---------------
-# live_page.js pulls night.html out of the artefact, stubs a browser round
+# page.js pulls night.html out of the artefact, stubs a browser round
 # it and drives the shipped code. The direction comparison is the one worth
 # the trouble: get it backwards and the app confidently lists the trams that
 # have already gone past you.
 if command -v node >/dev/null 2>&1; then
   V=$(cat VERSION); ART="$V-maha_commute_v$V.sh"
-  page_out=$(node tests/page_v10.js "$ART" 2>&1)
+  page_out=$(node tests/page.js "$ART" 2>&1)
   while IFS= read -r l; do
     case "$l" in
       PASS*) ok ;;
@@ -475,7 +475,7 @@ if command -v node >/dev/null 2>&1; then
   done <<< "$page_out"
   case "$page_out" in
     *COUNT*) ;;
-    *) bad "page_v10.js did not finish, so its checks did not run" ;;
+    *) bad "page.js did not finish, so its checks did not run" ;;
   esac
 else
   printf '  node is not here, so the 45 live page checks did not run\n'

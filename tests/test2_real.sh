@@ -31,7 +31,6 @@ T=$(mktemp -d)
 cleanup() {
   [ -n "${SRV:-}" ] && kill "$SRV" 2>/dev/null
   pkill -f "$T/home/.commute/commute_server.py" 2>/dev/null
-  pkill -f "$T/home/.nightcommute/night_server.py" 2>/dev/null
   rm -rf "$T"
 }
 trap cleanup EXIT
@@ -64,7 +63,10 @@ yes_ "the installer exited clean"        "[ $rc = 0 ]"
 # ---- what a person would look for ---------------------------------
 yes_ "day.commute is on the PATH"        "command -v day.commute >/dev/null"
 yes_ "night.commute is on the PATH"      "command -v night.commute >/dev/null"
-no_  "all.commute was NOT installed"     "command -v all.commute >/dev/null"
+# Asked of THIS sandbox's bin and not of the PATH. The real phone has all
+# three apps installed, and the outer PATH is still behind this one, so
+# "command -v" answers about the phone rather than about the test.
+no_  "all.commute was NOT installed"     "[ -x '$PREFIX/bin/all.commute' ]"
 yes_ "maha-commute is on the PATH"            "command -v maha-commute >/dev/null"
 
 # ---- the umbrella on disk -----------------------------------------
@@ -143,7 +145,7 @@ except Exception as e:
   sleep 1
 fi
 
-# ---- night.commute v10, reading the live ZET feed for real ---------
+# ---- night.commute, reading the live ZET feed for real -------------
 # The installed app is started by its own launcher, left to build tonight's
 # network from the real ZET zip, and then asked where the trams are. Nothing
 # here is mocked: this talks to zet.hr.
@@ -153,6 +155,13 @@ fi
 # This test reads Last-Modified off the HTTP response, written by the server
 # that hands it out. Two different parties, and a protobuf reader that was
 # wrong about the body could not land within minutes of the header.
+
+# Every night server already on this machine, so the ones this test is
+# responsible for can be told apart afterwards. The launcher starts its
+# server with a RELATIVE path, so there is nothing in the command line to
+# match on, and a blanket pkill at the end of this test would reach out of
+# the sandbox and stop the app the person is actually using.
+NIGHT_BEFORE=" $(pgrep -f night_server.py | tr '\n' ' ')"
 night.commute > "$T/night.log" 2>&1
 up=0
 for i in $(seq 1 60); do
@@ -259,8 +268,14 @@ PYEOF
     yes_ "outside the window the list is empty rather than broken" "[ \"\$(g trams)\" -ge 0 ]"
   fi
 
-  pkill -f "$HOME/.nightcommute/night_server.py" 2>/dev/null
-  pkill -f night_server.py 2>/dev/null
+  # Only the ones this test started. Note that night.commute's own launcher
+  # stops every night server on the machine when it starts, by design, so
+  # running this test on a phone does end a running night.commute. That is
+  # the app's behaviour and it is left alone; what is fixed here is that the
+  # test does not do it a second time on its way out.
+  for pid in $(pgrep -f night_server.py); do
+    case "$NIGHT_BEFORE" in *" $pid "*) ;; *) kill "$pid" 2>/dev/null ;; esac
+  done
   sleep 1
 fi
 

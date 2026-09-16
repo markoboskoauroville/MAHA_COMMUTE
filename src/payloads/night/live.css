@@ -14,6 +14,21 @@
   .liverow.est .lveta { color:var(--muted); font-weight:700; }
   .livenone { font-size:.75rem; color:var(--muted); margin:2px 0 10px 42px; }
 
+  /* The live time inside a scheduled row. day.commute's colours exactly:
+     yellow is a time that came off the feed, red is how far off its timetable
+     the tram is running either way, grey is dead on time. Two apps in one
+     family that disagree about what yellow means are two apps to learn. */
+  .legtime .le-t  { color:#e3b341; font-weight:800; }
+  .legtime .le-d  { color:#f85149; font-weight:700; font-size:.76rem; }
+  .legtime .le-ok { color:#8b949e; font-weight:700; font-size:.76rem; }
+  .wifi { vertical-align:-1px; margin-left:5px; }
+  .legtime.haslive { border-color:rgba(227,179,65,.55); }
+  /* The next departure is filled solid cyan, and #e3b341 on that cannot be
+     read. Same meanings, darkened until they can be read on that ground. */
+  .legtime.next .le-t  { color:#5a3d00; }
+  .legtime.next .le-d  { color:#7a1c16; }
+  .legtime.next .le-ok { color:#2c3a42; }
+
   /* The pulse says the page is receiving, not merely holding a number it was
      given once. It stops the moment the feed goes stale, which is the only
      honest thing a live dot can do when nothing is arriving. */

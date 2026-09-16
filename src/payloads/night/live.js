@@ -146,6 +146,102 @@ function liveLegHtml(ln, a, b){
 function esc(s){ return String(s == null ? "" : s)
   .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
+/* ---- the wifi mark, and the real time beside the scheduled one ----------
+   Byte for byte the mark day.commute uses, and for the same reason: it says
+   this vehicle is broadcasting its position now. One family, one symbol, so
+   it is learned once and read in both apps.
+
+   The yellow time beside the scheduled one is when that tram will actually
+   reach your stop, and the number after it is how far off its timetable it is
+   running. day.commute's colours, unchanged: yellow for a live time, red for
+   a delay in either direction, grey for dead on time. */
+const WIFI = '<svg class="wifi" width="14" height="11" viewBox="0 0 16 12" ' +
+  'xmlns="http://www.w3.org/2000/svg">' +
+  '<circle cx="8" cy="10" r="1.2" fill="#3fb950"/>' +
+  '<path d="M4.8 7.2a4.5 4.5 0 0 1 6.4 0" fill="none" stroke="#3fb950" ' +
+  'stroke-width="1.5" stroke-linecap="round"/>' +
+  '<path d="M2.6 4.8a7.6 7.6 0 0 1 10.8 0" fill="none" stroke="#3fb950" ' +
+  'stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+// Twelve minutes. The night trams run about every fifty, so a tram within
+// twelve minutes of a scheduled slot is that slot's tram and nothing else is
+// near it. A tram further out than this gets NO mark rather than a guessed
+// one: the wifi has to mean "this is that tram", and a wrong pairing writes a
+// live time against the wrong departure, which is worse than leaving the row
+// exactly as the timetable had it.
+const MATCH_WINDOW = 720;
+
+// Pair each scheduled row with at most one live tram and each tram with at
+// most one row. They are paired IN ORDER: the next tram to reach you is the
+// next departure, the one behind it is the one after that. Both lists are
+// already sorted, the trams by how soon they arrive and the rows by when they
+// are due, so this is one walk down the two of them.
+//
+// The obvious alternative, giving each row whichever tram lands closest to
+// its scheduled time, was written first and is wrong in the case that
+// matters. Two trams, four minutes and two minutes away, one scheduled
+// departure between them: closest-by-time hands the mark to the FOUR minute
+// tram, because it happens to sit nearer the timetable, and leaves the tram
+// you are about to catch unmarked. Order pairing gives it to the two minute
+// one, which is the tram on the platform.
+//
+// A row no tram lines up with keeps nothing, and that tram stays available
+// for the row after it.
+function liveMatchRows(ln, a, b, rows){
+  const out = rows.map(() => null);
+  if (!liveUsable() || !rows || !rows.length) return out;
+  const app = liveApproaching(ln, a, b);
+  if (!app.length) return out;
+
+  const nowS = nowNightSecs();
+  let ri = 0;
+  for (let i = 0; i < app.length && ri < rows.length; i++) {
+    const x = app[i];
+    if (x.eta === null) continue;
+    const at = nowS + x.eta;
+    // A row this tram is already well past belongs to no tram at all.
+    while (ri < rows.length && rows[ri].dep < at - MATCH_WINDOW) ri++;
+    if (ri >= rows.length) break;
+    if (Math.abs(at - rows[ri].dep) <= MATCH_WINDOW) {
+      out[ri] = {tram: x.t, at: at, eta: x.eta, exact: x.exact};
+      ri++;
+    }
+    // Too early for this row: leave it for the tram behind this one, which
+    // is running later and therefore lands nearer to it.
+  }
+  return out;
+}
+
+// What is written into a scheduled row that has a tram behind it.
+//
+// THE YELLOW TIME IS WHEN THE TRAM REACHES YOUR STOP. It is not when it
+// leaves, and on a timetabled service those are not the same thing.
+//
+// Measured against the real feed at 02:12: car 325, three stops out, reaching
+// Središće at 02:16 against a scheduled 02:28. The first version wrote that
+// as "-12" and it was wrong. A night tram running ahead of its slot does not
+// leave twelve minutes early, it arrives and WAITS, because the whole network
+// is four trams on a fifty minute timetable and nothing is allowed to drift.
+//
+// So a delay is only ever shown when the tram is LATE, which is the case
+// where the departure really does move. Early is not a delay, it is a tram
+// already standing there, and the yellow time says so on its own.
+function liveAt(m, schedDep){
+  const d = Math.round((m.at - schedDep) / 60);
+  const dtxt = d >= 2 ? ' <span class="le-d">+' + d + '</span>'
+             : d >= -1 ? ' <span class="le-ok">±0</span>'
+             : '';
+  return ' <span class="le-t">' + secClk(m.at) + '</span>' + dtxt + WIFI;
+}
+
+// The countdown counts to the moment the tram can actually take you, which is
+// the later of the two: a late tram leaves when it arrives, and an early one
+// waits for its scheduled departure. Counting to the arrival of an early tram
+// would say "5 min" about a tram that does not leave for sixteen.
+function liveMins(m, u){
+  return m ? Math.round((Math.max(m.at, u.dep) - nowNightSecs()) / 60) : u.min;
+}
+
 /* ---- the strip, which says what state the feed is in ---- */
 function liveBarHtml(){
   if (LIVE_ERR && !liveUsable())

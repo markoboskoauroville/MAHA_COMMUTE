@@ -44,8 +44,9 @@ loses whatever was in there. The umbrella does not overrule it. It reads the
 payload, sees the wipe, copies the folder to `~/.maha.commute/backup/night.prev`
 and prints where the copy is.
 
-Fix it in night v10 by keeping the key file and anything the person wrote, and
-clearing only what the installer itself put there.
+The fix, whenever it is done, is to keep the key file and anything the person
+wrote and clear only what the installer itself put there. Still not done as of
+v11, and it costs a fourteen megabyte re-download of the schedule every time.
 
 ## DECISIONS MADE HERE
 
@@ -415,3 +416,87 @@ now pulls both back out of the artefact, compiles the python, runs
 `node --check` over the page, and **checks that the splice actually happened**
 — a patcher that quietly puts nothing in leaves a file that compiles
 perfectly and does nothing.
+
+
+## V11: THE WIFI MARK, AND WHAT EARLY MEANS ON A TIMETABLE
+
+*16.9.2026, measured against the live feed at 02:12.*
+
+A scheduled row on the Plan tab now carries the tram that is coming to fill
+it: day.commute's green wifi, and beside the scheduled time the yellow time
+that tram will really reach your stop.
+
+    02:24  02:17 (wifi)   (11 min)  -> 02:42
+    03:17                 (64 min)  -> 03:35
+
+**EARLY IS NOT A DELAY, AND THE FIRST VERSION GOT THIS WRONG.** Car 325, three
+stops out, reaching Sredisce at 02:16 against a scheduled 02:28. That was
+written as **-12**, and it is not true. A night tram running ahead of its slot
+does not leave twelve minutes early: it arrives and **waits**, because the
+whole night network is four trams on a fifty minute timetable and nothing is
+allowed to drift.
+
+So the yellow time means *when it reaches your stop*, which is what was asked
+for, and a delay is shown only when the tram is LATE, which is the only case
+where the departure really moves. The countdown counts to the later of the
+two, because that is the moment the tram can actually take you.
+
+The lesson generalises past this app: **on a timetabled service, a position
+tells you when a vehicle ARRIVES and the timetable still tells you when it
+LEAVES.** Treating the first as the second invents a departure nobody will
+make.
+
+### PAIRING A TRAM TO A DEPARTURE, IN ORDER AND NOT BY NEARNESS
+
+The first pairing gave each scheduled row whichever tram landed closest to its
+time. It is wrong in the case that matters: two trams four and two minutes
+away with one scheduled departure between them, and closest-by-time hands the
+mark to the **four** minute tram because it happens to sit nearer the
+timetable, leaving the tram you are about to catch unmarked.
+
+They are paired **in order** instead. Both lists are already sorted, the trams
+by how soon they arrive and the rows by when they are due, so it is one walk.
+A row no tram lines up with keeps nothing, and that tram stays available for
+the row behind it.
+
+**The window is twelve minutes**, because the headway is fifty. A tram further
+out than that gets no mark at all rather than a guessed one: the wifi has to
+mean "this is that tram", and a wrong pairing writes a live time against a
+departure that is not it.
+
+## THE TEST SUITE WAS ASKING THE PHONE, NOT THE SANDBOX
+
+*16.9.2026, found while installing v10 on the real phone.*
+
+Nineteen checks were failing, and the previous release failed the same
+nineteen, so they were written off as "the machine". Six of them were a real
+fault in the tests.
+
+Every "is this app installed" check ran `command -v day.commute`. The tests
+put their sandbox's `bin` at the front of `PATH` but the phone's own `bin` is
+still behind it, and **this phone has all three apps installed for real**. So
+the absent cases went red because the phone answered, and — far worse — the
+present cases went **green without the sandbox having installed anything at
+all**. Asking `[ -x "$PREFIX/bin/day.commute" ]` asks the sandbox.
+
+The other thirteen upgrade over the three apps as they were installed by hand
+before the umbrella existed, which needs the original installers. Those carry
+the key and are not in this repository. They are now **skipped with a printed
+reason** rather than reported as failures, and `MAHA_ORIGINALS` points at them
+where they exist.
+
+With both fixed: **236, 45, 71, 25 passed, 0 failed.**
+
+**A blanket `pkill` reaches out of a test.** Test 2's cleanup ran
+`pkill -f night_server.py` and stopped the night.commute the person was
+actually using, because the launcher starts its server with a relative path
+and there is nothing in the command line to tell the two apart. It now records
+the pids that existed before it started and kills only what it added. The
+launcher's own stop-everything is left alone: that is the app's decision and
+it is deliberate.
+
+*The same shape bit twice more in one session.* `pkill -f "night.commute"` and
+the installer's own server stop both matched the **shell that was running
+them**, killing it mid-command with exit 144. On this phone, put anything that
+pkills into a script file rather than a command line, or the pattern matches
+the command line it is written on.

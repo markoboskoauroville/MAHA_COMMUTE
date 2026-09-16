@@ -58,3 +58,10 @@ nothing about Android.
 
 - `night.commute` still deletes `~/.nightcommute` at the start of every install. v10 added the live feed and the star and deliberately did not touch the installer's own housekeeping, so the umbrella's copy to `~/.maha.commute/backup/night.prev` is still what saves anything kept there. Still worth fixing.
 - ZET's delay field is read and carried in the `/live` answer and **is not shown anywhere**. Measured values included 3605 and 24000 seconds and a suspiciously constant -600. It is kept because it is information, and not drawn because it has not earned it.
+
+## Added for v11, the wifi mark and the live arrival, and unproven
+
+- **The pairing has been seen against real trams but never over time.** Rows were rendered from tonight's feed and read correctly, but nobody has watched one tram through a whole approach to check the mark stays on the same departure as it gets closer. A mark that jumps between rows as the tram moves would look exactly like this in a single reading.
+- **"Early means it waits" is a claim about how ZET runs its night trams**, taken from the timetable's own structure and from watching trams arrive ahead of their slots. It has not been checked by standing at a stop and seeing one wait. If a night tram ever does leave early, this app will say it is still coming.
+- The twelve minute matching window is set from the fifty minute headway. **No tram has been observed more than twelve minutes off its slot**, so the boundary behaviour is proven only against hand-made inputs.
+- The yellow live time, the green wifi and the `+n` have been checked as markup and never seen rendered. The contrast of the darkened colours on the filled cyan "next departure" pill is reasoned about, not looked at.

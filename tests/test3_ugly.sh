@@ -48,15 +48,21 @@ yes_ "off a phone it refuses"          "[ $rc = 1 ]"
 yes_ "and says why"                    "grep -q 'for Termux on Android' '$T/nophone.log'"
 no_  "and writes nothing"              "[ -d '$T/nophone/.maha.commute' ]"
 
+# Every "is it installed" question below asks THIS sandbox's bin rather than
+# the PATH. The phone running these tests has all three apps installed for
+# real, and the outer PATH sits behind the sandbox's, so "command -v" answers
+# about the phone: the absent cases went red and, worse, the present cases
+# went green without the sandbox having installed anything at all.
+
 # ---- EMPTY: no apps chosen ----------------------------------------
 fresh empty
 printf '\n' | bash "$ART" --offline --apps n >"$T/empty.log" 2>&1
-yes_ "n installs no apps"              "! command -v day.commute >/dev/null"
+yes_ "n installs no apps"              "[ ! -x '$PREFIX/bin/day.commute' ]"
 yes_ "but the menu still arrives"      "command -v maha-commute >/dev/null"
 yes_ "and all three payloads are kept" "[ \$(ls '$HOME/.maha.commute/payloads'/*.payload.sh | wc -l) = 3 ]"
 # and the app can then be added from the menu with no download at all
 bash "$HOME/.maha.commute/install-one.sh" day --offline >"$T/add.log" 2>&1
-yes_ "an app added later works"        "command -v day.commute >/dev/null"
+yes_ "an app added later works"        "[ -x '$PREFIX/bin/day.commute' ]"
 yes_ "and is stamped"                  "[ -s '$HOME/.maha.commute/installed/day' ]"
 
 # ---- HOSTILE: a key full of characters that mean something --------
@@ -64,7 +70,7 @@ fresh hostile
 mkdir -p "$HOME/.maha.commute/keys"
 printf '%s\n' 'AIza|&\;`$(touch '"$T"'/PWNED)x-_9' > "$HOME/.maha.commute/keys/google-api.txt"
 printf '\n' | bash "$ART" --offline --apps 1 >"$T/hostile.log" 2>&1
-yes_ "a hostile key does not stop the install" "command -v day.commute >/dev/null"
+yes_ "a hostile key does not stop the install" "[ -x '$PREFIX/bin/day.commute' ]"
 no_  "and nothing was executed"                "[ -e '$T/PWNED' ]"
 no_  "and no placeholder survived"             "grep -rq '__MAHA_GOOGLE_KEY__' '$HOME/.commute' 2>/dev/null"
 yes_ "the stored key was cleaned to its shape" \
@@ -73,7 +79,7 @@ yes_ "the stored key was cleaned to its shape" \
 # ---- EMPTY: no key anywhere ---------------------------------------
 fresh nokey
 printf '\n' | bash "$ART" --offline --apps 1 >"$T/nokey.log" 2>&1
-yes_ "with no key it still installs"   "command -v day.commute >/dev/null"
+yes_ "with no key it still installs"   "[ -x '$PREFIX/bin/day.commute' ]"
 yes_ "and says the key is optional"    "grep -q 'work without one' '$T/nokey.log'"
 yes_ "and asked nothing to do it"      "! grep -q 'paste one now' '$T/nokey.log'"
 
@@ -105,7 +111,7 @@ printf '\n' | bash "$ART" --offline --apps n >/dev/null 2>&1
 rm -f "$HOME/.maha.commute/payloads/night.payload.sh"
 out=$(bash "$HOME/.maha.commute/install-one.sh" night --offline 2>&1 || true)
 yes_ "a missing payload is named"      "printf '%s' \"\$out\" | grep -q 'not on this phone'"
-no_  "and nothing was installed"       "command -v night.commute >/dev/null"
+no_  "and nothing was installed"       "[ -x '$PREFIX/bin/night.commute' ]"
 
 # ---- MALFORMED: a payload that lost bytes -------------------------
 fresh cut
@@ -115,7 +121,7 @@ head -c 40000 "$P" > "$P.tmp" && mv "$P.tmp" "$P"
 out=$(bash "$HOME/.maha.commute/install-one.sh" day --offline 2>&1 || true)
 yes_ "a damaged payload is refused"    "printf '%s' \"\$out\" | grep -q 'does not match its checksum'"
 yes_ "and it says nothing was changed" "printf '%s' \"\$out\" | grep -q 'nothing was changed'"
-no_  "and it did not install"          "command -v day.commute >/dev/null"
+no_  "and it did not install"          "[ -x '$PREFIX/bin/day.commute' ]"
 
 # ---- MALFORMED: the artefact itself, and the two checks apart -----
 cp "$ART" "$T/whole.sh"
@@ -160,8 +166,8 @@ yes_ "and its parse check passes, so the two are separate" \
 fresh big
 long=$(python3 -c "print('1'*20000)")
 printf '\n' | bash "$ART" --offline --apps "$long" >"$T/big.log" 2>&1
-yes_ "twenty thousand ones is still just day" "command -v day.commute >/dev/null"
-no_  "and nothing else came with it"          "command -v all.commute >/dev/null"
+yes_ "twenty thousand ones is still just day" "[ -x '$PREFIX/bin/day.commute' ]"
+no_  "and nothing else came with it"          "[ -x '$PREFIX/bin/all.commute' ]"
 out=$(printf '\n' | bash "$ART" --offline --apps 'nonsense' 2>&1 || true)
 yes_ "nonsense is refused with a reason" "printf '%s' \"\$out\" | grep -q 'not something I can read'"
 
@@ -194,7 +200,7 @@ COORDS_JSON = os.path.join(TMP, "coords.json")
 SCHED_JSON = os.path.join(TMP, "night_sched.json")
 def _log(m): pass
 
-SRC = open("src/payloads/night-v10/live.py", encoding="utf-8").read()
+SRC = open("src/payloads/night/live.py", encoding="utf-8").read()
 ok = []
 def check(label, cond): ok.append((label, bool(cond)))
 
