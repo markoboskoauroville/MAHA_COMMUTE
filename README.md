@@ -3,6 +3,19 @@
 **The umbrella over the Zagreb transit family. One file installs it, one word
 opens it.**
 
+```sh
+curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh
+```
+
+Paste that into Termux. It asks GitHub which version is current, fetches the
+installer that number names, checks it four ways before running it, and
+installs all three apps. Then type `commute`.
+
+It downloads before it runs rather than piping into `bash`, so the file is on
+the phone and can be read first. A phone that walks out of signal halfway
+through a download leaves a file that looks fine to `ls` and is cut in half,
+which is what those four checks are for.
+
 Marko Boško · Mantra Productions · Zagreb · built 27.8.2026
 
 ---
@@ -19,11 +32,15 @@ roof, whole and unchanged:
 
 ## Installing
 
-One file, and it carries all three apps inside it.
+The one line at the top is the usual way in, and it ends here: one file, and
+it carries all three apps inside it.
 
 ```
 bash 11-maha_commute_v11.sh
 ```
+
+Run it directly like that when the file is already on the phone, which is what
+`get.sh` does once it has fetched and checked it.
 
 **It asks nothing.** All three are installed, missing dependencies are fetched
 when the network answers and left alone when it does not, and a Google key is
