@@ -21,6 +21,8 @@ nothing about Android.
 
 ## Tested only on this machine, where it may behave differently
 
+- **v12, the HTTP half of Test 2.** The phone's own `day.commute` was serving 8082 for Marko throughout this release, and Test 2 starts its sandbox server on that same fixed port. The half is now guarded: it says out loud that it did not run rather than answering from the app already there. The guard was seen to fire; the half behind it has not been seen to pass since, and the code inside it is unchanged from v11, where it did. Stop `day.commute` and run `tests/test2_real.sh` to close this.
+
 - The three apps' own servers. `day.commute` was started and answered 200 on port 8082 with the port it recorded for itself. `night.commute` and `all.commute` were installed and their files written, but their servers were never started, so a fault inside either one would not have been seen.
 - The Google key path was exercised with a fabricated key of the right shape and with a hostile one. It was never exercised with the real key against Google, so nothing here proves the maps draw.
 

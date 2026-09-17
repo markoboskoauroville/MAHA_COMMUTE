@@ -158,6 +158,15 @@ PREV="$ROOT/$PV-maha_commute_v$PV.sh"
 if [ ! -f "$PREV" ]; then
   printf '  v%s is not here, so the v%s to v%s checks did not run\n' "$PV" "$PV" "$V"
 else
+  # THE APP'S VERSION IS NOT THE UMBRELLA'S. They were the same number up to
+  # v11 by coincidence and this test read $V for both, so the first release
+  # that moved the umbrella without moving night.commute turned eleven green
+  # checks red and reported a product fault that did not exist. Read each
+  # one out of the artefact that carries it.
+  night_ver() { sed -n 's/^night|[^|]*|[^|]*|\(v[0-9][0-9]*\)|.*/\1/p' "$1" | head -1; }
+  NV=$(night_ver "$ART"); PNV=$(night_ver "$PREV")
+  [ -n "$NV" ] && [ -n "$PNV" ] || bad "the night version could not be read out of the artefacts"
+
   export HOME="$T/prev/home"; export PREFIX="$T/prev/usr"
   mkdir -p "$HOME" "$PREFIX/bin"
   export PATH="$PREFIX/bin:$OLDPATH"
@@ -172,9 +181,13 @@ else
   # assertions, because a version string is a claim and the absence of the
   # feature is the fact.
   yes_ "and it really is the previous version" \
-       "grep -q \"APP_VERSION = .v\$PV.\" '$NS'"
-  no_  "the old one cannot mark a broadcasting tram" "grep -q 'liveMatchRows' '$NH'"
-  no_  "and has no wifi in its rows"    "grep -q 'class=\"wifi\"' '$NH'"
+       "grep -q \"APP_VERSION = .\$PNV.\" '$NS'"
+  # The absence of the feature is only the fact while the feature is still
+  # new. Asserted against the release that introduced it, not for ever.
+  if [ "$PNV" != "$NV" ]; then
+    no_  "the old one cannot mark a broadcasting tram" "grep -q 'liveMatchRows' '$NH'"
+    no_  "and has no wifi in its rows"    "grep -q 'class=\"wifi\"' '$NH'"
+  fi
 
   # USE IT, the way a person does, and leave it running.
   mkdir -p "$HOME/.nightcommute/pdf"
@@ -194,10 +207,30 @@ else
   if [ -n "$OLDPID" ] && kill -0 "$OLDPID" 2>/dev/null; then ok
   else bad "the v9 night server did not start, so the upgrade proves nothing"; fi
 
+  PRESUM=$(sha256sum "$NS" | cut -d' ' -f1)
+
   # UPGRADE, over the top, with the old one still serving.
   printf '\n' | bash "$ART" --offline --apps 2 >"$T/v10.log" 2>&1
   rc=$?
   yes_ "the upgrade exits clean"        "[ $rc = 0 ]"
+
+  # WHAT THE UMBRELLA DOES DEPENDS ON WHETHER THE APP MOVED. Its own rule is
+  # to compare the payload against the stamp and leave an unchanged app
+  # alone, so a release that carries the same night.commute must NOT stop
+  # the server or copy the folder aside: there is nothing to replace, and a
+  # fourteen megabyte re-download is the cost of pretending otherwise.
+  if [ "$PNV" = "$NV" ]; then
+    printf '  night.commute is %s in both v%s and v%s, so the umbrella leaves it\n' "$NV" "$PV" "$V"
+    printf '  alone. The nine re-install checks did not run: they need a release\n'
+    printf '  that moves the app, not only the umbrella. What is checked instead\n'
+    printf '  is that leaving it alone was deliberate and said out loud.\n\n'
+    yes_ "it says it left night.commute alone" \
+         "grep -qi 'already current' '$T/v10.log'"
+    yes_ "the app is untouched, byte for byte" \
+         "[ \"\$(sha256sum '$NS' | cut -d' ' -f1)\" = '$PRESUM' ]"
+    yes_ "and the running server was not killed for nothing" \
+         "[ -n '$OLDPID' ] && kill -0 '$OLDPID' 2>/dev/null"
+  else
 
   # A running process is STOPPED, not left serving the old code from memory.
   if [ -n "$OLDPID" ] && kill -0 "$OLDPID" 2>/dev/null; then
@@ -206,7 +239,7 @@ else
 
   # The new meaning is really there.
   yes_ "night.commute is now the new version" \
-       "grep -q \"APP_VERSION = .v\$V.\" '$NS'"
+       "grep -q \"APP_VERSION = .\$NV.\" '$NS'"
   yes_ "it reads the live feed"         "grep -q 'gtfs-rt-protobuf' '$NS'"
   yes_ "and serves it"                  "grep -q 'r==\"/live\"' '$NS'"
   yes_ "a broadcasting tram can be marked" "grep -q 'liveMatchRows' '$NH'"
@@ -214,7 +247,7 @@ else
   yes_ "the star is in the page"        "grep -q 'nc_fav' '$NH'"
   yes_ "and in the picker, not only in the code" "grep -q 'sg-star' '$NH'"
   yes_ "the menu reports the new version" \
-       "[ \"\$(cat '$HOME/.maha.commute/installed/night')\" = \"v\$V\" ]"
+       "[ \"\$(cat '$HOME/.maha.commute/installed/night')\" = \"\$NV\" ]"
 
   # THE PERSON'S OWN THINGS. night.commute's own installer clears its folder
   # on every install. That is its decision about its own folder and it is
@@ -229,6 +262,7 @@ else
   yes_ "a note of my own is recoverable"  "[ -f '$B/my-own-note.txt' ]"
   yes_ "a cached PDF is recoverable"      "[ -f '$B/pdf/33.pdf' ]"
   yes_ "and the install said where"       "grep -q 'night.prev' '$T/v10.log'"
+  fi
 
   # THE FAVOURITES. They live in the browser's own storage and not on the
   # filesystem, so no installer can reach them. What CAN reach them is the

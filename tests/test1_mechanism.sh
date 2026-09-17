@@ -481,5 +481,45 @@ else
   printf '  node is not here, so the 45 live page checks did not run\n'
 fi
 
+# ---- env.sh follows the shell that READS it ------------------------
+# /root and /data/data/com.termux/files/home are one directory wearing two
+# names, and env.sh sits in it and is sourced from both sides. A path
+# expanded when the file was WRITTEN is correct on the side that wrote it
+# and missing on the other. v11 shipped that way: installed from inside the
+# proot, env.sh said /root, and a plain Termux shell then failed to make
+# $RUNDIR, failed to redirect into it, and never started the app at all.
+#
+# So the writer block is run here with one home, and the file it produces is
+# sourced under two others. The paths must follow whoever sources it, and
+# the writer's own home must appear nowhere in the file.
+endl=$(grep -n '^} > "\$APPHOME/env.sh.new"$' src/40_main.sh | cut -d: -f1)
+startl=$(awk -v e="$endl" 'NR<e && /^\{$/ {l=NR} END {print l}' src/40_main.sh)
+if [ -n "$endl" ] && [ -n "$startl" ]; then
+  envgen=$(sed -n "$((startl+1)),$((endl-1))p" src/40_main.sh)
+  envout=$(MAHA_VERSION=vT BIN=/prefix/bin MAHA_APPS="id|cmd|dir|v1|8080|one|s.py|one" \
+    APPHOME=/WRITERHOME/.maha.commute PAYDIR=/WRITERHOME/.maha.commute/payloads \
+    KEYDIR=/WRITERHOME/.maha.commute/keys \
+    KEYFILE=/WRITERHOME/.maha.commute/keys/google-api.txt \
+    STAMPDIR=/WRITERHOME/.maha.commute/installed \
+    bash -c "$envgen")
+  tf=$(mktemp)
+  printf '%s\n' "$envout" > "$tf"
+  read_as() { HOME="$1" bash -c ". '$tf'; printf '%s %s %s %s' \
+      \"\$APPHOME\" \"\$PAYDIR\" \"\$KEYFILE\" \"\$STAMPDIR\""; }
+  eq "env.sh read from the proot side" \
+     "/root/.maha.commute /root/.maha.commute/payloads /root/.maha.commute/keys/google-api.txt /root/.maha.commute/installed" \
+     "$(read_as /root)"
+  eq "env.sh read from the Termux side" \
+     "/data/data/com.termux/files/home/.maha.commute /data/data/com.termux/files/home/.maha.commute/payloads /data/data/com.termux/files/home/.maha.commute/keys/google-api.txt /data/data/com.termux/files/home/.maha.commute/installed" \
+     "$(read_as /data/data/com.termux/files/home)"
+  case "$envout" in
+    *WRITERHOME*) bad "env.sh carries the home of the shell that wrote it" ;;
+    *) ok ;;
+  esac
+  rm -f "$tf"
+else
+  bad "the env.sh writer block was not found in src/40_main.sh"
+fi
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

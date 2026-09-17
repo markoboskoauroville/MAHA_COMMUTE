@@ -36,7 +36,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```
-bash 11-maha_commute_v11.sh
+bash 12-maha_commute_v12.sh
 ```
 
 Run it directly like that when the file is already on the phone, which is what
@@ -68,7 +68,7 @@ state and nothing else, so green is running, sand is installed and ready, grey
 is present but not available.
 
 ```
-  ॐ  MAHA COMMUTE  v11
+  ॐ  MAHA COMMUTE  v12
 
   1  day.commute      v13   running 8082
      the daytime ride
@@ -172,7 +172,7 @@ it fails closed, and never for redaction, where it would fail open.
 The delivered file is generated, never edited:
 
 ```
-tools/build_installer.sh          write 11-maha_commute_v11.sh
+tools/build_installer.sh          write 12-maha_commute_v12.sh
 tools/build_installer.sh --check  fail if the artefact is stale
 tools/verify_installer.sh <file>  check a file you have not run yet
 ```

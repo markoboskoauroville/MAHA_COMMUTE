@@ -500,3 +500,77 @@ the installer's own server stop both matched the **shell that was running
 them**, killing it mid-command with exit 144. On this phone, put anything that
 pkills into a script file rather than a command line, or the pattern matches
 the command line it is written on.
+
+## V12: ENV.SH FROZE THE HOME OF THE SHELL THAT WROTE IT
+
+*17.9.2026.* v11 stopped starting `day.commute` on the phone, in the morning,
+with Marko late for work. Nothing in the app was wrong. The installer wrote
+
+```sh
+printf 'APPHOME="%s"\n' "$APPHOME"     # $HOME, already expanded
+```
+
+into `~/.maha.commute/env.sh`, and v11 was installed from inside the PRoot,
+where `$HOME` is `/root`. `/root` and `/data/data/com.termux/files/home` are
+one directory under two names — PRoot binds the second onto the first — so
+`env.sh` lands in the place both sides read, and the Termux side then obeyed a
+path that does not exist on the Termux side.
+
+It complained about a line number, not about a home:
+
+```
+maha-commute: line 171: /root/.maha.commute/running/day.pid: No such file
+6s waiting for port 8082
+```
+
+`mkdir -p "$RUNDIR"` had already failed in silence at the top of the file. Then
+`> "$RUNDIR/$id.log"` failed — **and a failed redirect means the command never
+runs**, so the server was never started. The menu waited out its full timer for
+a port nobody was binding and the quadrant stayed empty.
+
+Every other file the installer writes was already `$HOME`-relative. `env.sh`
+was the one that was not, and one was enough. `grep -rln '/root' ~/.maha.commute`
+finds it in a second. The five lines now keep their `$`:
+
+```sh
+printf 'APPHOME="$HOME/.maha.commute"\n'   # resolved by whoever sources it
+```
+
+**The test could not have caught it.** Test 2 builds one sandbox `HOME`,
+installs into it and asserted `env.sh written` — one home, one reader, and the
+whole failure lives in the gap between two. Test 1 now runs the writer block
+under one home and sources what it produced under both, and asserts the
+writer's own home appears nowhere in the file. Put the v11 line back and three
+checks go red.
+
+## THE APP'S VERSION IS NOT THE UMBRELLA'S
+
+*17.9.2026, found while shipping v12.* Test 4 read `$V`, the umbrella's
+version, as `night.commute`'s version too. They were the same number up to v11
+by coincidence. v12 moves the umbrella and leaves the app at v11, and eleven
+checks went red reporting a product fault that did not exist.
+
+Worse, the honest ones: the umbrella compares each payload against its stamp
+and **leaves an unchanged app alone**, which is the whole point of the stamp.
+So the release does not stop night's server and does not copy its folder
+aside, because it is not replacing anything — and Test 4 asserted both.
+
+Each artefact carries its own answer, so the test reads it rather than
+assuming: `sed -n 's/^night|[^|]*|[^|]*|\(v[0-9][0-9]*\)|.*/\1/p'`. When the
+two versions match, the re-install checks say out loud that they did not run
+and the leave-alone is checked instead. Both branches were run: the v10 to v11
+upgrade still passes 25, the v11 to v12 one passes 11.
+
+## A TEST THAT BINDS A FIXED PORT WILL TEST A STRANGER
+
+*17.9.2026.* Test 2's HTTP half starts its sandbox server on 8082 and probes
+8082. With the phone's own `day.commute` already serving that port, the probe
+succeeded instantly, the page answered 200, and the half passed — against an
+app the test had not started. The only check that noticed was the port the
+server records inside its own `$HOME`, which stayed empty because nothing in
+the sandbox ever bound anything. One red line, reading as a product fault.
+
+The half now asks whether the port is free first and says plainly that it did
+not run when it is not. Same family as the pkill entry above: on this phone
+the sandbox and the real thing share one namespace, and a test has to say
+which one it reached.

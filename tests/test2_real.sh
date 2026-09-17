@@ -112,14 +112,29 @@ if [ "$PHASE" = "install" ]; then
 fi
 
 # ---- and now the real server, over real HTTP ----------------------
-( day.commute > "$T/server.log" 2>&1 & echo $! > "$T/srv.pid" )
-SRV=$(cat "$T/srv.pid")
+# 8082 MUST BE FREE BEFORE THIS BEGINS. The probe below cannot tell this
+# sandbox's server from the phone's own day.commute already sitting on that
+# port. With the real app running, every check in this half is answered by a
+# stranger and passes, and the only one that notices is the port the server
+# records inside its own $HOME, which stays empty because nothing here ever
+# bound anything. That single red line then reads as a product fault and is
+# not one. So ask whether the port is free, and say so when it is not.
 up=0
-for i in $(seq 1 60); do
-  if (exec 3<>/dev/tcp/127.0.0.1/8082) 2>/dev/null; then exec 3<&-; up=1; break; fi
-  sleep 0.5
-done
-yes_ "the server bound its port"         "[ $up = 1 ]"
+if (exec 3<>/dev/tcp/127.0.0.1/8082) 2>/dev/null; then
+  exec 3<&-
+  printf '\n  8082 was already taken before this test began, so the HTTP checks\n'
+  printf '  did not run: they would have been answered by whatever is on that\n'
+  printf '  port, not by anything this test started. Stop the running\n'
+  printf '  day.commute and run this again.\n'
+else
+  ( day.commute > "$T/server.log" 2>&1 & echo $! > "$T/srv.pid" )
+  SRV=$(cat "$T/srv.pid")
+  for i in $(seq 1 60); do
+    if (exec 3<>/dev/tcp/127.0.0.1/8082) 2>/dev/null; then exec 3<&-; up=1; break; fi
+    sleep 0.5
+  done
+  yes_ "the server bound its port"         "[ $up = 1 ]"
+fi
 
 if [ "$up" = "1" ]; then
   code=$(python3 -c "

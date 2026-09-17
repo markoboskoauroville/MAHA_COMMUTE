@@ -185,11 +185,29 @@ rm -f "$PAYDIR"/*.new 2>/dev/null || true
   printf '# written by the MAHA COMMUTE installer %s\n' "$MAHA_VERSION"
   printf 'MAHA_VERSION=%s\n' "$MAHA_VERSION"
   printf 'BIN="%s"\n' "$BIN"
-  printf 'APPHOME="%s"\n' "$APPHOME"
-  printf 'PAYDIR="%s"\n' "$PAYDIR"
-  printf 'KEYDIR="%s"\n' "$KEYDIR"
-  printf 'KEYFILE="%s"\n' "$KEYFILE"
-  printf 'STAMPDIR="%s"\n' "$STAMPDIR"
+  # THESE FIVE STAY UNEXPANDED, and the reason is the whole of this phone.
+  # /root and /data/data/com.termux/files/home are two spellings of ONE
+  # directory: proot-distro binds the Termux home onto /root. Inside proot
+  # $HOME is /root, in a plain Termux shell it is the long path, and both
+  # land on the same files. env.sh is written into that shared directory
+  # and is sourced by BOTH shells.
+  #
+  # So expanding $HOME here writes down whichever shell happened to run the
+  # installer. Installed from inside proot, env.sh said APPHOME=/root/...,
+  # and /root does not exist outside proot. The menu still found env.sh, by
+  # $HOME, and then obeyed it: mkdir -p "$RUNDIR" failed, the redirect to
+  # "$RUNDIR/$id.log" failed, the app was never launched at all, and the
+  # menu sat forever on "waiting for port 8082" with the quadrant empty.
+  # The one visible complaint was a line number in a shell script.
+  #
+  # Written unexpanded, they resolve in the shell that sources them and are
+  # right in both. Everything else the installer writes is already
+  # $HOME-relative; env.sh was the single file that was not.
+  printf 'APPHOME="$HOME/.maha.commute"\n'
+  printf 'PAYDIR="$APPHOME/payloads"\n'
+  printf 'KEYDIR="$APPHOME/keys"\n'
+  printf 'KEYFILE="$KEYDIR/google-api.txt"\n'
+  printf 'STAMPDIR="$APPHOME/installed"\n'
   printf 'MAHA_APPS="%s"\n' "$MAHA_APPS"
 } > "$APPHOME/env.sh.new"
 mv -f "$APPHOME/env.sh.new" "$APPHOME/env.sh"
