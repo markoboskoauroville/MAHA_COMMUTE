@@ -180,8 +180,8 @@ import urllib.parse
 import urllib.request
 import http.server
 
-APP_VERSION = "v39"
-APP_BUILD = "b39"
+APP_VERSION = "v40"
+APP_BUILD = "b40"
 
 APPDIR = os.environ.get("ALLC_DIR", os.path.expanduser("~/.all.commute"))
 START_PORT = int(os.environ.get("ALLC_PORT", "8084"))
@@ -778,6 +778,22 @@ def midnight_epoch():
 def hhmm(t):
     t %= 86400
     return "%02d:%02d" % (t // 3600, (t % 3600) // 60)
+
+
+def index_is_stale(con, now):
+    """Which service day the index describes, and whether that day is today.
+
+    The index holds one day of timetable, the day named in meta, and every `t`
+    in `dep` counts its seconds from that day's midnight -- past midnight and
+    on, so a ride that crosses midnight is filed as 24:15, not as 00:15 of the
+    morning after. Between midnight and the morning's rebuild the two days part
+    company, and anything reading `dep` has to know which one it is holding."""
+    try:
+        row = con.execute("select v from meta where k='service_date'").fetchone()
+        sdate = row["v"] if row else ""
+    except Exception:
+        return False, ""
+    return sdate != datetime.date.fromtimestamp(now).strftime("%Y%m%d"), sdate
 
 
 # ---------------------------------------------------------------------------
@@ -1390,14 +1406,22 @@ def board(stop_id, mins, back=15, fill="auto"):
     if st is None:
         con.close()
         return {"ok": False, "reason": "unknown stop"}
+    stale, sdate = index_is_stale(con, now)
     q = ("select t, trip_id, route, head from dep"
          " where stop_id=? and t between ? and ? order by t limit 400")
-    rows = list(con.execute(q, (stop_id, lo, hi)))
-    # trips that run past midnight are stored as 24:xx and later, so look there too
-    rows += list(con.execute(q, (stop_id, lo + 86400, hi + 86400)))
+    rows = [(r, 0) for r in con.execute(q, (stop_id, lo, hi))]
+    # Trips that run past midnight are stored as 24:xx and later, so look there
+    # too -- but only while the index is yesterday's, because only then do
+    # those rows mean tonight. They stand a day ahead on the index's clock, and
+    # the shift carried beside each one takes that day back off before it
+    # becomes a real time. Leaving the shift out is what made the 00:15 tram
+    # read as 1445 minutes away at ten past midnight.
+    if stale:
+        rows += [(r, -86400)
+                 for r in con.execute(q, (stop_id, lo + 86400, hi + 86400))]
     con.close()
 
-    want = {r["trip_id"] for r in rows}
+    want = {r["trip_id"] for r, _ in rows}
     live, feed_n, feed_ok, feed_err = {}, 0, False, ""
     try:
         live, feed_n = rt_updates_for(fetch_rt(), want)
@@ -1407,8 +1431,8 @@ def board(stop_id, mins, back=15, fill="auto"):
         _log("rt failed: %r" % (e,))
 
     deps = []
-    for r in rows:
-        sched_abs = mid + r["t"]
+    for r, shift in rows:
+        sched_abs = mid + shift + r["t"]
         lt = d = None
         stus = live.get(r["trip_id"])
         if stus:
@@ -1454,16 +1478,8 @@ def board(stop_id, mins, back=15, fill="auto"):
     # ---- the printed timetables fill whatever the index could not ----
     # Two things send us here: an index built for a different service day, and
     # a stop that came back with nothing at all. Either way the stored PDFs
-    # still know what is meant to run today.
-    stale, sdate = False, ""
-    try:
-        c3 = db()
-        row = c3.execute("select v from meta where k='service_date'").fetchone()
-        c3.close()
-        sdate = row["v"] if row else ""
-        stale = sdate != datetime.date.fromtimestamp(now).strftime("%Y%m%d")
-    except Exception:
-        pass
+    # still know what is meant to run today. Whether the index is yesterday's
+    # was already settled above, because the board had to query it knowing.
     filled, fill_routes, fill_needs = [], [], []
     if fill == "always" or (fill == "auto" and (stale or not deps)):
         try:
@@ -1535,9 +1551,23 @@ def trip_detail(trip_id):
             per[sid] = (t, dl)
     overall = trip_delay_from(stus)
 
+    # Which day's clock this ride keeps. One that crosses midnight is filed
+    # under the day it set out on, as 24:15 rather than 00:15, so the hour we
+    # are living in can sit a day to either side of the hour it is running to.
+    # Settle the offset once, against the run's own span, and every time below
+    # is a real time rather than one a day out.
+    t0, tN = seq[0]["t"], seq[-1]["t"]
+    te = now_s - (overall or 0)
+    teN = None
+    for c in (te, te + 86400, te - 86400):
+        if t0 <= c <= tN:
+            teN = c
+            break
+    anchor = mid - (teN - te if teN is not None else 0)
+
     stops = []
     for i, r in enumerate(seq):
-        sched_at = mid + r["t"]
+        sched_at = anchor + r["t"]
         t_abs, dl = per.get(r["stop_id"], (None, None))
         if dl is None:
             dl = overall
@@ -1548,13 +1578,6 @@ def trip_detail(trip_id):
                       "delay": int(dl) if dl is not None else None,
                       "lat": r["lat"], "lon": r["lon"]})
 
-    t0, tN = seq[0]["t"], seq[-1]["t"]
-    te = now_s - (overall or 0)
-    teN = None
-    for c in (te, te + 86400, te - 86400):
-        if t0 <= c <= tN:
-            teN = c
-            break
     pos, next_seq = None, None
     if teN is not None:
         for i in range(len(seq) - 1):

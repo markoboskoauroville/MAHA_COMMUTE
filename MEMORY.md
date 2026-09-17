@@ -574,3 +574,48 @@ The half now asks whether the port is free first and says plainly that it did
 not run when it is not. Same family as the pkill entry above: on this phone
 the sandbox and the real thing share one namespace, and a test has to say
 which one it reached.
+
+## A DAY OUT, AND THE QUERY THAT PUT IT THERE
+
+*18.9.2026, all.commute v39, found on the screen at ten past midnight.* The
+board at Bolšićeva offered a tram at 00:15 as **1445 min** away, and the one at
+00:18 as 1448. 1445 is 1440 + 5.
+
+A GTFS index is one service day, and a ride that crosses midnight stays on the
+day it set out on: the 00:15 tram is stored as **24:15**, `t = 87300`, not as
+900 seconds of the morning after. `board()` knew that much — it ran the query a
+second time over `t between lo+86400 and hi+86400` to reach those rows. Then it
+turned every row into a time the same way:
+
+    sched_abs = mid + r["t"]
+
+87300 seconds past *today's* midnight is tomorrow at 00:15. The row was fetched
+with a day added and made into a time with the day still in it. The 00:40 bus on
+the same board was right, because at `t = 2450` it came out of the first band,
+where today's midnight is the correct anchor.
+
+Each row now carries the shift its band implies, and the far band is only asked
+for while the index is yesterday's:
+
+    rows  = [(r, 0)      for r in con.execute(q, (stop_id, lo, hi))]
+    if stale:
+        rows += [(r, -86400)
+                 for r in con.execute(q, (stop_id, lo + 86400, hi + 86400))]
+    ...
+    sched_abs = mid + shift + r["t"]
+
+**The `if stale` matters as much as the subtraction.** The far band means
+*tonight* only while the index is yesterday's. On an index already rebuilt for
+today those same rows are tomorrow night, and offering them as five minutes away
+is the same bug pointing the other way. Test 1 pins both directions.
+
+`trip_detail()` had the same anchor and is fixed the same way: it already
+searched `te ± 86400` to find which day's clock the ride keeps, so that answer
+now sets the anchor for every printed time instead of being used only to place
+the vehicle on the line. A ride leaving at 23:50 and arriving 00:23 now dates
+both ends correctly, on either side of the midnight it crosses.
+
+**Nine mechanism checks, and they run against the artefact.** The server is cut
+out of `13-maha_commute_v13.sh` between its heredoc delimiters, driven against a
+three row index with the clock pinned to 00:10 and the feed cut. Put the old two
+lines back and three of the nine go red.

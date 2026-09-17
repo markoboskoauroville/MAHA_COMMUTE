@@ -38,7 +38,7 @@ CHECK=0
 # keeps the menu from claiming a number the app does not answer to.
 APPS="day:13-install-day-commute-termux-v13.sh:v13:day.commute:.commute:8082:the daytime ride
 night:9-night_commute_v9.sh:v11:night.commute:.nightcommute:8087:the four night trams
-all:39-install-all_commute-termux-v39.sh:v39:all.commute:.all.commute:8084:every station around you"
+all:39-install-all_commute-termux-v39.sh:v40:all.commute:.all.commute:8084:every station around you"
 
 SALT="7c1a"
 NL=$'\n'

@@ -67,3 +67,8 @@ nothing about Android.
 - **"Early means it waits" is a claim about how ZET runs its night trams**, taken from the timetable's own structure and from watching trams arrive ahead of their slots. It has not been checked by standing at a stop and seeing one wait. If a night tram ever does leave early, this app will say it is still coming.
 - The twelve minute matching window is set from the fifty minute headway. **No tram has been observed more than twelve minutes off its slot**, so the boundary behaviour is proven only against hand-made inputs.
 - The yellow live time, the green wifi and the `+n` have been checked as markup and never seen rendered. The contrast of the darkened colours on the filled cyan "next departure" pill is reasoned about, not looked at.
+
+## Added for v13, the midnight anchor, and unproven
+
+- **`trip_detail`'s anchor has no test of its own.** The board's after-midnight arithmetic is pinned by nine checks in Test 1; the ride dashboard's was read once against the phone's real index at 00:26, where a 23:50 departure arriving 00:23 dated both ends correctly. A ride whose live delay pushes it across the midnight it was already near has not been met.
+- **An index more than one day stale after midnight has not been met.** The far band is asked for whenever the index is not today's, so a three day old index would still offer its 24:xx rows as tonight's. That is the same overlay the near band has always done and it is deliberate, but it has only been reasoned about, not seen.

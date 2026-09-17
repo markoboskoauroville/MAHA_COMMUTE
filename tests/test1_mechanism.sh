@@ -211,6 +211,157 @@ else
   printf '  node is not here, so the 6 midnight countdown checks did not run\n'
 fi
 
+# ---- the board's own midnight, ten past it ------------------------
+# The bug that showed 1445 min at 00:10 for the 00:15 tram. A ride that
+# crosses midnight stays filed under the day it set out on, as 24:15, and
+# the index on the phone at that hour is still yesterday's. Read against
+# today's midnight, every one of those rows lands a day out. The server is
+# pulled out of the ARTEFACT and driven against a three row index, with the
+# clock pinned and nothing allowed near the network.
+V=$(cat VERSION); ART="$V-maha_commute_v$V.sh"
+ALLC_SRC=$(mktemp); ALLC_DIR_T=$(mktemp -d)
+awk '
+  /cat > .*all_commute_server.py.* <<.?.ALLC_SERVER_PY/ { grab=1; next }
+  grab && $0 == "ALLC_SERVER_PY" { grab=0; next }
+  grab { print }
+' "$ART" > "$ALLC_SRC"
+board_out=$(ALLC_DIR="$ALLC_DIR_T" python3 - "$ALLC_SRC" <<'ALLC_BOARD_PY'
+import datetime, os, sqlite3, sys, time
+
+SRC = sys.argv[1]
+DB = os.path.join(os.environ["ALLC_DIR"], "network.db")
+
+
+def index(service_date, rows):
+    """One day of timetable, the way the phone keeps it: seconds counted from
+    the service day's own midnight, past 24:00 and on for a ride that crosses
+    it."""
+    try:
+        os.remove(DB)
+    except OSError:
+        pass
+    con = sqlite3.connect(DB)
+    con.execute("create table meta(k text primary key, v text)")
+    con.execute("create table stops(stop_id text primary key, name text,"
+                " lat real, lon real, bearing real)")
+    con.execute("create table dep(stop_id text, t int, trip_id text,"
+                " route text, head text)")
+    con.execute("create table trips(trip_id text primary key, route text,"
+                " head text, origin text, dest text, start_t int, end_t int)")
+    con.execute("insert into meta values('service_date', ?)", (service_date,))
+    con.execute("insert into stops values('S1','Bolsiceva',45.74,16.0,0.0)")
+    for t, route, head in rows:
+        tid = "trip_%s_%d" % (route, t)
+        con.execute("insert into dep values('S1',?,?,?,?)", (t, tid, route, head))
+        con.execute("insert into trips values(?,?,?,?,?,?,?)",
+                    (tid, route, head, "Galijska", head, t, t + 1200))
+    con.commit()
+    con.close()
+
+
+def server_at(when):
+    """The shipped server, with its clock stopped at `when` and its feed cut."""
+    real_time, real_dt = time, datetime
+    stamp = when.timestamp()
+
+    class Clock(object):
+        def __getattr__(self, k):
+            return getattr(real_time, k)
+
+        def time(self):
+            return stamp
+
+    class Datetime(real_dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return when
+
+    class DatetimeModule(object):
+        date = real_dt.date
+        datetime = Datetime
+        timedelta = real_dt.timedelta
+
+    g = {"__name__": "allc_under_test", "__file__": SRC}
+    exec(compile(open(SRC, encoding="utf-8").read(), "all_commute_server.py",
+                 "exec"), g)
+    g["time"] = Clock()
+    g["datetime"] = DatetimeModule()
+    g["DB_PATH"] = DB
+    g["_log"] = lambda *a: None
+
+    def no_feed():
+        raise RuntimeError("the test never touches the network")
+
+    g["fetch_rt"] = no_feed
+    return g
+
+
+ok = []
+
+
+def check(label, cond):
+    ok.append((label, bool(cond)))
+
+
+def board_at(g, window=90):
+    return g["board"]("S1", window, back=15, fill="never")
+
+
+def mins_for(g, route, window=90):
+    for d in board_at(g, window)["departures"]:
+        if d["route"] == route:
+            return d["mins"], d["sched"]
+    return None, None
+
+
+# 00:15 and 00:18 tonight, filed by the index as 24:15 and 24:18, and one row
+# from the small hours of the day the index was actually built for.
+NIGHT = [(24 * 3600 + 15 * 60, "241", "Gl.kolodvor"),
+         (24 * 3600 + 18 * 60, "166", "Lisinski"),
+         (40 * 60, "268", "V. Gorica")]
+
+TEN_PAST = datetime.datetime(2026, 9, 18, 0, 10, 0)
+
+# ---- the case it is FOR: ten past midnight, yesterday's index ----
+index("20260917", NIGHT)
+g = server_at(TEN_PAST)
+m, sched = mins_for(g, "241")
+check("the 00:15 tram is 5 minutes away, not 1445", m == 5)
+check("and it is still called 00:15", sched == "00:15")
+check("the 00:18 one is 8 minutes away", mins_for(g, "166")[0] == 8)
+check("a row from the small hours keeps its own count",
+      mins_for(g, "268")[0] == 30)
+check("the board says whose day it is reading",
+      board_at(g)["service_date"] == "20260917")
+check("and that it is not today's", board_at(g)["index_stale"] is True)
+
+# ---- the same index in daylight: no phantom out of the far band ----
+g = server_at(datetime.datetime(2026, 9, 18, 14, 0, 0))
+check("at two in the afternoon the 24:15 row is not on the board",
+      mins_for(g, "241")[0] is None)
+
+# ---- a fresh index at the same hour: 24:15 is TOMORROW night ----
+index("20260918", NIGHT)
+g = server_at(TEN_PAST)
+check("on today's index the 24:15 row is not tonight's tram",
+      mins_for(g, "241")[0] is None)
+check("and the 00:40 row still is", mins_for(g, "268")[0] == 30)
+
+for label, good in ok:
+    print("%s\t%s" % ("ok" if good else "FAIL", label))
+ALLC_BOARD_PY
+)
+rm -rf "$ALLC_SRC" "$ALLC_DIR_T"
+while IFS="$(printf '\t')" read -r verdict label; do
+  [ -z "$label" ] && continue
+  if [ "$verdict" = "ok" ]; then ok; else bad "$label"; fi
+done <<BOARD_OUT
+$board_out
+BOARD_OUT
+if [ -z "$board_out" ]; then
+  bad "the board never ran: the server did not come out of the artefact"
+fi
+
 # ---- the pin is the number and nothing else ------------------------
 # pinHTML is pulled out of the ARTEFACT and run for real. The star is gone
 # and so is the name: three labels per station, six stations in view, and
