@@ -2833,6 +2833,20 @@ cat > "$APPDIR/all.html" << 'ALLC_STAR_HTML'
     padding:6px 11px;border-radius:999px;background:rgba(13,17,23,.82);
     border:1px solid rgba(255,255,255,.28);color:#fff;
     font:800 .72rem/1 system-ui,sans-serif;letter-spacing:.06em;backdrop-filter:blur(4px);}
+  /* ---- station location pin centred on the Street View photo ---- */
+  .svpin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);
+    pointer-events:none;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7));}
+  .svpin::before{content:"";display:block;width:28px;height:28px;border-radius:50%;
+    background:var(--c);border:3px solid #fff;
+    box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 60%,transparent);
+    animation:svpinpulse 2.2s ease-out infinite;}
+  .svpin::after{content:"";display:block;width:0;height:0;
+    border-left:10px solid transparent;border-right:10px solid transparent;
+    border-top:13px solid var(--c);margin:0 auto;}
+  @keyframes svpinpulse{
+    0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c) 60%,transparent);}
+    60%{box-shadow:0 0 0 10px rgba(0,0,0,0);}
+    100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}}
   .svnone{padding:9px 12px;color:var(--muted);font-size:.74rem;font-weight:600;
     border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
   .arr{padding:4px 0;}
@@ -3886,6 +3900,7 @@ function photoHTML(s){
   return '<span class="svwrap" data-pano="' + esc(s.stop_id) + '">' +
     '<img class="sv" src="' + esc(sv) + '" alt="' + esc(s.name) + '" loading="lazy"' +
     ' onerror="this.style.display=\'none\'">' +
+    '<span class="svpin"></span>' +
     '<span class="sv360">◉ 360°</span></span>';
 }
 function cardHTML(s){

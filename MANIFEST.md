@@ -4,7 +4,50 @@
 
 ---
 
+## v15 · 2026-10-03
+
+**Umbrella installer: `15-maha_commute_v15.sh`**
+**Uninstaller: `15-maha_commute_uninstall_v15.sh`**
+
+### Change: Station location pin on the Street View card photo
+
+**App affected:** `all.commute` (payload `src/payloads/39-install-all_commute-termux-v39.sh`)
+
+**What was added:** A downward-pointing teardrop drop-pin is overlaid at the
+**centre** of every Street View card photograph. It uses each stop's unique
+`--c` colour (same as the stop ring on the map), has a white border, and
+pulses gently so the eye is drawn to exactly where the station is within
+the Street View frame.
+
+The pin is purely CSS — no image files or SVGs. It is built from two
+pseudo-elements on `.svpin`:
+- `::before` — the circle head of the pin, with a ripple `@keyframes` pulse
+- `::after` — the downward-pointing triangle tail
+
+The pin is `pointer-events:none` so it does not interfere with the tap that
+opens the 360° panorama.
+
+**Files changed:**
+
+```
+src/payloads/39-install-all_commute-termux-v39.sh
+```
+
+| Location | Change |
+|---|---|
+| CSS block (after `.sv360`) | New `.svpin`, `.svpin::before`, `.svpin::after`, `@keyframes svpinpulse` |
+| `photoHTML()` JS function | `<span class="svpin"></span>` inserted between `<img>` and `<span class="sv360">` |
+
+**Built and verified:**
+```
+bash tools/build_installer.sh   → 15-maha_commute_v15.sh (652 209 bytes)
+bash tools/build_uninstaller.sh → 15-maha_commute_uninstall_v15.sh (9 129 bytes)
+```
+
+---
+
 ## v14 · 2026-10-03
+
 
 **Umbrella installer: `14-maha_commute_v14.sh`**
 **Uninstaller: `14-maha_commute_uninstall_v14.sh`**

@@ -22,6 +22,15 @@ Fixed in `src/payloads/39-install-all_commute-termux-v39.sh`:
 
 Built as umbrella v14. `MANIFEST.md` created to track future changes.
 
+## STATION LOCATION PIN ON STREET VIEW CARD — all.commute v40 / umbrella v15
+
+*3.10.2026.* A downward-pointing teardrop drop-pin is now overlaid at the
+centre of the Street View card photo on each stop card. It is CSS-only
+(`.svpin` with `::before` circle + `::after` triangle, `@keyframes svpinpulse`),
+coloured with the stop's unique `--c` CSS variable, and is
+`pointer-events:none` so tapping still opens the 360° panorama.
+
+
 ## WHAT THIS REPO IS
 
 *27.8.2026.* An umbrella over three apps that already existed and already
