@@ -9,6 +9,19 @@ this project.
 
 ---
 
+## STREET VIEW BEARING IS NOW REVERSED — all.commute v40 / umbrella v14
+
+*3.10.2026.* The bearing stored per stop is the heading of vehicles *leaving*
+that stop. Both the still Street View card photo and the live 360° panorama
+were initialising to `s.bearing` directly, so users were always shown the
+direction the tram/bus departs toward, not the direction they arrive from.
+
+Fixed in `src/payloads/39-install-all_commute-termux-v39.sh`:
+- `streetView()` still photo: `(s.bearing + 180) % 360`
+- `openPano()` 360° panorama POV: `(s.bearing + 180) % 360`
+
+Built as umbrella v14. `MANIFEST.md` created to track future changes.
+
 ## WHAT THIS REPO IS
 
 *27.8.2026.* An umbrella over three apps that already existed and already

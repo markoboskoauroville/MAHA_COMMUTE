@@ -3755,7 +3755,7 @@ async function streetView(s){
   if (s.stop_id in SV_CACHE) return SV_CACHE[s.stop_id];
   if (!API_KEY) { SV_CACHE[s.stop_id] = null; return null; }
   const loc = s.lat + "," + s.lon;
-  const head = s.bearing == null ? "" : "&heading=" + Math.round(s.bearing);
+  const head = s.bearing == null ? "" : "&heading=" + Math.round((s.bearing + 180) % 360);
   const url = "https://maps.googleapis.com/maps/api/streetview?size=640x260&location=" +
     loc + "&fov=80&pitch=2" + head + "&return_error_code=true&key=" + encodeURIComponent(API_KEY);
   try {
@@ -3808,7 +3808,7 @@ async function openPano(id){
       document.getElementById("panoMotion").classList.remove("on");
       pano = new g.maps.StreetViewPanorama(el, {
         pano: data.location.pano,
-        pov: { heading: s.bearing == null ? 0 : s.bearing, pitch: 0 },
+        pov: { heading: s.bearing == null ? 0 : (s.bearing + 180) % 360, pitch: 0 },
         zoom: 0,
         addressControl: false, fullscreenControl: false, zoomControl: false,
         panControl: false, motionTracking: false, motionTrackingControl: false,
