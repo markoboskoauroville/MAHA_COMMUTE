@@ -4,6 +4,28 @@
 
 ---
 
+## v16 · 2026-10-03
+
+**Umbrella installer: `16-maha_commute_v16.sh`**
+**Uninstaller: `16-maha_commute_uninstall_v16.sh`**
+
+### Change: GTFS stop code label above the location pin
+
+**App affected:** `all.commute` (payload `src/payloads/39-install-all_commute-termux-v39.sh`)
+
+**What was added:** The GTFS `stop_id` (e.g. `30001`) is now shown as a small
+pill chip directly **above** the circle head of the drop-pin. The label uses
+the stop's unique `--c` colour for text and border, dark glassmorphism
+background, and sits flush above the pin — so the full stack reads:
+label → circle → triangle tip pointing at the station.
+
+**CSS:** New `.svpinlabel` class. `.svpin` now uses `flex-direction:column`.
+**JS:** `photoHTML()` injects `<span class="svpinlabel">{stop_id}</span>`.
+
+**Built:** `16-maha_commute_v16.sh` (652 585 bytes)
+
+---
+
 ## v15 · 2026-10-03
 
 **Umbrella installer: `15-maha_commute_v15.sh`**
