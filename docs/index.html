@@ -1,0 +1,36 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MAHA COMMUTE, copy a command</title><style>
+:root{--bg:#0d1117;--card:#161b22;--line:#30363d;--text:#e6edf3;--muted:#8b949e;--amber:#d4a017;--ok:#3fb950}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.5 system-ui,sans-serif;padding:18px 14px 60px;max-width:640px;margin:auto}
+h1{font-size:1.35rem;margin:6px 0 4px}
+p.note{color:var(--muted);font-size:.9rem;margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 16px}
+.card h2{font-size:1rem;margin:0 0 10px;color:var(--amber)}
+pre{margin:0 0 12px;background:#0b0f14;border:1px solid var(--line);border-radius:10px;padding:12px;
+    white-space:pre-wrap;word-break:break-all;font:14px/1.45 ui-monospace,Menlo,Consolas,monospace;user-select:all;-webkit-user-select:all}
+button{display:block;width:100%;min-height:58px;border:0;border-radius:12px;background:var(--amber);color:#1a1300;
+       font:700 1.1rem system-ui,sans-serif;cursor:pointer}
+button.done{background:var(--ok);color:#04110a}
+.hint{color:var(--muted);font-size:.85rem;margin:8px 0 0;min-height:1.2em}
+</style></head><body><h1>MAHA COMMUTE</h1><p class="note">Tap Copy, then paste into Termux. Nothing on this page runs anything.</p><section class="card" id="cmd-1"><h2>MAHA COMMUTE</h2><pre>curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh &amp;&amp; bash get.sh</pre><button type="button" onclick="copyCard(this)">Copy</button><p class="hint"></p></section>
+<section class="card" id="cmd-2"><h2>The whole of Maha Commute, all three apps</h2><pre>curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh &amp;&amp; bash get.sh</pre><button type="button" onclick="copyCard(this)">Copy</button><p class="hint"></p></section>
+<section class="card" id="cmd-3"><h2>day.commute only</h2><pre>curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh &amp;&amp; bash get.sh --apps 1</pre><button type="button" onclick="copyCard(this)">Copy</button><p class="hint"></p></section>
+<section class="card" id="cmd-4"><h2>night.commute only</h2><pre>curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh &amp;&amp; bash get.sh --apps 2</pre><button type="button" onclick="copyCard(this)">Copy</button><p class="hint"></p></section>
+<section class="card" id="cmd-5"><h2>all.commute only</h2><pre>curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh &amp;&amp; bash get.sh --apps 3</pre><button type="button" onclick="copyCard(this)">Copy</button><p class="hint"></p></section>
+<section class="card" id="cmd-6"><h2>Installing</h2><pre>bash 17-maha_commute_v17.sh</pre><button type="button" onclick="copyCard(this)">Copy</button><p class="hint"></p></section>
+<section class="card" id="cmd-7"><h2>Using it</h2><pre>maha-commute</pre><button type="button" onclick="copyCard(this)">Copy</button><p class="hint"></p></section><script>
+function flash(b, msg, ok){ b.textContent = msg; b.classList.toggle('done', !!ok);
+  setTimeout(function(){ b.textContent = 'Copy'; b.classList.remove('done'); }, 2200); }
+function selectIt(pre){ var r = document.createRange(); r.selectNodeContents(pre);
+  var s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+async function copyCard(b){
+  var pre = b.parentNode.querySelector('pre'), text = pre.textContent, hint = b.parentNode.querySelector('.hint');
+  hint.textContent = '';
+  try { await navigator.clipboard.writeText(text); flash(b, 'Copied', true); return; } catch (e) {}
+  try { var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly','');
+        ta.style.position='fixed'; ta.style.opacity='0'; document.body.appendChild(ta); ta.select();
+        var ok = document.execCommand('copy'); document.body.removeChild(ta);
+        if (ok) { flash(b, 'Copied', true); return; } } catch (e) {}
+  selectIt(pre); hint.textContent = 'The phone would not let a page copy. The command is selected: long-press it and choose Copy.';
+}
+</script></body></html>

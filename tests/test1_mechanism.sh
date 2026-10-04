@@ -807,5 +807,50 @@ for spec in "day:13-install-day-commute-termux-v13.sh:/update-bus /api-keys /gem
   done
 done
 
+# ---- v17: the copy page, for the app that has no copy button ------------
+# The GitHub website puts a button on every code block. The GitHub APP does
+# not, and cuts a long line off at the screen edge. So each README command has
+# a card on a generated page with a real button, and a link under the block.
+# What could be true while this test passes and the feature is broken: the page
+# could hold a DIFFERENT command from the README (a stale copy), a card could
+# carry the wrong app's command, or the README could link to a card that is not
+# there. Each of those is a failure of its own below.
+cp_out=$(python3 - <<'PYEOF'
+import html, re, sys
+sys.path.insert(0, "tools")
+import build_copy_page as B
+text = open("README.md", encoding="utf-8").read()
+page = open("docs/index.html", encoding="utf-8").read()
+want = B.blocks(text)
+cards = re.findall(r'<section class="card" id="cmd-(\d+)"><h2>(.*?)</h2><pre>(.*?)</pre>', page, re.S)
+def say(ok, what): print(("ok " if ok else "BAD ") + what)
+say(len(cards) == len(want) and len(want) >= 5, "one card per command (%d cards, %d commands)" % (len(cards), len(want)))
+say([int(c[0]) for c in cards] == list(range(1, len(cards) + 1)), "the cards are numbered 1 to n with no gaps")
+for (n, label, body), (wl, wc, _e) in zip(cards, want):
+    say(html.unescape(body) == wc, "card %s is the README command, byte for byte" % n)
+    say(html.unescape(label) == wl, "card %s carries the README's own label" % n)
+by = {html.unescape(l): html.unescape(b) for _n, l, b in cards}
+say(by.get("day.commute only", "").endswith("--apps 1"),   "the day card holds the day command")
+say(by.get("night.commute only", "").endswith("--apps 2"), "the night card holds the night command")
+say(by.get("all.commute only", "").endswith("--apps 3"),   "the all card holds the all command")
+say(B.readme_links_ok(text) == [], "every command has a link to its own card under it")
+say("navigator.clipboard.writeText" in page and "execCommand('copy')" in page, "the page copies, with an older fallback behind it")
+say(re.search(r'<script src=|https?://[^"\']*\.(js|css)', page) is None, "the page loads nothing from anywhere else")
+PYEOF
+)
+while IFS= read -r l; do case "$l" in ok*) ok ;; *) bad "copy page: ${l#BAD }" ;; esac; done <<< "$cp_out"
+python3 tools/build_copy_page.py --check >/dev/null 2>&1; rc_is "the copy page is fresh against the README" 0 $?
+
+# Each failure on its own: a stale page, a changed command, a missing link.
+cpd=$(mktemp -d); mkdir -p "$cpd/tools" "$cpd/docs"
+cp tools/build_copy_page.py "$cpd/tools/"; cp README.md "$cpd/"; cp docs/index.html docs/.nojekyll "$cpd/docs/"
+sed -i '0,/--apps 3$/s//--apps 9/' "$cpd/README.md"
+python3 "$cpd/tools/build_copy_page.py" --check >/dev/null 2>&1; rc_is "a README command changed and the page not rebuilt is stale" 1 $?
+cp README.md "$cpd/README.md"; sed -i '0,/#cmd-3)/s//#cmd-99)/' "$cpd/README.md"
+python3 "$cpd/tools/build_copy_page.py" --check >/dev/null 2>&1; rc_is "a link that points at no card fails" 1 $?
+cp README.md "$cpd/README.md"; sed -i '/#cmd-4)/d' "$cpd/README.md"
+python3 "$cpd/tools/build_copy_page.py" --check >/dev/null 2>&1; rc_is "a command with no link under it fails" 1 $?
+rm -rf "$cpd"
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

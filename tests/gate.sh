@@ -27,6 +27,9 @@ else block "the artefact exists" "no"; fi
 if bash tools/build_installer.sh --check >/dev/null 2>&1; then
   line "built from the sources in src/" "fresh"
 else block "built from the sources in src/" "STALE, rebuild it"; fi
+if python3 tools/build_copy_page.py --check >/dev/null 2>&1; then
+  line "the copy page matches the README" "fresh, every command linked"
+else block "the copy page matches the README" "STALE, run tools/build_copy_page.py"; fi
 lead=${ART%%-*}; trail=$(printf '%s' "$ART" | sed -E 's/.*_v([0-9]+)\.sh/\1/')
 if [ "$lead" = "$V" ] && [ "$trail" = "$V" ]; then
   line "the version at both ends of the name" "$lead and $trail"

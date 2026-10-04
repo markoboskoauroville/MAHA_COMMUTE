@@ -7,6 +7,8 @@ opens it.**
 curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh
 ```
 
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-1)
+
 Paste that into Termux. It asks GitHub which version is current, fetches the
 installer that number names, checks it four ways before running it, and
 installs all three apps. Then type `maha-commute`.
@@ -30,11 +32,15 @@ no download.
 curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh
 ```
 
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-2)
+
 **day.commute only**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh --apps 1
 ```
+
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-3)
 
 **night.commute only**
 
@@ -42,11 +48,15 @@ curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/ma
 curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh --apps 2
 ```
 
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-4)
+
 **all.commute only**
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh --apps 3
 ```
+
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-5)
 
 Two of them go together: `--apps 12` is day and night, `--apps 13` is day and
 all, `--apps 23` is night and all. On a phone that has never been set up, none
@@ -72,9 +82,11 @@ roof, whole and unchanged:
 The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
-```
+```sh
 bash 17-maha_commute_v17.sh
 ```
+
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
 
 Run it directly like that when the file is already on the phone, which is what
 `get.sh` does once it has fetched and checked it.
@@ -102,9 +114,11 @@ menu, with no download and no second file.
 
 ## Using it
 
+```sh
+maha-commute
 ```
-commute
-```
+
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-7)
 
 That is the whole interface. All three apps are on the screen from the first
 frame whether they are installed or not: an app that is not here is dim rather
