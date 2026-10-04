@@ -399,5 +399,69 @@ case "$ugly_out" in
 esac
 
 export HOME="$OLDHOME"; export PATH="$OLDPATH"
+# ---- v17: STORAGE, asked for and never required ---------------------
+# A phone that has never been set up needs Android's Allow tap before the
+# Downloads folder can be read. The installer raises the popup and waits; it
+# must carry on whatever the answer is, never read its own text as the answer,
+# and never wait for ever. The command is a stand-in on this sandbox's PATH
+# that behaves like the real one: it asks y or n if an old ~/storage exists,
+# and the folder appears only when somebody has "tapped".
+mkshim() { # mkshim <grant-after-seconds|never>
+  cat > "$PREFIX/bin/termux-setup-storage" <<SHIM
+#!/bin/sh
+echo called >> "$T/storage.calls"
+if [ -e "\$HOME/storage" ] && [ ! -d "\$HOME/storage/downloads" ]; then
+  read -r ans; echo "asked, got: \$ans" >> "$T/storage.calls"; [ "\$ans" = y ] || exit 1
+fi
+[ "$1" = never ] && exit 0
+( sleep $1; mkdir -p "\$HOME/storage/downloads" ) &
+exit 0
+SHIM
+  chmod +x "$PREFIX/bin/termux-setup-storage"; rm -f "$T/storage.calls"
+}
+
+fresh st_absent
+printf '\n' | bash "$ART" --offline --apps n >"$T/st_absent.log" 2>&1; rc=$?
+yes_ "no termux-setup-storage: the install still finishes"  "[ $rc = 0 ]"
+yes_ "and the storage step says it was skipped"             "grep -q 'storage' '$T/st_absent.log'"
+
+fresh st_tap; mkshim 2
+printf '\n' | MAHA_STORAGE_WAIT=20 bash "$ART" --offline --apps n >"$T/st_tap.log" 2>&1; rc=$?
+yes_ "popup tapped: the install finishes"                   "[ $rc = 0 ]"
+yes_ "the command was run once"                             "[ \"\$(grep -c '^called' '$T/storage.calls')\" = 1 ]"
+yes_ "and the installer says storage is allowed"            "grep -q 'allowed' '$T/st_tap.log'"
+yes_ "the Downloads folder is really reachable afterwards"  "[ -d '$HOME/storage/downloads' ]"
+
+fresh st_never; mkshim never
+t0=$SECONDS
+printf '\n' | MAHA_STORAGE_WAIT=3 bash "$ART" --offline --apps n >"$T/st_never.log" 2>&1; rc=$?
+yes_ "popup never tapped: the install STILL finishes"       "[ $rc = 0 ]"
+yes_ "it did not wait for ever"                             "[ $((SECONDS - t0)) -lt 25 ]"
+yes_ "it says not allowed, and that this is fine"           "grep -q 'not allowed' '$T/st_never.log'"
+yes_ "and names the one command that would change it"       "grep -q 'termux-setup-storage' '$T/st_never.log'"
+no_  "and does not call it a failure"                       "grep -qi 'did not finish\\|failed' '$T/st_never.log'"
+
+fresh st_already; mkdir -p "$HOME/storage/downloads"; mkshim 1
+printf '\n' | bash "$ART" --offline --apps n >"$T/st_already.log" 2>&1
+yes_ "already allowed: the popup is not raised again"       "[ ! -f '$T/storage.calls' ]"
+
+fresh st_old; mkdir -p "$HOME/storage/old-link"; mkshim 1
+printf '\n' | MAHA_STORAGE_WAIT=20 bash "$ART" --offline --apps n >"$T/st_old.log" 2>&1; rc=$?
+yes_ "an old ~/storage that asks y or n: install finishes"  "[ $rc = 0 ]"
+yes_ "the question was answered y for the person"           "grep -q 'asked, got: y' '$T/storage.calls'"
+yes_ "and allowed in the end"                               "[ -d '$HOME/storage/downloads' ]"
+
+# The installer arriving on STANDARD INPUT, as curl piped into bash does. The
+# storage step runs the command with its own input closed, so it cannot read
+# the script's next lines as an answer.
+fresh st_pipe; mkdir -p "$HOME/storage/old-link"; mkshim 1
+MAHA_STORAGE_WAIT=20 bash -s -- --offline --apps n < "$ART" >"$T/st_pipe.log" 2>&1; rc=$?
+yes_ "installer piped in on stdin: finishes"                "[ $rc = 0 ]"
+yes_ "and still reaches its closing lines"                  "grep -q 'maha-commute' '$T/st_pipe.log'"
+yes_ "and the y/n question was answered, not swallowed"     "grep -q 'asked, got: y' '$T/storage.calls'"
+
+# the dependency table names procps, which the launcher needs to find servers
+yes_ "the dependency table lists procps"                    "grep -q 'procps' '$T/st_tap.log'"
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

@@ -35,6 +35,36 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# ---- v17: what the wifi sees --------------------------------------
+# The servers bind wide, so a laptop on the same wifi can open the page. These
+# ask from this machine's own network address, which makes the server see a
+# peer that is NOT loopback: the real thing, not a header typed by hand.
+LAN=$(hostname -I 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | grep -v '^127\.' | head -1)
+http_code() { # http_code URL [Host header]
+  python3 - "$1" "${2:-}" <<'PYEOF'
+import sys, urllib.request, urllib.error
+req = urllib.request.Request(sys.argv[1])
+if sys.argv[2]: req.add_header("Host", sys.argv[2])
+try: print(urllib.request.urlopen(req, timeout=10).status)
+except urllib.error.HTTPError as e: print(e.code)
+except Exception: print("ERR")
+PYEOF
+}
+chk() { if [ "$2" = "$3" ]; then ok; else bad "$1: wanted [$2] got [$3]"; fi; }
+wifi_checks() { # wifi_checks PORT CREDENTIAL-PATH OPEN-PATH
+  local port="$1" guarded="$2" open="$3" body
+  if [ -z "$LAN" ]; then
+    printf '  this machine has no wifi address, so the wifi checks on %s did not run\n' "$port"; return
+  fi
+  chk "$port: the page is reachable on the wifi address"        200 "$(http_code "http://$LAN:$port$open")"
+  chk "$port: a credential route is refused to the wifi"        403 "$(http_code "http://$LAN:$port$guarded")"
+  chk "$port: and answers the phone itself"                     200 "$(http_code "http://127.0.0.1:$port$guarded")"
+  chk "$port: a rebound name is refused even from the phone"    403 "$(http_code "http://127.0.0.1:$port$guarded" evil.example)"
+  chk "$port: the address line has an answer"                   200 "$(http_code "http://$LAN:$port/lan-ip")"
+  body=$(python3 -c "import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:$port$open',timeout=10).read().decode('utf-8','replace'))" 2>/dev/null)
+  case "$body" in *'id="ipLine"'*) ok ;; *) bad "$port: the settings page has the address line" ;; esac
+}
+
 export HOME="$T/home"
 export PREFIX="$T/usr"
 mkdir -p "$HOME" "$PREFIX/bin"
@@ -80,7 +110,7 @@ yes_ "the payloads verify"               "( cd '$A/payloads' && sha256sum -c --s
 yes_ "day is stamped"                    "[ -s '$A/installed/day' ]"
 yes_ "night is stamped"                  "[ -s '$A/installed/night' ]"
 no_  "all is not stamped"                "[ -f '$A/installed/all' ]"
-yes_ "the stamp says v13"                "[ \"\$(cat '$A/installed/day')\" = v13 ]"
+yes_ "the stamp says v14"                "[ \"\$(cat '$A/installed/day')\" = v14 ]"
 no_  "no temp payload was left behind"   "ls '$A/tmp'/*.run.sh >/dev/null 2>&1"
 
 # ---- the app itself was really written ----------------------------
@@ -154,6 +184,7 @@ except Exception as e:
   # The independent number: the port the server recorded for itself.
   recorded=$(cat "$HOME/.commute/port" 2>/dev/null || printf 'none')
   yes_ "the server's own record agrees with the socket" "[ '$recorded' = 8082 ]"
+  wifi_checks 8082 /api-keys /
 
   kill "$SRV" 2>/dev/null
   pkill -f "$HOME/.commute/commute_server.py" 2>/dev/null
@@ -186,6 +217,8 @@ done
 yes_ "the night server bound its port"   "[ $up = 1 ]"
 
 if [ "$up" = "1" ]; then
+  # night used to bind 127.0.0.1 only. It now binds wide like the other two.
+  wifi_checks 8087 /gmaps-key /night.html
   # Tonight's network is built from a fourteen megabyte download on first
   # start, so it is waited for rather than assumed.
   built=0
@@ -292,6 +325,33 @@ PYEOF
     case "$NIGHT_BEFORE" in *" $pid "*) ;; *) kill "$pid" 2>/dev/null ;; esac
   done
   sleep 1
+fi
+
+# ---- all.commute, where the leak was --------------------------------
+# GET /api-keys used to hand the keys to anybody on the wifi, and GET /gps
+# said where the phone is. Started through the launcher like a person does,
+# and asked from the machine's own network address. Only if 8084 is free, for
+# the reason given at the top of the day half: a stranger's answer proves
+# nothing, and stopping it at the end would stop somebody's real app.
+if (exec 3<>/dev/tcp/127.0.0.1/8084) 2>/dev/null; then
+  exec 3<&-
+  printf '  8084 was already taken, so the all.commute checks did not run\n'
+else
+  bash "$A/install-one.sh" all --offline >"$T/all_install.log" 2>&1
+  yes_ "all.commute installs from the kept payload" "[ -x '$PREFIX/bin/all.commute' ]"
+  yes_ "and its command is the screen's shim"       "grep -q '^# MAHA_SHIM all' '$PREFIX/bin/all.commute'"
+  maha-commute all >"$T/all_start.log" 2>&1 </dev/null
+  up=0
+  for i in $(seq 1 60); do
+    if (exec 3<>/dev/tcp/127.0.0.1/8084) 2>/dev/null; then exec 3<&-; up=1; break; fi
+    sleep 0.5
+  done
+  yes_ "the all server bound its port" "[ $up = 1 ]"
+  if [ "$up" = "1" ]; then
+    wifi_checks 8084 /api-keys /
+    [ -n "$LAN" ] && chk "8084: where the phone is stays on the phone" 403 "$(http_code "http://$LAN:8084/gps")"
+    maha-commute stop all >/dev/null 2>&1 </dev/null
+  fi
 fi
 
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"

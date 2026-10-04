@@ -77,6 +77,29 @@ renamed upstream is not an error anywhere: it is a page that loads, runs, and
 quietly never shows a tram. The witness turns that silence into a failed
 build, and it is the only thing that does.
 
+
+## The state after v17
+
+*Updated 4.10.2026.* Umbrella v17; day v14, night v12, all v41.
+
+Four tests: **344, 67, 90 and 29 passed, 0 failed.** Every check added in v17
+was made to fail on purpose once, with the break asserted to have applied:
+the peer check, the Host check, the keep list, the `/gps` route, the way the
+storage command is run.
+
+What v17 did, and where to read why: `MEMORY.md`, the section called V17. The
+short version is that the apps' own names open the launcher, credentials and
+location answer the phone only, night keeps what the person owns, storage is
+asked for, and there is no blur anywhere.
+
+**Not done, and left for the next chat:**
+
+- The Midnight Commander look for the INSTALLER'S OWN screen. The launcher has
+  it; the installer prints plain lines, as `termux-app.md` section 9 describes.
+- A key picker that follows `keyring.md` section 6b (several files, a title on
+  each key, the Keyring parser). The shared key store here takes one key.
+- Nothing from v17 has been seen on a phone. See `docs/NOT_TESTED.md`.
+
 ## The state it was left in
 
 *Updated 16.9.2026, at the end of the session that built v10 and v11.*

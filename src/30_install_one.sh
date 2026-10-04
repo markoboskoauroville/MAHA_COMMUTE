@@ -71,6 +71,7 @@ if [ -d "$APPDIR" ] && grep -qF "rm -rf \"\$HOME/$(printf '%s' "$row" | cut -d'|
   if cp -a "$APPDIR" "$BK" 2>/dev/null; then
     printf "  ${DIM}%s clears its folder on install. A copy is kept in${OFF}\n" "$CMD"
     printf "  ${DIM}%s  (%s)${OFF}\n" "$BK" "$(du -sh "$BK" 2>/dev/null | cut -f1)"
+    printf "  ${DIM}its key, its PDF timetables and the ZET schedule are kept in place${OFF}\n"
   else
     printf "  ${BAD}could not copy %s, and this install will clear it${OFF}\n" "$APPDIR"
     printf "  ${DIM}nothing was changed${OFF}\n"
@@ -107,11 +108,12 @@ printf "\n  ${AM}|${OFF} ${KEY}%s${OFF} ${DIM}%s${OFF}\n" "$CMD" "$VER"
 # outside that looks like an install that did nothing. So it is stopped
 # first, by its own launcher where the launcher knows how, and by the
 # name of its process where it does not.
+LAUNCH="$BIN/$CMD"; [ -x "$APPHOME/orig/$CMD" ] && LAUNCH="$APPHOME/orig/$CMD"
 if [ -x "$BIN/$CMD" ] && (exec 3<>"/dev/tcp/127.0.0.1/$PORT") 2>/dev/null; then
   exec 3<&-
   printf "  ${DIM}stopping the running server first${OFF}\n"
-  if grep -q '^  stop)' "$BIN/$CMD" 2>/dev/null; then
-    "$BIN/$CMD" stop >/dev/null 2>&1 || true
+  if grep -q '^  stop)' "$LAUNCH" 2>/dev/null; then
+    "$LAUNCH" stop >/dev/null 2>&1 || true
   fi
   pkill -f "$PROC" 2>/dev/null || true
   sleep 1
@@ -125,6 +127,44 @@ if [ "$rc" != "0" ]; then
   printf "  ${BAD}%s did not finish, exit %s${OFF}\n" "$CMD" "$rc"
   exit "$rc"
 fi
+
+# BEGIN SHIM
+# v17: typing the app's own name opens the launcher's screen with that app
+# focused, the same screen and the same verbs as everywhere else. The app's
+# real launcher is kept in orig/ and the launcher always talks to THAT, never
+# to this file, so nothing here can call itself. The new file is written beside
+# its name and renamed over it, never truncated in place (termux-app.md 4).
+write_shim() {   # write_shim ID CMD
+  local id="$1" cmd="$2" orig="$APPHOME/orig/$2" new="$BIN/.$2.new"
+  if [ -f "$BIN/$cmd" ] && ! grep -q '^# MAHA_SHIM ' "$BIN/$cmd" 2>/dev/null; then
+    mkdir -p "$APPHOME/orig"
+    cp -f "$BIN/$cmd" "$orig.new" && chmod +x "$orig.new" && mv -f "$orig.new" "$orig"
+  fi
+  [ -x "$orig" ] || return 0
+  rm -f "$new"
+  cat > "$new" <<'MAHA_SHIM_TEXT'
+#!/data/data/com.termux/files/usr/bin/bash
+# MAHA_SHIM @ID@, written by the MAHA COMMUTE installer and not part of the app.
+# Typing this command opens the launcher screen with this app focused. The
+# app's own launcher is kept in ~/.maha.commute/orig/ and still does the work.
+ORIG="$HOME/.maha.commute/orig/@CMD@"
+[ -x "$ORIG" ] || { echo "the launcher for @CMD@ is missing, run the MAHA COMMUTE installer again" >&2; exit 1; }
+command -v maha-commute >/dev/null 2>&1 || exec "$ORIG" "$@"
+case "${1:-}" in
+"")      exec maha-commute focus @ID@ ;;
+stop)    exec maha-commute stop @ID@ ;;
+status)  exec maha-commute status ;;
+restart) exec maha-commute restart @ID@ ;;
+open)    exec maha-commute open @ID@ ;;
+log)     exec maha-commute log @ID@ ;;
+*)       exec "$ORIG" "$@" ;;
+esac
+MAHA_SHIM_TEXT
+  sed -i "s/@ID@/$id/g; s/@CMD@/$cmd/g" "$new"
+  chmod +x "$new" && mv -f "$new" "$BIN/$cmd"
+}
+# END SHIM
+write_shim "$APP" "$CMD"
 
 mkdir -p "$STAMPDIR"
 printf '%s\n' "$VER" > "$STAMPDIR/$APP"

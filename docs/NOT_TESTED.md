@@ -72,3 +72,27 @@ nothing about Android.
 
 - **`trip_detail`'s anchor has no test of its own.** The board's after-midnight arithmetic is pinned by nine checks in Test 1; the ride dashboard's was read once against the phone's real index at 00:26, where a 23:50 departure arriving 00:23 dated both ends correctly. A ride whose live delay pushes it across the midnight it was already near has not been met.
 - **An index more than one day stale after midnight has not been met.** The far band is asked for whenever the index is not today's, so a three day old index would still offer its 24:xx rows as tonight's. That is the same overlay the near band has always done and it is deliberate, but it has only been reasoned about, not seen.
+
+## v17, 4.10.2026: not tested, because it needs the phone
+
+- The storage popup on a real Android. Everything here used a stand-in command
+  that behaves like the real one. Whether the real command raises the popup from
+  inside a script that was started by `curl`, whether it still asks y or n on
+  every version, and whether the folder appears within forty five seconds of
+  the tap are all unproven.
+- `pkg install procps` on a real Termux. The row is in the dependency table and
+  the launcher falls back to `ps`, but the install itself was never run.
+- The command shim on a real phone: typing `day.commute` there and getting the
+  launcher with day focused. The shim and the launcher were tested together in a
+  sandbox with the real servers, not on Android.
+- Opening an app from a second device on a real wifi. The tests ask from the
+  machine's own network address, which gives the server a genuine non-loopback
+  peer, but that is not a router, a hotspot or a phone.
+- Night keeping its PDF timetables on a real phone with real paid reads in them.
+  The test used stand-ins of the right name and shape.
+- `all.commute` with the blur removed, looked at. The count of removals is
+  checked, what the map looks like without them is not: text over a bright map
+  may want a slightly more opaque panel, and that needs eyes.
+- The Detailed map for a second device. The key stays on the phone, so a laptop
+  on the wifi sees the free map; that is the intended behaviour and was not
+  seen in a browser.

@@ -156,3 +156,25 @@ one list to the other is a one line change.
 
 `q` leaves the launcher and leaves the servers running. The pages stay open
 and stay live. `S` is what stops them, and it says so on the way out.
+
+## The app's own name (v17)
+
+`day.commute`, `night.commute` and `all.commute` open this same screen with that
+app focused, starting it first if it is not running, which is what pressing its
+number does. The verbs that need no screen are the same words:
+
+```
+day.commute stop | status | restart | open | log
+```
+
+This is the same set of keys reached by a different door, not a second screen:
+the point of the layout was one set of verbs learned once, and the app's own
+name is the door the hand uses most. The app's real launcher is kept in
+`~/.maha.commute/orig/` and the screen always talks to that one, never to the
+command on the PATH, so the screen can never start itself.
+
+## Each app's Settings begins with where it is
+
+One line, at the top, in the dim colour: `on Wi-Fi:  http://192.168.1.5:8082/bus.html`,
+or `on this phone only (no Wi-Fi address)`. It is information, not a control, so
+it carries no colour that means a state.

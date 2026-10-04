@@ -68,6 +68,12 @@ printf '{"widen":4,"dir":"nova"}\n' > "$HOME/.commute/settings.json"
 mkdir -p "$HOME/.commute/daycache"
 printf 'monday schedule\n' > "$HOME/.commute/daycache/weekday.json"
 printf 'my night note\n' > "$HOME/.nightcommute/note.txt"
+# v17: what the person owns, and what costs a download, must now SURVIVE the
+# wipe. Stand-ins, not keys: nothing here has a key shape.
+mkdir -p "$HOME/.nightcommute/pdf"
+printf '%%PDF-1.4 a cached timetable\n' > "$HOME/.nightcommute/pdf/line31.pdf"
+printf 'MY_GEMINI_STAND_IN\n' > "$HOME/.nightcommute/gemini-api.txt"
+head -c 4096 /dev/zero > "$HOME/.nightcommute/zet_gtfs.zip"
 DATA1=$(sha256sum "$HOME/.commute/settings.json" | cut -d' ' -f1)
 
 # ---- 3. leave it RUNNING ------------------------------------------
@@ -99,6 +105,15 @@ no_  "night v9 clears its folder, as it always has" \
      "[ -f '$HOME/.nightcommute/note.txt' ]"
 yes_ "but the note is recoverable"     "[ -f '$HOME/.maha.commute/backup/night.prev/note.txt' ]"
 yes_ "and the install said where"      "grep -q 'clears its folder on install' '$T/upgrade.log'"
+yes_ "night keeps its PDF timetables"          "[ -f '$HOME/.nightcommute/pdf/line31.pdf' ]"
+yes_ "night keeps the Gemini key it was given" "[ \"\$(cat '$HOME/.nightcommute/gemini-api.txt')\" = MY_GEMINI_STAND_IN ]"
+yes_ "night keeps the ZET schedule download"   "[ -f '$HOME/.nightcommute/zet_gtfs.zip' ]"
+yes_ "and says so on the way"                  "grep -q 'kept in place' '$T/upgrade.log'"
+# v17: the commands are now ways into the screen, and the real launchers are kept
+yes_ "day.commute is now the screen's shim"    "grep -q '^# MAHA_SHIM day' '$PREFIX/bin/day.commute'"
+yes_ "night.commute is now the screen's shim"  "grep -q '^# MAHA_SHIM night' '$PREFIX/bin/night.commute'"
+yes_ "the real day launcher is kept"           "[ -x '$HOME/.maha.commute/orig/day.commute' ] && ! grep -q MAHA_SHIM '$HOME/.maha.commute/orig/day.commute'"
+yes_ "the real night launcher is kept"         "[ -x '$HOME/.maha.commute/orig/night.commute' ] && ! grep -q MAHA_SHIM '$HOME/.maha.commute/orig/night.commute'"
 
 # the credential
 yes_ "the key survives in the app"     "[ \"\$(sha256sum '$HOME/.commute/google-api.txt' | cut -d' ' -f1)\" = '$OLDKEYSUM' ]"
@@ -184,7 +199,11 @@ else
        "grep -q \"APP_VERSION = .\$PNV.\" '$NS'"
   # The absence of the feature is only the fact while the feature is still
   # new. Asserted against the release that introduced it, not for ever.
-  if [ "$PNV" != "$NV" ]; then
+  # The wifi mark arrived with night v11. It is the fact about every release
+  # before that one and says nothing about the ones after, so the condition is
+  # the number that introduced it, not "different from the new one": that
+  # reading went stale the first time night moved on past v11.
+  if [ "${PNV#v}" -lt 11 ]; then
     no_  "the old one cannot mark a broadcasting tram" "grep -q 'liveMatchRows' '$NH'"
     no_  "and has no wifi in its rows"    "grep -q 'class=\"wifi\"' '$NH'"
   fi
@@ -262,6 +281,17 @@ else
   yes_ "a note of my own is recoverable"  "[ -f '$B/my-own-note.txt' ]"
   yes_ "a cached PDF is recoverable"      "[ -f '$B/pdf/33.pdf' ]"
   yes_ "and the install said where"       "grep -q 'night.prev' '$T/v10.log'"
+
+  # v17: the key and the PDFs are no longer taken from the person at all. They
+  # survive IN PLACE, and the copy aside above is a second safety, not the only
+  # one. What is not on the keep list (the note) is cleared as it always was.
+  yes_ "the gemini key is still in place, byte for byte" \
+       "[ \"\$(sha256sum '$HOME/.nightcommute/gemini-api.txt' | cut -d' ' -f1)\" = '$KEYSUM' ]"
+  yes_ "the cached PDF is still in place"       "[ -f '$HOME/.nightcommute/pdf/33.pdf' ]"
+  no_  "a note of my own is cleared, as before" "[ -f '$HOME/.nightcommute/my-own-note.txt' ]"
+  yes_ "and the install says what it kept"      "grep -q 'kept in place' '$T/v10.log'"
+  yes_ "night.commute is now the screen's shim" "grep -q '^# MAHA_SHIM night' '$PREFIX/bin/night.commute'"
+  yes_ "and the real launcher is kept beside it" "[ -x '$HOME/.maha.commute/orig/night.commute' ] && ! grep -q MAHA_SHIM '$HOME/.maha.commute/orig/night.commute'"
   fi
 
   # THE FAVOURITES. They live in the browser's own storage and not on the

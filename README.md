@@ -26,9 +26,9 @@ roof, whole and unchanged:
 
 | | what it is | version | port |
 |---|---|---|---|
-| `day.commute` | the daytime ride, corridors that pick themselves | v13 | 8082 |
-| `night.commute` | the four night trams, and where they are now | v11 | 8087 |
-| `all.commute` | every station around you, in colour | v40 | 8084 |
+| `day.commute` | the daytime ride, corridors that pick themselves | v14 | 8082 |
+| `night.commute` | the four night trams, and where they are now | v12 | 8087 |
+| `all.commute` | every station around you, in colour | v41 | 8084 |
 
 ## Installing
 
@@ -36,7 +36,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```
-bash 13-maha_commute_v13.sh
+bash 17-maha_commute_v17.sh
 ```
 
 Run it directly like that when the file is already on the phone, which is what
@@ -46,6 +46,13 @@ Run it directly like that when the file is already on the phone, which is what
 when the network answers and left alone when it does not, and a Google key is
 found on the phone or done without. That is also what makes it safe for
 `maha-commute-update` to run unattended.
+
+**It asks for storage once, and carries on whatever the answer is.** On a phone
+that has never been set up, the installer runs `termux-setup-storage` and
+waits up to forty five seconds for the tap on Android's Allow popup, so a key
+file saved in Downloads can be found. Allow is only for reading that file. Say
+no, or ignore the popup, and the install is still a working install, and the
+closing lines name the one command that would change it.
 
 The switches are for tests rather than for people: `--apps 13` installs a
 subset, `--offline` forces it to use what the phone already has, and
@@ -88,6 +95,33 @@ checks the payload checksums, the three ports and the folders.
 
 The one shot forms are there for when the menu is one keystroke too many:
 `commute day`, `commute status`, `commute install`, `commute key`.
+
+### The app's own name opens the same screen
+
+`day.commute`, `night.commute` and `all.commute` open this launcher with that
+app focused, starting it first if it is not running: the same screen and the
+same keys as `commute`, whichever way you came in. Typing the name with a verb
+does the one thing without the screen:
+
+```
+day.commute stop | status | restart | open | log
+```
+
+Anything else (`day.commute update`, for one) goes to the app's own launcher,
+which the installer keeps in `~/.maha.commute/orig/` and which the launcher
+itself always talks to, so nothing in here can call itself.
+
+### On the wifi, and what stays on the phone
+
+Another device on the same wifi can open any of the three, and the top of each
+app's Settings says the address in one line. What it can open is the page, the
+timetable and the map. What it cannot open is anything that hands out a key,
+spends money on a Gemini read, deletes a cache, rebuilds the schedule, or says
+where the phone is: those answer the phone itself and nobody else. The
+Detailed map in `all.commute` therefore needs the key and shows the free map to
+a laptop. The check is two things at once, the address the request came from
+and the name it was sent to, because a web page open in another tab can point a
+name at the phone and the address alone does not catch that.
 
 ## Where the tram is
 

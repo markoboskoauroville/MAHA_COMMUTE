@@ -67,6 +67,7 @@ have python3 && HAVE_PY=1
 HAVE_OPEN=0; have termux-open-url && HAVE_OPEN=1
 HAVE_FUSER=0; have fuser && HAVE_FUSER=1
 HAVE_SHA=0;  have sha256sum && HAVE_SHA=1
+HAVE_PGREP=0; have pgrep && HAVE_PGREP=1
 HAVE_B64=0;  have base64 && HAVE_B64=1
 REQ_MISSING=0
 [ "$HAVE_PY" = "0" ] && REQ_MISSING=$((REQ_MISSING+1))
@@ -84,6 +85,7 @@ printf "\n  ${KEY}what this phone has${OFF}\n"
 dep_row "python"       "$HAVE_PY"    "all three servers"        "req"
 dep_row "termux-api"   "$HAVE_OPEN"  "opens the page by itself" "opt"
 dep_row "fuser"        "$HAVE_FUSER" "frees a busy port"        "opt"
+dep_row "procps"       "$HAVE_PGREP" "finds and stops servers"  "opt"
 dep_row "sha256sum"    "$HAVE_SHA"   "checks the payloads"      "opt"
 dep_row "base64"       "$HAVE_B64"   "used by all.commute"      "opt"
 printf "\n"
@@ -116,6 +118,7 @@ NEED=""
 [ "$HAVE_PY" = "0" ]    && NEED="$NEED python"
 [ "$HAVE_OPEN" = "0" ]  && NEED="$NEED termux-api"
 [ "$HAVE_FUSER" = "0" ] && NEED="$NEED psmisc"
+[ "$HAVE_PGREP" = "0" ] && NEED="$NEED procps"
 
 if [ "$MODE" = "offline" ]; then
   step "dependencies"; skip_
@@ -129,6 +132,41 @@ else
   done
   command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 && HAVE_PY=1
 fi
+# ---------------------------------------------------------------
+# storage, asked for rather than left to the person
+#
+# termux-app.md section 8 says termux-setup-storage is run by hand and nothing
+# can do it for you. What nothing can do is TAP ALLOW: the command can be run,
+# and it raises Android's own popup. Marko, 3.10.2026, for a friend who
+# installed on a phone that had never been set up: the installer should do
+# that step too. So it asks, waits for the tap, and carries on either way,
+# because storage is only for reading a key file from Downloads and an install
+# without it is a working install.
+#
+# It comes before the key search below for a reason: on a new phone the key
+# file in Downloads is invisible until this has been allowed.
+# ---------------------------------------------------------------
+storage_ok() { [ -d "$HOME/storage/downloads" ] && ls "$HOME/storage/downloads" >/dev/null 2>&1; }
+STORAGE="n/a"
+step "storage"
+if storage_ok; then
+  STORAGE="allowed"; printf " ${OK}allowed${OFF}\n"
+elif ! have termux-setup-storage; then
+  skip_
+else
+  printf " ${DIM}tap Allow on the popup${OFF}"
+  # An old ~/storage makes the command ask y or n first. It is answered here,
+  # and the input is closed so it can never read the installer's own text.
+  { printf 'y\n' | termux-setup-storage; } </dev/null >/dev/null 2>&1 &
+  _w=0
+  while [ "$_w" -lt "${MAHA_STORAGE_WAIT:-45}" ]; do
+    storage_ok && break
+    sleep 1; _w=$((_w+1))
+  done
+  if storage_ok; then STORAGE="allowed"; printf "\r"; step "storage"; printf " ${OK}allowed${OFF}\n"
+  else STORAGE="not allowed"; printf "\n  ${DIM}not allowed, and that is fine: it is only for key files${OFF}\n"; fi
+fi
+
 # ---------------------------------------------------------------
 # the google key
 #
@@ -342,8 +380,10 @@ printf "  ${DIM}or the app name on its own: day.commute, night.commute, all.comm
 printf "\n  ${DIM}the three payloads are kept in %s${OFF}\n" "$PAYDIR"
 printf "  ${DIM}so any app can be added or removed later with no download${OFF}\n"
 if [ "$HAVE_PY" = "0" ]; then
-  printf "\n  ${SAND}python is still missing. Run this again and press y.${OFF}\n"
+  printf "\n  ${SAND}python is still missing. Run this again with the internet on.${OFF}\n"
 fi
-printf "\n  ${DIM}run termux-setup-storage once, by hand, if you have not:${OFF}\n"
-printf "  ${DIM}nothing can do it for you, and without it the phone's own${OFF}\n"
-printf "  ${DIM}Downloads folder is not reachable from here.${OFF}\n\n"
+if [ "$STORAGE" = "not allowed" ]; then
+  printf "\n  ${DIM}to read a key file from Downloads, run termux-setup-storage${OFF}\n"
+  printf "  ${DIM}and tap Allow. Nothing else needs it.${OFF}\n"
+fi
+printf "\n"

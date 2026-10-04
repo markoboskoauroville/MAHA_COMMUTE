@@ -672,5 +672,140 @@ else
   bad "the env.sh writer block was not found in src/40_main.sh"
 fi
 
+# =====================================================================
+# v17
+# =====================================================================
+
+# ---- the phone-only guard, as a truth table -------------------------
+# The method that goes into every handler is run against stand-in
+# requests. The rule: a credential route answers only when the PEER is the
+# phone AND the Host header names the phone. They catch different things:
+# the peer stops a device on the wifi, the Host stops a web page in another
+# tab that has pointed a name at 127.0.0.1 (binding to loopback does not).
+gt=$(python3 - <<'PYEOF'
+import sys
+sys.path.insert(0, "tools")
+import payload_v17 as V
+ns = {}
+exec("class H:\n" + V._guard_method(("/api-keys", "/gps")), ns)
+H = ns["H"]
+cases = [
+  ("127.0.0.1",    "127.0.0.1:8082",   "/api-keys", False, "the phone itself, by number"),
+  ("127.0.0.1",    "localhost:8082",   "/api-keys", False, "the phone itself, by name"),
+  ("::1",          "[::1]:8082",       "/gps",      False, "the phone over IPv6"),
+  ("192.168.1.20", "192.168.1.5:8082", "/api-keys", True,  "a laptop on the wifi"),
+  ("192.168.1.20", "127.0.0.1:8082",   "/api-keys", True,  "a laptop that lies in the Host header"),
+  ("127.0.0.1",    "evil.example:8082","/api-keys", True,  "a web page rebinding a name to the phone"),
+  ("127.0.0.1",    "",                 "/api-keys", True,  "no Host header fails closed"),
+  ("192.168.1.20", "192.168.1.5:8082", "/gps",      True,  "the phone's location is not the wifi's"),
+  ("192.168.1.20", "192.168.1.5:8082", "/",         False, "the page stays open to the room"),
+  ("192.168.1.20", "192.168.1.5:8082", "/lan-ip",   False, "so does the address line"),
+  ("192.168.1.20", "192.168.1.5:8082", "/api-keys/",False, "a different path is another route, not this one"),
+]
+for peer, host, path, want, label in cases:
+    h = H(); h.client_address = (peer, 5555); h.headers = {"Host": host}
+    got = h._phone_only(path)
+    print(("ok" if got == want else "BAD"), label, "(blocked=%s)" % got)
+PYEOF
+)
+while IFS= read -r l; do case "$l" in ok*) ok ;; *) bad "guard: ${l#BAD }" ;; esac; done <<< "$gt"
+eq "the guard truth table ran every case" 11 "$(printf '%s\n' "$gt" | grep -c .)"
+
+# ---- no blur, counted -----------------------------------------------
+ALLPAY="src/payloads/39-install-all_commute-termux-v39.sh"
+eq "the patched all.commute carries no backdrop-filter" 0 \
+   "$(python3 tools/patch_payload.py "$ALLPAY" all | grep -c 'backdrop-filter')"
+gd=$(mktemp -d)
+cp "$ALLPAY" "$gd/eight.sh"; printf '/* backdrop-filter:blur(3px); */\n' >> "$gd/eight.sh"
+python3 tools/patch_payload.py "$gd/eight.sh" all >/dev/null 2>"$gd/eight.err"; rc_is "an eighth blur upstream fails the build" 1 $?
+grep -q 'expected 7' "$gd/eight.err" && ok || bad "and says what it expected"
+sed '0,/backdrop-filter:blur(4px);/s///' "$ALLPAY" > "$gd/six.sh"
+python3 tools/patch_payload.py "$gd/six.sh" all >/dev/null 2>&1; rc_is "a payload with fewer blurs than the count fails too" 1 $?
+rm -rf "$gd"
+
+# ---- what each payload says inside is what the menu claims -----------
+# A number the menu shows and the app does not answer to is the failure
+# versioning.md names: a number that has meant two things cannot be talked about.
+claimed() { grep -E "^(APPS=\")?$1:" tools/build_installer.sh | sed 's/^APPS="//' | cut -d: -f3; }
+inside_day=$(python3 tools/patch_payload.py src/payloads/13-install-day-commute-termux-v13.sh day | grep -m1 '^COMMUTE_VERSION=' | cut -d'"' -f2)
+inside_night=$(python3 tools/patch_payload.py src/payloads/9-night_commute_v9.sh night | grep -m1 '^APP_VERSION = ' | cut -d'"' -f2)
+inside_all=$(python3 tools/patch_payload.py "$ALLPAY" all | grep -m1 '^APP_VERSION = ' | cut -d'"' -f2)
+eq "day says the number the menu claims"   "$(claimed day)"   "$inside_day"
+eq "night says the number the menu claims" "$(claimed night)" "$inside_night"
+eq "all says the number the menu claims"   "$(claimed all)"   "$inside_all"
+
+# ---- night keeps what the person owns, and not the Maps key ------------
+npay=$(python3 tools/patch_payload.py src/payloads/9-night_commute_v9.sh night)
+keepline=$(printf '%s\n' "$npay" | grep -m1 'for _k in ')
+for k in gemini-api.txt pdf zet_gtfs.zip zet_gtfs.zip.meta.json; do
+  case "$keepline" in *"$k"*) ok ;; *) bad "night does not keep $k" ;; esac
+done
+case "$keepline" in *gmaps-api.txt*) bad "night must not keep the Maps key: the umbrella store is its source" ;; *) ok ;; esac
+eq "the keep happens before the wipe, the restore after" "1 1" \
+   "$(printf '%s\n' "$npay" | awk '/KEEP_TMP="\$\(mktemp/{a=NR} /rm -rf "\$HOME\/.nightcommute"/{w=NR} /cp -a "\$KEEP_TMP"/{r=NR} END{print (a<w?1:0), (w<r?1:0)}')"
+
+# ---- the command shim ---------------------------------------------------
+# Typing day.commute opens the screen with day focused. The shim must never
+# look like the app's own stop verb (the menu greps for "  stop)" and would
+# call it), must never overwrite the real launcher with itself, and must fall
+# back to the real launcher when the launcher is not there.
+sh=$(mktemp -d)
+sed -n '/^# BEGIN SHIM/,/^# END SHIM/p' src/30_install_one.sh > "$sh/fn.sh"
+[ -s "$sh/fn.sh" ] && ok || bad "the shim writer was not found in src/30_install_one.sh"
+(
+  BIN="$sh/bin"; APPHOME="$sh/home/.maha.commute"; mkdir -p "$BIN" "$sh/fake"
+  printf '#!/bin/sh\necho ORIGINAL "$@"\n' > "$BIN/day.commute"; chmod +x "$BIN/day.commute"
+  . "$sh/fn.sh"; write_shim day day.commute
+  printf '#!/bin/sh\necho MC "$@"\n' > "$sh/fake/maha-commute"; chmod +x "$sh/fake/maha-commute"
+)
+S="$sh/bin/day.commute"; O="$sh/home/.maha.commute/orig/day.commute"
+run() { HOME="$sh/home" PATH="$sh/fake:$PATH" bash "$S" "$@" 2>&1; }
+grep -q '^# MAHA_SHIM day' "$S" && ok || bad "the command is a shim"
+eq "the real launcher was kept" "ORIGINAL x" "$(bash "$O" x)"
+eq "the shim has no '  stop)' line for the menu to mistake" 0 "$(grep -c '^  stop)' "$S")"
+eq "no arguments opens the screen on this app" "MC focus day"   "$(run)"
+eq "stop goes to the menu"                      "MC stop day"    "$(run stop)"
+eq "status goes to the menu"                    "MC status"      "$(run status)"
+eq "restart goes to the menu"                   "MC restart day" "$(run restart)"
+eq "open goes to the menu"                      "MC open day"    "$(run open)"
+eq "log goes to the menu"                       "MC log day"     "$(run log)"
+eq "anything else goes to the real launcher"    "ORIGINAL --odd" "$(run --odd)"
+eq "with no launcher screen installed it runs the app itself" "ORIGINAL" "$(HOME="$sh/home" bash "$S" 2>&1)"
+mv "$O" "$O.gone"
+case "$(HOME="$sh/home" bash "$S" 2>&1)" in *"missing"*) ok ;; *) bad "a missing real launcher is said out loud" ;; esac
+mv "$O.gone" "$O"
+( BIN="$sh/bin"; APPHOME="$sh/home/.maha.commute"; . "$sh/fn.sh"; write_shim day day.commute )
+eq "writing the shim again does not turn the real launcher into the shim" "ORIGINAL y" "$(bash "$O" y)"
+printf '#!/bin/sh\necho SECOND "$@"\n' > "$sh/bin/day.commute"; chmod +x "$sh/bin/day.commute"
+( BIN="$sh/bin"; APPHOME="$sh/home/.maha.commute"; . "$sh/fn.sh"; write_shim day day.commute )
+eq "a reinstalled app becomes the new real launcher" "SECOND z" "$(bash "$O" z)"
+grep -q '^# MAHA_SHIM day' "$sh/bin/day.commute" && ok || bad "and the shim is put back over it"
+rm -rf "$sh"
+
+# ---- the REAL phone-only lists, read out of the patched payloads --------
+# The truth table above proves the rule. This proves the lists the rule is
+# given: that every route that hands out a key, spends money or deletes
+# something is on the list of each app, and that the open ones are not.
+# The second half is the one that matters later: a route added upstream whose
+# name says key, gemini, gps, delete or rebuild must be on the list or this
+# fails, so a new credential route cannot be open to the wifi by default.
+for spec in "day:13-install-day-commute-termux-v13.sh:/update-bus /api-keys /gemini-key /key-status /pdf-sched /pdf-delete" \
+            "night:9-night_commute_v9.sh:/gmaps-key /key-status /gemini-key /pdf-delete /pdf-sched /night-rebuild" \
+            "all:39-install-all_commute-termux-v39.sh:/api-keys /gemini-key /gemini-test /key-test /gemini-model /gemini-models /gemini-models-old /rebuild /cache/clear /sched-delete /gps"; do
+  id=${spec%%:*}; rest=${spec#*:}; file=${rest%%:*}; want=${rest#*:}
+  pp=$(python3 tools/patch_payload.py "src/payloads/$file" "$id")
+  list=$(printf '%s\n' "$pp" | grep -m1 '_PHONE_ONLY = (')
+  [ -n "$list" ] && ok || bad "$id has no phone-only list"
+  for r in $want; do case "$list" in *"\"$r\""*) ok ;; *) bad "$id: $r is not phone-only" ;; esac; done
+  for r in /version /lan-ip; do case "$list" in *"\"$r\""*) bad "$id: $r must stay open" ;; *) ok ;; esac; done
+  routes=$(printf '%s\n' "$pp" | grep -oE '(route|r|u\.path) *== *"/[A-Za-z/_-]+"' | grep -oE '"/[A-Za-z/_-]+"' | tr -d '"' | sort -u)
+  for r in $routes; do
+    case "$r" in
+      *key*|*gemini*|*gps*|*rebuild*|*delete*|*cache*|/pdf-sched|/update-bus)
+        case "$list" in *"\"$r\""*) ok ;; *) bad "$id: $r looks like a credential or spend route and is open to the wifi" ;; esac ;;
+    esac
+  done
+done
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

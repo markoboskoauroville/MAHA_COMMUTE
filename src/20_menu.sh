@@ -75,6 +75,16 @@ n_apps()  { app_ids | wc -l | tr -d ' '; }
 
 is_installed() { local c; c=$(field "$(app_row "$1")" 2); [ -n "$c" ] && [ -x "$BIN/$c" ]; }
 stamped()      { if [ -f "$STAMPDIR/$1" ]; then tr -d ' \n' < "$STAMPDIR/$1"; else printf '?'; fi; }
+
+# The app's OWN launcher. Since v17 the command on the PATH (day.commute and
+# the others) is a small shim that opens this screen with that app focused, and
+# the app's real launcher is kept in orig/. This screen always talks to the
+# real one and never to the shim, so nothing here can call itself, and the
+# stop verb it looks for is the app's own.
+launcher_of() {
+  local c; c=$(field "$(app_row "$1")" 2)
+  if [ -x "$APPHOME/orig/$c" ]; then printf '%s' "$APPHOME/orig/$c"; else printf '%s' "$BIN/$c"; fi
+}
 # A plain connect in a subshell, which is what v1 shipped and what Test 1
 # exercises. The "hardened" version wrapped this in `timeout 1 bash -c` and
 # that is what hung the panel: the wrapper child inherits the terminal, and
@@ -165,9 +175,9 @@ start_app() {
   # it cannot compete with this menu for a keypress and it does not die when
   # the menu is quit. Inheriting the terminal is how a backgrounded server
   # ends up eating the key you pressed for something else.
-  ( cd "$HOME" && setsid nohup "$BIN/$cmd" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+  ( cd "$HOME" && setsid nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
     echo $! > "$RUNDIR/$id.pid" ) 2>/dev/null ||
-  ( cd "$HOME" && nohup "$BIN/$cmd" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+  ( cd "$HOME" && nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
     echo $! > "$RUNDIR/$id.pid" )
 
   # A FIRST start is not a restart. day.commute fetches an eleven megabyte
@@ -218,7 +228,8 @@ stop_app() {
   if ! running "$id"; then printf "  ${DIM}%s is not running${OFF}\n" "$cmd"; return; fi
   # Its own launcher first where it has a stop verb, because it knows what
   # else it started. Then the process name, for the ones that do not.
-  grep -q '^  stop)' "$BIN/$cmd" 2>/dev/null && "$BIN/$cmd" stop >/dev/null 2>&1
+  local L; L=$(launcher_of "$id")
+  grep -q '^  stop)' "$L" 2>/dev/null && "$L" stop >/dev/null 2>&1
   pkill -f "$proc" 2>/dev/null
   [ -f "$RUNDIR/$id.pid" ] && kill "$(cat "$RUNDIR/$id.pid")" 2>/dev/null
   rm -f "$RUNDIR/$id.pid"
@@ -559,7 +570,7 @@ screen_install() {
         if is_installed "$id"; then
           running "$id" && stop_app "$id"
           cmd=$(field "$(app_row "$id")" 2)
-          rm -f "$BIN/$cmd" "$STAMPDIR/$id"
+          rm -f "$BIN/$cmd" "$APPHOME/orig/$cmd" "$STAMPDIR/$id"
           printf "  ${SAND}%s removed. Its data is untouched.${OFF}\n" "$cmd"
           anykey
         else
@@ -603,6 +614,14 @@ screen_key() {
 
 case "${1:-}" in
   day|night|all)  start_app "$1"; exit 0 ;;
+  # The four ways in that the app's own command now uses (see launcher_of).
+  # focus opens this same screen with that app selected, starting it first if
+  # it is not running, which is what pressing its number does.
+  focus)          _n=$(app_ids | grep -nx "${2:-}" | cut -d: -f1); SEL=${_n:-1}
+                  [ -n "${2:-}" ] && start_app "$2" ;;
+  restart)        [ -n "${2:-}" ] && { stop_app "$2"; start_app "$2"; }; exit 0 ;;
+  open)           [ -n "${2:-}" ] && { if running "$2"; then open_url "http://127.0.0.1:$(app_port "$2")/?run=$RUN"; else start_app "$2"; fi; }; exit 0 ;;
+  log)            [ -n "${2:-}" ] && screen_log "$2"; exit 0 ;;
   stop)           if [ -n "${2:-}" ]; then stop_app "$2"; else stop_all; fi; exit 0 ;;
   # status draws the panel once and leaves. It asks the disk and the local
   # ports and nothing else: a question about what is installed must never
@@ -619,7 +638,7 @@ case "${1:-}" in
   update)         exec bash "$APPHOME/update.sh" ;;
   uninstall|wipe) exec bash "$APPHOME/uninstall.sh" ;;
   -h|--help)
-    printf 'maha-commute [day|night|all|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]\n'
+    printf 'maha-commute [day|night|all|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]\n'
     exit 0 ;;
 esac
 

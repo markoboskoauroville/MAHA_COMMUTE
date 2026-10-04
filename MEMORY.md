@@ -9,6 +9,109 @@ this project.
 
 ---
 
+## V17: THE APPS' OWN NAMES OPEN THE LAUNCHER, AND THE WIFI IS TOLD WHAT IT MAY SEE
+
+*4.10.2026.* Brought over from a long chat that had been building the same
+ideas in older standalone files. **Nothing was copied across.** The night
+payload in this repo is byte for byte the night v9 from that chat; day and all
+had moved on since. So every gap was measured against THESE payloads, and only
+the ones that were real were filled. What was already here and was therefore
+left alone: the key as a placeholder, the install that asks nothing, the
+quadrant screen with one set of verbs (it is already the Midnight Commander
+idea, and a second panel beside it would have been a rival to it).
+
+**THE LEAK, found by reading, then proved over real HTTP.** `all.commute` v40
+binds `0.0.0.0` on purpose and answered `GET /api-keys` with the keys
+themselves and `GET /gps` with where the phone is, to anybody on the same wifi.
+`termux-app.md` section 7 is exactly about this: content may be open to the
+room, credentials may not. Each app now has a list of routes that answer the
+phone only (`tools/payload_v17.py`), checked by two things that catch
+different attacks: the peer address, which stops a device on the wifi, and the
+`Host` header, which stops a web page in another tab that has pointed a name at
+`127.0.0.1` (binding to loopback does not stop that). A request with no `Host`
+fails closed. Test 1 holds the truth table, reads the REAL lists out of the
+patched payloads, and fails if any route named key, gemini, gps, delete,
+rebuild or cache is open. Test 2 asks from the machine's own network address,
+so the server sees a real non-loopback peer, on all three apps.
+
+**NIGHT BINDS WIDE NOW,** like the other two, because the address line in
+Settings would have been untrue for it, and that is safe only because of the
+list above. `NIGHTCOMMUTE_HOST` overrides it.
+
+**NIGHT NO LONGER DELETES WHAT THE PERSON OWNS.** The v9 installer still clears
+its folder, because a clean folder is what stops stale state. It now keeps four
+things across that: the Gemini key the person pasted, the timetables read from
+PDF (which cost a paid read each), and the fourteen megabyte ZET schedule and
+its header. `gmaps-api.txt` is deliberately NOT kept: the shared key store is
+where that key comes from and it supplies it on every install, so the store
+stays the one source. The copy aside to `backup/night.prev` is unchanged and
+is now a second safety rather than the only one. This was the item pencilled
+in HANDOFF as "still not done as of v11".
+
+**THE APP'S OWN COMMAND IS A SHIM.** Typing `day.commute` opens this launcher
+with that app focused. The design question was recursion: the launcher starts
+each app by running its launcher, and a shim that opens the launcher would have
+started itself for ever. So the launcher never calls the command on the PATH.
+`launcher_of` returns the real launcher kept in `orig/`, and start, stop and the
+installer's pre-install stop all use it. Two properties are tested because
+each is a way to get it wrong: the shim contains no line that begins `  stop)`,
+because the launcher greps for that to decide whether an app has its own stop
+verb and a shim that matched would be called with `stop` and, for night and
+all, whose launchers ignore their arguments, would START a server; and writing
+the shim twice must never turn the real launcher into the shim. The new file is
+renamed over the old one, never truncated (`termux-app.md` section 4).
+
+**STORAGE IS ASKED FOR.** `termux-app.md` section 8 says it is run by hand and
+nothing can do it for you. What nothing can do is tap Allow; the command can be
+run, and it raises Android's own popup. Marko asked for it after a friend
+installed on a phone that had never been set up. It comes BEFORE the key search,
+because on a new phone a key file in Downloads is invisible until it has been
+allowed. It never fails the install, never waits more than forty five seconds,
+answers the y or n an old `~/storage` provokes, and runs with its input closed
+so that, when the installer itself arrives on standard input, the command cannot
+read the script's next lines as its answer. `procps` joined the dependency table
+because the launcher uses `pgrep` and `pkill`.
+
+**NO BLUR.** `all.commute` carried seven `backdrop-filter: blur()`. Marko's
+rule, restated 3.10.2026: never blur the background, in any app. The
+translucent colour stays; only the blur goes. The count is checked: an eighth
+upstream, or a payload that has lost one, stops the build.
+
+**THE BOX, DECIDED.** The manifest lists "the console drawn as a box with fixed
+inner widths" as a dead habit, and the launcher is a screen of bordered
+quadrants. It stays. It was drawn on purpose (see the visual language document),
+its widths were measured, and Marko asked in this chat for the Midnight
+Commander look in every app and in the installers. What the manifest rule is
+against is a fixed width that breaks on a narrow phone, and that is the thing
+`docs/VISUAL_LANGUAGE_AND_LOGIC.md` already guards. Recorded here so it is not
+read later as a regression.
+
+**WHAT WENT WRONG ON THE WAY, so it is not repeated.**
+
+- A baseline run rebuilt the COMMITTED `16-maha_commute_v16.sh` (it stamps a new
+  build time) and left it modified. A published file is never overwritten.
+  Restored from git. Never run the build for an old version in a working tree
+  that holds the new one.
+- A test said the old night cannot mark a broadcasting tram, for ever. The mark
+  arrived in night v11, so the sentence went false when night moved to v12 and
+  read as a product fault. The condition is now the number that introduced it.
+- A new check placed in the half of a test that skips when the original
+  installers are absent never ran, and the count did not move. After adding a
+  check, look at the count. It moved from 23 to 29 once they were in the half
+  that runs.
+- A deliberate break that did not apply gave zero failures, which reads exactly
+  like a check that passes. The first two breaks used `sed` against text that
+  has escaped quotes in the source, matched nothing, and looked green. Each
+  break now asserts that it changed the file. The break that DID apply then
+  showed a real hole: dropping `/gps` from the list went unnoticed, because the
+  truth table used its own short list. That is why Test 1 now reads the real ones.
+- `pgrep -f test2_real.sh` matches the shell that is running the pgrep, so a
+  finished test looked like a running one for most of an hour.
+
+**TO KNOW, NOT DECIDED HERE.** The repository is public, and the notes above
+this section say private. `versioning.md` section 4 keeps the last two builds
+and this repo holds seven, v10 to v16 and now v17. Neither was changed.
+
 ## STREET VIEW BEARING IS NOW REVERSED — all.commute v40 / umbrella v14
 
 *3.10.2026.* The bearing stored per stop is the heading of vehicles *leaving*

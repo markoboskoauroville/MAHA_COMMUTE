@@ -33,12 +33,12 @@ CHECK=0
 #
 # The version is the app's, and the filename is the file it was handed over
 # as. For night those are two different numbers: the file is the v9 that
-# arrived, and what the patcher builds out of it is v11, which reads the live
+# arrived, and what the patcher builds out of it is v12, which reads the live
 # feed and keeps your starred stations. The filename keeps the provenance of the payload readable; the version
 # keeps the menu from claiming a number the app does not answer to.
-APPS="day:13-install-day-commute-termux-v13.sh:v13:day.commute:.commute:8082:the daytime ride
-night:9-night_commute_v9.sh:v11:night.commute:.nightcommute:8087:the four night trams
-all:39-install-all_commute-termux-v39.sh:v40:all.commute:.all.commute:8084:every station around you"
+APPS="day:13-install-day-commute-termux-v13.sh:v14:day.commute:.commute:8082:the daytime ride
+night:9-night_commute_v9.sh:v12:night.commute:.nightcommute:8087:the four night trams
+all:39-install-all_commute-termux-v39.sh:v41:all.commute:.all.commute:8084:every station around you"
 
 SALT="7c1a"
 NL=$'\n'

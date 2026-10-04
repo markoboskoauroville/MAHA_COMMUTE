@@ -60,6 +60,8 @@ import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import payload_v17 as V17
 NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
 
 
@@ -144,15 +146,15 @@ FIXES = {
         # The app's own version. A change is a new version, and the app has
         # to say the number it is, not the number it grew out of.
         ('NIGHT_VERSION="v9 (a)"',
-         'NIGHT_VERSION="v11 (a)"'),
+         'NIGHT_VERSION="v12 (a)"'),
         ('APP_VERSION = "v9"\nAPP_BUILD = "n9-a"',
-         'APP_VERSION = "v11"\nAPP_BUILD = "n11-a"'),
+         'APP_VERSION = "v12"\nAPP_BUILD = "n12-a"'),
         ('installed  night.commute v9 (a)',
-         'installed  night.commute v11 (a)'),
+         'installed  night.commute v12 (a)'),
         ('(v.version||"v9")',
-         '(v.version||"v11")'),
+         '(v.version||"v12")'),
         ('.catch(()=>{ document.getElementById("verLine").textContent="v9 (a)"; });',
-         '.catch(()=>{ document.getElementById("verLine").textContent="v11 (a)"; });'),
+         '.catch(()=>{ document.getElementById("verLine").textContent="v12 (a)"; });'),
 
         # The reader and the placing, ahead of the handler that serves them.
         ('class H(http.server.BaseHTTPRequestHandler):',
@@ -161,11 +163,12 @@ FIXES = {
         # One route. It never raises, so it needs no guard around it.
         ('        if r=="/version": return self._json({"version":APP_VERSION,"build":APP_BUILD})',
          '        if r=="/version": return self._json({"version":APP_VERSION,"build":APP_BUILD})\n'
+         '        if r=="/lan-ip": return self._json({"ip":_lan_ip()})\n'
          '        if r=="/live": return self._json(live_payload())'),
 
         # The look of a live row, of a tram on the map, and of a starred
         # station.
-        ('</style>', _part("live.css") + _part("star.css") + '</style>'),
+        ('</style>', V17.NIGHT_CSS + _part("live.css") + _part("star.css") + '</style>'),
 
         # A star on each row of the station picker. It is its own target, and
         # it carries the station's name on itself, because the handler below
@@ -231,6 +234,11 @@ FIXES = {
     ],
 }
 
+# v17, see payload_v17.py
+FIXES['day'] += V17.DAY_FIXES
+FIXES['all'] += V17.ALL_FIXES
+FIXES['night'] += V17.NIGHT_FIXES
+
 SNIPPET = '''
 /* ---- MAHA COMMUTE, reset on a new run ---------------------------------
    Runs before anything below reads localStorage, which is the only reason
@@ -270,6 +278,15 @@ def main():
                      "be re-read against it."
                      % (app, src.count(old), old.splitlines()[0][:70]))
         src = src.replace(old, new, 1)
+
+    # Counted replacements: an anchored fix cannot say "all seven of these".
+    if app == "all":
+        for pat, repl, want in V17.ALL_REGEX:
+            got = len(re.findall(pat, src))
+            if got != want:
+                sys.exit("patch_payload: all, %r matched %d times, expected %d, so "
+                         "the payload changed upstream and has to be re-read" % (pat, got, want))
+            src = re.sub(pat, repl, src)
 
     keys = RESET.get(app, [])
     if not keys:
