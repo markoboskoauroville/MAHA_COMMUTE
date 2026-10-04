@@ -16,6 +16,43 @@ the phone and can be read first. A phone that walks out of signal halfway
 through a download leaves a file that looks fine to `ls` and is cut in half,
 which is what those four checks are for.
 
+## Install one app, or all three
+
+Every command is the same one-line download with one switch on the end. The
+switch picks the app: `1` is day, `2` is night, `3` is all. Whichever you pick,
+the launcher `maha-commute` is installed with it, and all three apps are kept on
+the phone, so one left out can be added later from `maha-commute install` with
+no download.
+
+**The whole of Maha Commute, all three apps**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh
+```
+
+**day.commute only**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh --apps 1
+```
+
+**night.commute only**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh --apps 2
+```
+
+**all.commute only**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main/get.sh -o get.sh && bash get.sh --apps 3
+```
+
+Two of them go together: `--apps 12` is day and night, `--apps 13` is day and
+all, `--apps 23` is night and all. On a phone that has never been set up, none
+of these needs anything done first: Python and the other small tools are
+fetched, and Android is asked about storage once.
+
 Marko Boško · Mantra Productions · Zagreb · built 27.8.2026
 
 ---
@@ -54,9 +91,10 @@ file saved in Downloads can be found. Allow is only for reading that file. Say
 no, or ignore the popup, and the install is still a working install, and the
 closing lines name the one command that would change it.
 
-The switches are for tests rather than for people: `--apps 13` installs a
-subset, `--offline` forces it to use what the phone already has, and
-`--verify` checks the file is whole without changing anything.
+`--apps` picks which apps, as in the commands above. The other two switches
+are for tests rather than for people: `--offline` forces it to use what the
+phone already has, and `--verify` checks the file is whole without changing
+anything.
 
 **All three payloads are written to the phone whether they were installed or
 not.** So an app left out on the first run can be added later, from inside the
