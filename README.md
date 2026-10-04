@@ -9,7 +9,7 @@ curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/ma
 
 Paste that into Termux. It asks GitHub which version is current, fetches the
 installer that number names, checks it four ways before running it, and
-installs all three apps. Then type `commute`.
+installs all three apps. Then type `maha-commute`.
 
 It downloads before it runs rather than piping into `bash`, so the file is on
 the phone and can be read first. A phone that walks out of signal halfway
@@ -94,13 +94,14 @@ delete that too. `k` handles the shared Google key and never prints it. `s`
 checks the payload checksums, the three ports and the folders.
 
 The one shot forms are there for when the menu is one keystroke too many:
-`commute day`, `commute status`, `commute install`, `commute key`.
+`maha-commute day`, `maha-commute status`, `maha-commute install`,
+`maha-commute key`.
 
 ### The app's own name opens the same screen
 
 `day.commute`, `night.commute` and `all.commute` open this launcher with that
 app focused, starting it first if it is not running: the same screen and the
-same keys as `commute`, whichever way you came in. Typing the name with a verb
+same keys as `maha-commute`, whichever way you came in. Typing the name with a verb
 does the one thing without the screen:
 
 ```

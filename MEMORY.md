@@ -108,6 +108,14 @@ read later as a regression.
 - `pgrep -f test2_real.sh` matches the shell that is running the pgrep, so a
   finished test looked like a running one for most of an hour.
 
+**THE LAUNCHER'S NAME, a correction found while checking the install.** The
+README told people to type `commute`, and so did the decision recorded in
+this file at v1. Since v2 the installed command is `maha-commute`, and a bare
+`commute` exists only as a redirect left on phones that had the v1 command, so
+on a fresh phone `commute` is "command not found". The README now says
+`maha-commute`. The day payload's own closing line still says `commute`; it is
+carried whole and was not touched, so that sentence is still wrong.
+
 **TO KNOW, NOT DECIDED HERE.** The repository is public, and the notes above
 this section say private. `versioning.md` section 4 keeps the last two builds
 and this repo holds seven, v10 to v16 and now v17. Neither was changed.
