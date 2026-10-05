@@ -1,4 +1,17 @@
 #!/data/data/com.termux/files/usr/bin/bash
+# 18-maha_commute_uninstall_v18.sh
+#
+# The MAHA COMMUTE uninstaller, on its own. Run it anywhere:
+#
+#     bash 18-maha_commute_uninstall_v18.sh
+#
+# It needs nothing installed and it changes nothing until asked. It
+# looks on disk, lists what it finds with sizes, and offers four
+# routes: the leftovers of old versions, the umbrella only,
+# everything, or nothing. The full wipe asks for a typed word.
+#
+# Generated from src/70_uninstall.sh by tools/build_uninstaller.sh.
+# built 2026-10-05 20:02 UTC
 # uninstall.sh, written by the MAHA COMMUTE installer.
 #
 #   maha-commute uninstall        the panel, decide item by item
@@ -200,3 +213,5 @@ for c in maha-commute maha-commute-update commute day.commute night.commute all.
 done
 [ "$LEFT" = 0 ] && printf "  ${DIM}checked six names, none remains${OFF}\n"
 printf "\n"
+
+# MAHA_UNINSTALL_SENTINEL v18

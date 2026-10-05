@@ -110,7 +110,10 @@ yes_ "the payloads verify"               "( cd '$A/payloads' && sha256sum -c --s
 yes_ "day is stamped"                    "[ -s '$A/installed/day' ]"
 yes_ "night is stamped"                  "[ -s '$A/installed/night' ]"
 no_  "all is not stamped"                "[ -f '$A/installed/all' ]"
-yes_ "the stamp says v14"                "[ \"\$(cat '$A/installed/day')\" = v14 ]"
+yes_ "the stamp says v15"                "[ \"\$(cat '$A/installed/day')\" = v15 ]"
+yes_ "maha.commute is installed"          "[ -x '$PREFIX/bin/maha.commute' ]"
+yes_ "maha.commute-update is installed"   "[ -x '$PREFIX/bin/maha.commute-update' ]"
+yes_ "maha.commute opens the same launcher" "maha.commute --help 2>&1 | grep -q 'maha.commute'"
 no_  "no temp payload was left behind"   "ls '$A/tmp'/*.run.sh >/dev/null 2>&1"
 
 # ---- the app itself was really written ----------------------------
@@ -128,7 +131,7 @@ no_  "no key shape anywhere under HOME" \
 
 # ---- the menu answers ---------------------------------------------
 out=$(maha-commute --help 2>&1 || true)
-yes_ "maha-commute --help speaks"             "printf '%s' \"\$out\" | grep -q 'maha-commute \[day'"
+yes_ "maha.commute --help speaks"             "printf '%s' \"\$out\" | grep -q 'maha.commute \[day'"
 st=$(maha-commute status 2>&1 < /dev/null || true)
 yes_ "maha-commute status names day.commute"  "printf '%s' \"\$st\" | grep -q 'day.commute'"
 yes_ "maha-commute status names the missing one" \

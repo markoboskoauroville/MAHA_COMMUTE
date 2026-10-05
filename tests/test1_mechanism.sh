@@ -852,5 +852,48 @@ cp README.md "$cpd/README.md"; sed -i '/#cmd-4)/d' "$cpd/README.md"
 python3 "$cpd/tools/build_copy_page.py" --check >/dev/null 2>&1; rc_is "a command with no link under it fails" 1 $?
 rm -rf "$cpd"
 
+# =====================================================================
+# v18: the free map, and the key at the top of Settings
+# =====================================================================
+# CARTO began answering every tile with one picture, "API KEY REQUIRED". What
+# could be true while this passes and the map is still blank: a CARTO address
+# left in some other style, a default that is not OpenStreetMap, or the picker
+# moved but a second copy left behind. Each is checked on its own.
+v18=$(python3 - <<'PYEOF'
+import re, subprocess
+P = {"day": "src/payloads/13-install-day-commute-termux-v13.sh",
+     "night": "src/payloads/9-night_commute_v9.sh",
+     "all": "src/payloads/39-install-all_commute-termux-v39.sh"}
+picker = {"day": "mapsFile", "night": "gmapsFile", "all": "keyFile"}
+def say(ok, what): print(("ok " if ok else "BAD ") + what)
+for app, f in P.items():
+    s = subprocess.run(["python3", "tools/patch_payload.py", f, app], capture_output=True, text=True).stdout
+    say("cartocdn" not in s, "%s: no CARTO address anywhere" % app)
+    say(s.count('id="%s"' % picker[app]) == 1, "%s: the key picker exists exactly once" % app)
+    i = s.find('id="ipLine"'); seg = s[i:i + 5000]
+    first = re.search(r'type="file" id="([a-zA-Z]+)"', seg)
+    say(bool(first) and first.group(1) == picker[app], "%s: the map key picker is the first one in Settings" % app)
+    say("How to get a Google Maps key" in s and "Maps JavaScript API" in s, "%s: the guide to a key is in Settings" % app)
+    say("console.cloud.google.com" in s, "%s: the guide says where to go" % app)
+a = subprocess.run(["python3", "tools/patch_payload.py", P["all"], "all"], capture_output=True, text=True).stdout
+say('const TILE_BASE  = "https://tile.openstreetmap.org/{z}/{x}/{y}.png";' in a, "all: the free map is OpenStreetMap")
+say("names = L.layerGroup();" in a, "all: the separate names layer is an empty group, not a CARTO layer")
+say("Street View Static API" in a, "all: its guide names the Street View API it also needs")
+n = subprocess.run(["python3", "tools/patch_payload.py", P["night"], "night"], capture_output=True, text=True).stdout
+say('let MAP_ENGINE = localStorage.getItem("nc_engine") || "osm";' in n, "night: OpenStreetMap is the default engine")
+say('osm:  {u:"https://tile.openstreetmap.org/' in n, "night: the default style is OpenStreetMap's own tiles")
+say('classList.toggle("osm-dark", k==="dark")' in n and ".osm-dark .leaflet-tile-pane" in n, "night: the dark style is OpenStreetMap darkened, not a second server")
+PYEOF
+)
+while IFS= read -r l; do case "$l" in ok*) ok ;; *) bad "v18: ${l#BAD }" ;; esac; done <<< "$v18"
+eq "every v18 map check ran" 21 "$(printf '%s\n' "$v18" | grep -c .)"
+
+# ---- the names Marko types ---------------------------------------------
+grep -q 'install_command "$BIN/maha.commute"' src/40_main.sh && ok || bad "the installer writes maha.commute"
+grep -q 'install_command "$BIN/maha.commute-update"' src/40_main.sh && ok || bad "the installer writes maha.commute-update"
+grep -q 'exec "%s/maha-commute"' src/40_main.sh && ok || bad "maha.commute is the launcher, not a copy of it"
+grep -qE '^  update\|-update\|--update\)' src/20_menu.sh && ok || bad "maha.commute -update runs the updater"
+grep -q 'maha.commute-update' src/70_uninstall.sh && ok || bad "the uninstaller knows the new names"
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

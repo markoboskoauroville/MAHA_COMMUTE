@@ -11,7 +11,7 @@ curl -fsSL https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/ma
 
 Paste that into Termux. It asks GitHub which version is current, fetches the
 installer that number names, checks it four ways before running it, and
-installs all three apps. Then type `maha-commute`.
+installs all three apps. Then type `maha.commute`.
 
 It downloads before it runs rather than piping into `bash`, so the file is on
 the phone and can be read first. A phone that walks out of signal halfway
@@ -73,9 +73,9 @@ roof, whole and unchanged:
 
 | | what it is | version | port |
 |---|---|---|---|
-| `day.commute` | the daytime ride, corridors that pick themselves | v14 | 8082 |
-| `night.commute` | the four night trams, and where they are now | v12 | 8087 |
-| `all.commute` | every station around you, in colour | v41 | 8084 |
+| `day.commute` | the daytime ride, corridors that pick themselves | v15 | 8082 |
+| `night.commute` | the four night trams, and where they are now | v13 | 8087 |
+| `all.commute` | every station around you, in colour | v42 | 8084 |
 
 ## Installing
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 17-maha_commute_v17.sh
+bash 18-maha_commute_v18.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
@@ -115,10 +115,28 @@ menu, with no download and no second file.
 ## Using it
 
 ```sh
-maha-commute
+maha.commute
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-7)
+
+### Updating, once it is installed
+
+```sh
+maha.commute-update
+```
+
+[Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-8)
+
+It asks GitHub for the newest version and reinstalls only the apps that
+changed. Your keys, your PDF timetables and the downloaded schedule stay where
+they are. From inside the launcher the same thing is `maha.commute -update`.
+The older names `maha-commute` and `maha-commute-update` still work.
+
+**The map needs no key.** All three apps show OpenStreetMap, which is free.
+A Google Maps key only adds Google's map as a second choice; how to get one is
+written at the top of each app's Settings, next to the button that picks the
+key file.
 
 That is the whole interface. All three apps are on the screen from the first
 frame whether they are installed or not: an app that is not here is dim rather

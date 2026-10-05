@@ -635,10 +635,10 @@ case "${1:-}" in
   keytest|keys)   exec "$PY" "$APPHOME/keytest.py" ;;
   refresh)        exec "$PY" "$APPHOME/stream.py" refresh --check ;;
   check|doctor)   exec "$PY" "$APPHOME/stream.py" check ;;
-  update)         exec bash "$APPHOME/update.sh" ;;
+  update|-update|--update) exec bash "$APPHOME/update.sh" ;;
   uninstall|wipe) exec bash "$APPHOME/uninstall.sh" ;;
   -h|--help)
-    printf 'maha-commute [day|night|all|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]\n'
+    printf 'maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]\n'
     exit 0 ;;
 esac
 

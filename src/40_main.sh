@@ -298,6 +298,14 @@ printf '#!%s\nexec bash "%s/update.sh" "$@"\n' "$BIN/bash" "$APPHOME" \
   | install_command "$BIN/maha-commute-update"
 done_
 
+# v18: the names Marko types. maha.commute opens the launcher, and
+# maha.commute-update fetches the newest suite from GitHub. The hyphen names
+# stay, because they are in old notes and in people's fingers.
+step "maha.commute and maha.commute-update"
+printf '#!%s\nexec "%s/maha-commute" "$@"\n' "$BIN/bash" "$BIN" | install_command "$BIN/maha.commute"
+printf '#!%s\nexec bash "%s/update.sh" "$@"\n' "$BIN/bash" "$APPHOME" | install_command "$BIN/maha.commute-update"
+done_
+
 # v1 of this umbrella left a command called commute. Leaving it behind
 # means two launchers on the PATH, one of them stale, and the stale one is
 # the shorter word so it is the one that gets typed. It is replaced by a
@@ -375,7 +383,7 @@ fi
 if [ -n "$FAILED" ]; then
   printf "\n    ${BAD}did not finish:${OFF}${DIM}%s${OFF}\n" "$FAILED"
 fi
-printf "\n  type ${KEY}maha-commute${OFF} ${DIM}for the launcher${OFF}\n"
+printf "\n  type ${KEY}maha.commute${OFF} ${DIM}for the launcher, ${OFF}${KEY}maha.commute-update${OFF} ${DIM}for the newest version${OFF}\n"
 printf "  ${DIM}or the app name on its own: day.commute, night.commute, all.commute${OFF}\n"
 printf "\n  ${DIM}the three payloads are kept in %s${OFF}\n" "$PAYDIR"
 printf "  ${DIM}so any app can be added or removed later with no download${OFF}\n"
