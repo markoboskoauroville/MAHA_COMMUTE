@@ -63,6 +63,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import payload_v17 as V17
 import payload_v18 as V18
+import payload_v19 as V19
 NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
 
 
@@ -243,6 +244,8 @@ FIXES['night'] += V17.NIGHT_FIXES
 FIXES['day'] += V18.DAY_FIXES
 FIXES['all'] += V18.ALL_FIXES
 FIXES['night'] += V18.NIGHT_FIXES
+# v19, see payload_v19.py
+FIXES['day'] += V19.DAY_FIXES
 
 SNIPPET = '''
 /* ---- MAHA COMMUTE, reset on a new run ---------------------------------

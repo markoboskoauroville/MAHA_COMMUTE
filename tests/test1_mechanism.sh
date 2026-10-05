@@ -895,5 +895,12 @@ grep -q 'exec "%s/maha-commute"' src/40_main.sh && ok || bad "maha.commute is th
 grep -qE '^  update\|-update\|--update\)' src/20_menu.sh && ok || bad "maha.commute -update runs the updater"
 grep -q 'maha.commute-update' src/70_uninstall.sh && ok || bad "the uninstaller knows the new names"
 
+# ---- v19: the first day button is called Buzin --------------------------
+dp=$(python3 tools/patch_payload.py src/payloads/13-install-day-commute-termux-v13.sh day)
+printf '%s' "$dp" | grep -qF '{"id": "to-work", "label": "Buzin",' && ok || bad "day: the to-work direction is labelled Buzin"
+printf '%s' "$dp" | grep -qF '"label": "Nova TV"' && bad "day: no direction is labelled Nova TV any more" || ok
+printf '%s' "$dp" | grep -qF 'd.label === "Nova TV") ? "Buzin"' && ok || bad "day: an older bus.json still shows Buzin"
+printf '%s' "$dp" | grep -qF 'name: "Nova TV",' && ok || bad "day: the corridor near the building keeps its place name"
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

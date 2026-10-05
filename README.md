@@ -73,7 +73,7 @@ roof, whole and unchanged:
 
 | | what it is | version | port |
 |---|---|---|---|
-| `day.commute` | the daytime ride, corridors that pick themselves | v15 | 8082 |
+| `day.commute` | the daytime ride, corridors that pick themselves | v16 | 8082 |
 | `night.commute` | the four night trams, and where they are now | v13 | 8087 |
 | `all.commute` | every station around you, in colour | v42 | 8084 |
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 18-maha_commute_v18.sh
+bash 19-maha_commute_v19.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)

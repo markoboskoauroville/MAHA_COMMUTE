@@ -110,7 +110,7 @@ yes_ "the payloads verify"               "( cd '$A/payloads' && sha256sum -c --s
 yes_ "day is stamped"                    "[ -s '$A/installed/day' ]"
 yes_ "night is stamped"                  "[ -s '$A/installed/night' ]"
 no_  "all is not stamped"                "[ -f '$A/installed/all' ]"
-yes_ "the stamp says v15"                "[ \"\$(cat '$A/installed/day')\" = v15 ]"
+yes_ "the stamp says v16"                "[ \"\$(cat '$A/installed/day')\" = v16 ]"
 yes_ "maha.commute is installed"          "[ -x '$PREFIX/bin/maha.commute' ]"
 yes_ "maha.commute-update is installed"   "[ -x '$PREFIX/bin/maha.commute-update' ]"
 yes_ "maha.commute opens the same launcher" "maha.commute --help 2>&1 | grep -q 'maha.commute'"
@@ -188,6 +188,11 @@ except Exception as e:
   recorded=$(cat "$HOME/.commute/port" 2>/dev/null || printf 'none')
   yes_ "the server's own record agrees with the socket" "[ '$recorded' = 8082 ]"
   wifi_checks 8082 /api-keys /
+  # v19: the first button is called Buzin. Rebuilt from ZET here and read back
+  # from the schedule the page is given, the real source of the button's text.
+  curl -s -m 240 "http://127.0.0.1:8082/update-bus" >/dev/null 2>&1
+  yes_ "the first button is called Buzin" \
+       "curl -s -m 20 http://127.0.0.1:8082/bus.json | python3 -c 'import sys,json; d=json.load(sys.stdin); print([x[\"label\"] for x in d[\"directions\"] if x[\"id\"]==\"to-work\"][0])' | grep -qx Buzin"
 
   kill "$SRV" 2>/dev/null
   pkill -f "$HOME/.commute/commute_server.py" 2>/dev/null
