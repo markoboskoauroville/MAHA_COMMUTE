@@ -123,10 +123,18 @@ app_port() {
   if [ -n "$p" ]; then printf '%s' "$p"; else field "$row" 5; fi
 }
 
+# Up means two things at once: its own process is alive, AND the port that
+# process wrote down answers. Either alone lied. The process alone counted an
+# app as up before it had bound anything, and the menu then opened the
+# table's port rather than the one it took. The port alone counted whatever
+# else was sitting on 8082 as day.commute. (v20: and the day server is found
+# by its path, because "commute_server.py" is also inside all.commute's name.)
 running() {
-  local proc; proc=$(field "$(app_row "$1")" 7)
-  proc_alive "$proc" && return 0
-  port_live "$(app_port "$1")"
+  local row proc dir p=""
+  row=$(app_row "$1"); proc=$(field "$row" 7); dir="$HOME/$(field "$row" 3)"
+  proc_alive "$proc" || return 1
+  [ -f "$dir/port" ] && p=$(tr -d ' \n' < "$dir/port" 2>/dev/null)
+  [ -n "$p" ] && port_live "$p"
 }
 
 # am first, and its OUTPUT read rather than its exit code, because asking
@@ -225,7 +233,8 @@ start_app() {
 stop_app() {
   local id="$1" cmd proc
   cmd=$(field "$(app_row "$id")" 2); proc=$(field "$(app_row "$id")" 7)
-  if ! running "$id"; then printf "  ${DIM}%s is not running${OFF}\n" "$cmd"; return; fi
+  # alive but not answering is still something to stop
+  if ! running "$id" && ! proc_alive "$proc"; then printf "  ${DIM}%s is not running${OFF}\n" "$cmd"; return; fi
   # Its own launcher first where it has a stop verb, because it knows what
   # else it started. Then the process name, for the ones that do not.
   local L; L=$(launcher_of "$id")
@@ -234,7 +243,7 @@ stop_app() {
   [ -f "$RUNDIR/$id.pid" ] && kill "$(cat "$RUNDIR/$id.pid")" 2>/dev/null
   rm -f "$RUNDIR/$id.pid"
   sleep 1
-  if running "$id"; then
+  if proc_alive "$proc"; then
     printf "  ${BAD}%s would not stop${OFF}\n" "$cmd"
   else
     printf "  ${OK}%s stopped${OFF}\n" "$cmd"

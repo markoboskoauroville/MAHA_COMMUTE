@@ -45,7 +45,7 @@ STAMPDIR="$APPHOME/installed"
 # cannot keep: at twenty one characters "the four night trams" loses its
 # last letter and "every station around you" loses three. So the layout is
 # not narrowed and the words are not cut. A shorter sentence is written.
-MAHA_APPS="day|day.commute|.commute|@@VER_DAY@@|8082|the daytime ride|commute_server.py|the daytime ride
+MAHA_APPS="day|day.commute|.commute|@@VER_DAY@@|8082|the daytime ride|/.commute/commute_server.py|the daytime ride
 night|night.commute|.nightcommute|@@VER_NIGHT@@|8087|the four night trams|night_server.py|four night trams
 all|all.commute|.all.commute|@@VER_ALL@@|8084|every station around you|all_commute_server.py|stations around you"
 

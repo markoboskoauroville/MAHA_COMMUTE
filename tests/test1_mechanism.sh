@@ -902,5 +902,66 @@ printf '%s' "$dp" | grep -qF '"label": "Nova TV"' && bad "day: no direction is l
 printf '%s' "$dp" | grep -qF 'd.label === "Nova TV") ? "Buzin"' && ok || bad "day: an older bus.json still shows Buzin"
 printf '%s' "$dp" | grep -qF 'name: "Nova TV",' && ok || bad "day: the corridor near the building keeps its place name"
 
+# ---- v20: one station, one dashboard; day.commute is found by its path ----
+ap=$(python3 tools/patch_payload.py src/payloads/39-install-all_commute-termux-v39.sh all)
+printf '%s' "$ap" | grep -q 'id="dashBtn"' && bad "all: the DASHBOARD button is gone" || ok
+printf '%s' "$ap" | grep -q 'popwrap' && bad "all: the small station window is gone" || ok
+printf '%s' "$ap" | grep -qF '.pinid{position:relative;display:block;pointer-events:auto;}' && ok || bad "all: the station label answers a tap"
+printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that wobbles is still a tap"
+printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
+printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
+printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v43"' && ok || bad "all: answers v43"
+printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
+# the dashboard renders the station that was opened, and only that one
+if command -v node >/dev/null 2>&1; then
+  J4=$(mktemp)
+  {
+    printf 'const els={};function el(id){return els[id]||(els[id]={id,textContent:"",innerHTML:"",scrollTop:0,style:{setProperty(){}},classList:{_s:new Set(),add(c){this._s.add(c)},remove(c){this._s.delete(c)},contains(c){return this._s.has(c)}},querySelector(){return null},addEventListener(){}});}\n'
+    printf 'global.document={getElementById:el,querySelectorAll:()=>[]};global.window={addEventListener(){}};\n'
+    printf 'let SEL=null,WATCH=null,ME=null,API_KEY="",STOPS=[{stop_id:"A",name:"Alpha",dist:50},{stop_id:"B",name:"Beta",dist:90}];\n'
+    printf 'const BOARDS={},SV_CACHE={};function esc(x){return String(x)}function fmtDist(m){return m+" m"}function dirAbbr(){return null}\n'
+    printf 'function stationColour(){return "#fff"}function starHTML(){return ""}function isWatched(){return false}function arrivalRow(x){return "<row "+x.route+">"}function metres(){return 0}\n'
+    printf 'const PALETTE=["#fff"];\n'
+    sed -n '/^function subLine(s, b){/,/^}/p' <<<"$ap"
+    sed -n '/^function arrHTML(b){/,/^document.getElementById("dClose")/p' <<<"$ap" | sed '$d'
+    printf 'SEL=STOPS[1];BOARDS.B={ok:true,feed_ok:true,departures:[{route:"6",passed:false}]};renderDash();\n'
+    printf 'console.log(JSON.stringify({id:els.dId.textContent,name:els.dName.textContent,cards:(els.dBody.innerHTML.match(/class="card/g)||[]).length,row:/<row 6>/.test(els.dBody.innerHTML),other:/Alpha/.test(els.dBody.innerHTML)}));\n'
+  } > "$J4"
+  R4=$(node "$J4" 2>&1); rm -f "$J4"
+  eq "the dashboard is the tapped station"     '"id":"B"'    "$(printf '%s' "$R4" | grep -o '"id":"[^"]*"')"
+  eq "it carries that station's name"          '"name":"Beta"' "$(printf '%s' "$R4" | grep -o '"name":"[^"]*"')"
+  eq "and one card, not one per station"       '"cards":1'   "$(printf '%s' "$R4" | grep -o '"cards":[0-9]*')"
+  eq "its arrivals are in it"                  '"row":true'  "$(printf '%s' "$R4" | grep -o '"row":[a-z]*')"
+  eq "no other station is in it"               '"other":false' "$(printf '%s' "$R4" | grep -o '"other":[a-z]*')"
+else
+  printf '  node is not here, so the 5 dashboard checks did not run\n'
+fi
+dp=$(python3 tools/patch_payload.py src/payloads/13-install-day-commute-termux-v13.sh day)
+grep -qF '|/.commute/commute_server.py|' src/00_head.sh && ok || bad "day is found by its path, not a name all.commute shares"
+printf '%s' "$dp" | grep -qF 'pkill -f commute_server.py' && bad "day.commute stop cannot kill all.commute" || ok
+printf '%s' "$dp" | grep -qF 'if pgrep -f "$SERVER" >/dev/null 2>&1; then' && ok || bad "day.commute status asks about its own server"
+printf '%s' "$dp" | grep -qF 'already running${OFF}' && ok || bad "a second day.commute opens the first instead of doubling it"
+printf '%s' "$dp" | grep -qF '_mine = _pf.read().strip() == str(port)' && ok || bad "a day server only deletes its own port file"
+printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v17"' && ok || bad "day answers v17"
+# the menu: up is the process AND the port it wrote down
+(
+  T=$(mktemp -d); HOME="$T"; mkdir -p "$T/.commute"
+  app_row(){ printf 'day|day.commute|.commute|v17|8082|x|/.commute/commute_server.py|x'; }
+  field(){ printf '%s' "$1" | cut -d'|' -f"$2"; }
+  eval "$(sed -n '/^port_live() {/,/^}/p;/^proc_alive() {/,/^}/p;/^running() {/,/^}/p' src/20_menu.sh)"
+  # a process called all_commute_server.py is NOT day.commute
+  proc_alive(){ [ "$1" = "all_commute_server.py" ]; }
+  running day && echo UP1 || echo DOWN1
+  # day's process alive but no port written yet: not up
+  proc_alive(){ [ "$1" = "/.commute/commute_server.py" ]; }
+  running day && echo UP2 || echo DOWN2
+  # alive, port written, nothing answering: not up
+  echo 1 > "$T/.commute/port"; running day && echo UP3 || echo DOWN3
+  rm -rf "$T"
+) > /tmp/.mc_run.$$ 2>&1
+R5=$(tr '\n' ' ' < /tmp/.mc_run.$$); rm -f /tmp/.mc_run.$$
+eq "all.commute running is not day.commute running"  "DOWN1 DOWN2 DOWN3 " "$R5"
+
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

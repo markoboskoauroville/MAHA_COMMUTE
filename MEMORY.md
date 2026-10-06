@@ -752,3 +752,30 @@ both ends correctly, on either side of the midnight it crosses.
 out of `13-maha_commute_v13.sh` between its heredoc delimiters, driven against a
 three row index with the clock pinned to 00:10 and the feed cut. Put the old two
 lines back and three of the nine go red.
+
+
+## V20: ONE STATION, ONE DASHBOARD; DAY.COMMUTE FOUND BY ITS PATH
+
+*6.10.2026.* Umbrella v20, day v17, all v43. Marko asked for two things the same day
+(word for word in `momentaryupdates.md`); the reasons are in `tools/payload_v20.py`.
+
+**all.commute.** There is no DASHBOARD button and no small station window any more. A tap
+on a station's label opens a full-screen dashboard for that one station: photograph,
+what just left, what is coming, WATCH. The ✕ or the phone's back gesture closes it. Taps
+were being missed because the visible label sat 37 px beside the station with
+`pointer-events:none`, so a finger on it went straight through to the map. The label
+now sits on the station, is itself the target, and has extra reach for a thumb.
+
+**day.commute "sometimes offline".** The server always stepped up from 8082 when a port
+was busy. The menu was what got it wrong: it found day by the name `commute_server.py`,
+which is also inside `all_commute_server.py`, so with all.commute running it believed
+day was up and opened a page with nothing behind it (and `day.commute stop` killed
+all.commute). It also counted an app as up before it had bound a port. Now: day is
+found by its path, up means process alive AND the port it wrote answers, a second
+`day.commute` opens the first, and a server deletes the port file only if it is its own.
+
+Tests on the Mac: test1 410 passed; the 14 failures are the same 14 that v19 shows on
+the Mac (BSD tools), checked against a clean v19 worktree. Both fixes were broken on
+purpose once and the new checks turned red. The page was tried in Chrome against a
+stand-in server: a tap on the edge of a label opened that station's dashboard, ✕ and
+back both closed it, no console errors. Not yet seen on the phone.
