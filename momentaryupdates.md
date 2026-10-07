@@ -11,3 +11,5 @@ Every request, word for word, saved before any code is written.
 ## 7.10.2026
 
 > Add central GTFS system so all apps share the same folder and same data of GTFS. And number 4, which is now empty in our launcher, should— when I press 4, first download the GTFS latest file, checks its sanity if the data is corrupted, and in the terminal shows the data, displaying the data. Or better yet, open also the— through Flask web user interface to monitor the data health and data itself from GTFS.
+
+> Since this app is for Termux, please test it inside the emulator and install from F-Droid all Termux—Termux itself and all its plugins like Termux API, Termux Staying Alive or something like this, Background Termux. Whatever is useful, install in my terminal for testing. This is a real test because this is used on the phones.
