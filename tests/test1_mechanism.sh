@@ -906,7 +906,7 @@ printf '%s' "$dp" | grep -qF 'name: "Nova TV",' && ok || bad "day: the corridor 
 ap=$(python3 tools/patch_payload.py src/payloads/39-install-all_commute-termux-v39.sh all)
 printf '%s' "$ap" | grep -q 'id="dashBtn"' && bad "all: the DASHBOARD button is gone" || ok
 printf '%s' "$ap" | grep -q 'popwrap' && bad "all: the small station window is gone" || ok
-printf '%s' "$ap" | grep -qF '.pinid{position:relative;display:block;pointer-events:auto;}' && ok || bad "all: the station label answers a tap"
+printf '%s' "$ap" | grep -qF '.pinid{position:relative;display:block;pointer-events:auto;z-index:1;}' && ok || bad "all: the station label answers a tap"
 printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that wobbles is still a tap"
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
