@@ -47,20 +47,40 @@ fi
 
 CAND=""
 MODE="run"
+ONLY=""
+
+# maha-commute-update [--check] [--app ID] [file]. --app updates one app and
+# leaves the others, running or not, exactly as they are.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --check) MODE="check" ;;
+    --app)   ONLY="${2:-}"; shift ;;
+    -*)      ;;
+    *)       [ -f "$1" ] && CAND="$1" ;;
+  esac
+  shift
+done
+if [ -n "$ONLY" ] && ! printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1 | grep -qx "$ONLY"; then
+  printf "update: %s is not one of the apps\n" "$ONLY"; exit 2
+fi
 
 RAW="https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main"
 
 # What github is offering. A plain unsigned request: no token, no header,
 # nothing kept afterwards.
 REMOTE_V=""
-if command -v curl >/dev/null 2>&1; then
+if [ -n "$CAND" ]; then
+  :   # a file was given, so github is not asked
+elif command -v curl >/dev/null 2>&1; then
   REMOTE_V=$(curl -fsSL --max-time 20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
 elif command -v wget >/dev/null 2>&1; then
   REMOTE_V=$(wget -qO- --timeout=20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
 fi
 
 HERE="${MAHA_VERSION#v}"
-if [ -n "$REMOTE_V" ]; then
+if [ -n "$CAND" ]; then
+  :
+elif [ -n "$REMOTE_V" ]; then
   if [ "$REMOTE_V" -gt "$HERE" ] 2>/dev/null; then
     printf "\n  ${KEY}v%s is available${OFF} ${DIM}(this phone has v%s)${OFF}\n" "$REMOTE_V" "$HERE"
     if [ "$MODE" = "check" ]; then printf "\n"; exit 0; fi
@@ -164,8 +184,12 @@ n=0
 for id in $(printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1); do
   n=$((n+1))
   cmd=$(printf '%s\n' "$MAHA_APPS" | grep "^$id|" | cut -d'|' -f2)
+  if [ -n "$ONLY" ] && [ "$id" != "$ONLY" ]; then continue; fi
   [ -x "$BIN/$cmd" ] && PICK="$PICK$n"
 done
+if [ -n "$ONLY" ]; then
+  printf "  ${DIM}updating only${OFF} ${SAND}%s${OFF}${DIM}; the other apps are left as they are${OFF}\n" "$ONLY"
+fi
 if [ -z "$PICK" ]; then
   printf "  ${DIM}no apps are installed, so the update installs none of them${OFF}\n"
   PICK="n"
@@ -173,6 +197,7 @@ else
   printf "  ${DIM}installed now, and kept:${OFF}"
   for id in $(printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1); do
     cmd=$(printf '%s\n' "$MAHA_APPS" | grep "^$id|" | cut -d'|' -f2)
+    if [ -n "$ONLY" ] && [ "$id" != "$ONLY" ]; then continue; fi
     [ -x "$BIN/$cmd" ] && printf " ${SAND}%s${OFF}" "$cmd"
   done
   printf "\n"

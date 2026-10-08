@@ -911,7 +911,7 @@ printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that 
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
 printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
-printf '%s' "$ap" | grep -qF 'APP_VERSION = "v43"' && ok || bad "all: answers v43"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v44"' && ok || bad "all: answers v44"
 printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
 # the dashboard renders the station that was opened, and only that one
 if command -v node >/dev/null 2>&1; then
@@ -962,6 +962,69 @@ printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v17"' && ok || bad "day answers v
 ) > /tmp/.mc_run.$$ 2>&1
 R5=$(tr '\n' ' ' < /tmp/.mc_run.$$); rm -f /tmp/.mc_run.$$
 eq "all.commute running is not day.commute running"  "DOWN1 DOWN2 DOWN3 " "$R5"
+
+# ---- v21: the stations are permanent; the launcher lights one app -------
+# The rebuild is the REAL update_all.py, taken out of the patched payload, fed
+# a four stop feed. Stop 200 has a departure only on the day of the special
+# service, stop 300 only on a ride filed under yesterday (24:10). Before v21
+# the index held three stops, then two, and 300 never.
+T21=$(mktemp -d)
+printf '%s' "$ap" | python3 -c '
+import re,sys
+s=sys.stdin.read()
+for name,tag in (("update_all.py","ALLC_UPDATE_PY"),("all_commute_server.py","ALLC_SERVER_PY")):
+    m=re.search(r"cat > \"\$APPDIR/%s\" << \x27%s\x27\n(.*?)\n%s\n"%(re.escape(name),tag,tag),s,re.S)
+    open(sys.argv[1]+"/"+name,"w").write(m.group(1)+"\n")' "$T21"
+cat > "$T21/mkgtfs.py" <<'PYEOF'
+import zipfile, sys, datetime
+path, special = sys.argv[1], sys.argv[2] == "1"
+t = datetime.date.today(); y = t - datetime.timedelta(days=1)
+f = lambda d: d.strftime("%Y%m%d")
+files = {
+ "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n100,Glavni kolodvor,45.8050,15.9800\n101,Branimirova,45.8055,15.9810\n200,Samo radnim danom,45.8060,15.9790\n300,Nocna linija,45.8070,15.9820\n",
+ "routes.txt": "route_id,route_short_name,route_long_name\n6,6,Sljeme\n31,31,Nocna\n",
+ "trips.txt": "route_id,service_id,trip_id,trip_headsign\n6,DAILY,t1,Sljeme\n6,SPECIAL,t2,Sljeme\n31,NIGHT,t3,Nocna\n",
+ "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nt1,08:00:00,08:00:00,100,1\nt1,08:05:00,08:05:00,101,2\nt2,09:00:00,09:00:00,200,1\nt2,09:05:00,09:05:00,100,2\nt3,24:10:00,24:10:00,300,1\nt3,24:15:00,24:15:00,100,2\n",
+ "calendar_dates.txt": "service_id,date,exception_type\nDAILY,%s,1\n%sNIGHT,%s,1\n" % (f(t), ("SPECIAL,%s,1\n" % f(t)) if special else "", f(y)),
+}
+with zipfile.ZipFile(path, "w") as z:
+    for k, v in files.items(): z.writestr(k, v)
+PYEOF
+ids21() { python3 -c "import sqlite3,sys;print(' '.join(sorted(r[0] for r in sqlite3.connect(sys.argv[1]).execute('select stop_id from stops'))))" "$T21/network.db"; }
+python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 1
+ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+eq "a day with the special service: all four stations" "100 101 200 300" "$(ids21)"
+python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 0
+ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+eq "a day without it: the same four, none dropped"     "100 101 200 300" "$(ids21)"
+eq "the permanent file holds them too" "4" "$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['stops']))" "$T21/stations.json")"
+eq "a quiet stop keeps the way it faces" "yes" "$(python3 -c "import json,sys;b=json.load(open(sys.argv[1]))['stops']['200'][3];print('yes' if b is not None else 'no')" "$T21/stations.json")"
+rm -f "$T21/network.db"
+eq "the stations survive the index being deleted" "4" "$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['stops']))" "$T21/stations.json")"
+# the first rebuild after the update keeps what an OLD index (served stops only) knew
+rm -f "$T21/stations.json"
+python3 - "$T21" <<'PYEOF'
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1] + "/network.db")
+c.execute("create table stops(stop_id text primary key, name text, lat real, lon real, bearing real)")
+c.execute("create table dep(stop_id text, t int, trip_id text, route text, head text)")
+c.execute("insert into stops values('999','Old and gone',45.0,15.0,90.0)")
+c.commit()
+PYEOF
+ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+eq "an old index's stops are taken in, not lost" "100 101 200 300 999" "$(ids21)"
+printf '%s' "$ap" | grep -qF 'def stations_ready():' && ok || bad "all: /stops works from the file when the index is gone"
+rm -rf "$T21"
+
+# the launcher: a number lights an app, 0 is the launcher, u follows what runs
+if command -v python3 >/dev/null 2>&1; then
+  R21=$(python3 -u tests/test5_launcher.py 2>&1)
+  np=$(printf '%s\n' "$R21" | grep -c '^PASS'); nf=$(printf '%s\n' "$R21" | grep -c '^FAIL')
+  pass=$((pass+np)); fail=$((fail+nf))
+  printf '%s\n' "$R21" | grep '^FAIL' || true
+  [ "$np" -ge 11 ] && ok || bad "the launcher screen test ran (only $np checks)"
+fi
+grep -q '^  --app)' src/60_update.sh 2>/dev/null; grep -q -- '--app)' src/60_update.sh && ok || bad "the updater can aim at one app"
 
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

@@ -15,10 +15,15 @@
 #   | 3 all.commute   | 4 free          |
 #   +-----------------+-----------------+
 #
-# 1 2 3 4 FILL a quadrant. An empty quadrant is an app that is not running,
-# so pressing its number starts that server and the quadrant fills in front
-# of you. Pressing the number of a quadrant that is already filled opens its
-# page again. The number means one thing in both cases: put me in this app.
+# 1 2 3 4 LIGHT a quadrant. An idle app is started by its number and the
+# quadrant says RUNNING; an app that is already running is only lit, so with
+# two apps up the numbers just swap the light between them. Enter or o opens
+# the page. 0 lights nothing: it is the launcher itself, and the keys that
+# belong to no single app act on all of it.
+#
+# u UPDATES according to what is running. With nothing running it updates the
+# whole launcher. With apps running it updates only the lit one, because an
+# update replaces files that a running server is serving from.
 #
 # The label is drawn whether the quadrant is filled or not, so the number
 # never has to be looked up. 1 is always day.commute, on this phone and on
@@ -59,7 +64,7 @@ RUNDIR="$APPHOME/running"; mkdir -p "$RUNDIR"
 # run start clean instead of where you left off.
 RUN=$(date +%s)
 PY="$(command -v python3 || command -v python)"
-SEL=1
+SEL=0     # 0 is the launcher itself; 1 to 4 light an app
 LAST=""
 
 STTY_SAVED=""
@@ -70,7 +75,7 @@ STTY_SAVED=$(stty -g 2>/dev/null || true)
 field()   { printf '%s' "$1" | cut -d'|' -f"$2"; }
 app_row() { printf '%s\n' "$MAHA_APPS" | grep "^$1|" || true; }
 app_ids() { printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1; }
-app_at()  { app_ids | sed -n "${1}p"; }
+app_at()  { case "$1" in ''|0|*[!0-9]*) return 0 ;; esac; app_ids | sed -n "${1}p"; }
 n_apps()  { app_ids | wc -l | tr -d ' '; }
 
 is_installed() { local c; c=$(field "$(app_row "$1")" 2); [ -n "$c" ] && [ -x "$BIN/$c" ]; }
@@ -280,6 +285,32 @@ stop_all() {
 # ---------------------------------------------------------------
 CW=22
 
+# u. What it updates depends on what is running, because an update replaces
+# files a running server is serving from.
+#   nothing running   the whole launcher, every installed app
+#   something running only the lit app (its server is stopped first by the
+#                     installer, nothing else is touched). With no app lit
+#                     there is nothing to aim at, and it says so.
+update_focus() {
+  local n_run=0 id sel_id
+  for id in $(app_ids); do running "$id" && n_run=$((n_run+1)); done
+  printf "\n"
+  if [ "$n_run" = 0 ]; then
+    bash "$APPHOME/update.sh"; anykey; return
+  fi
+  sel_id=$(app_at "$SEL")
+  if [ "$SEL" = 0 ] || [ -z "$sel_id" ]; then
+    printf "  ${SAND}%s running.${OFF} ${DIM}Light one with 1 to 4 and press u to update just that app,${OFF}\n" "$n_run"
+    printf "  ${DIM}or press S to stop them all and update the whole launcher.${OFF}\n"
+    anykey; return
+  fi
+  if ! is_installed "$sel_id"; then
+    printf "  ${DIM}%s is not installed, so there is nothing to update.${OFF}\n" "$(field "$(app_row "$sel_id")" 2)"
+    anykey; return
+  fi
+  bash "$APPHOME/update.sh" --app "$sel_id"; anykey
+}
+
 pad() { printf '%-*.*s' "$CW" "$CW" "$1"; }
 
 cell_lines() {
@@ -364,11 +395,12 @@ cell() {
   fi
   cmd=$(field "$(app_row "$id")" 2)
   q1=$(printf '%d %s' "$slot" "$cmd")
-  q3=$(field "$(app_row "$id")" 8)
+  q3=$(stamped "$id")
   if ! is_installed "$id"; then
     q2='not installed'; qstate='absent'
   elif running "$id"; then
-    q2=$(printf '%s  %s  %s' "$(stamped "$id")" "$(app_port "$id")" "$(uptime_of "$id")")
+    q2=$(printf 'RUNNING %s  %s' "$(app_port "$id")" "$(uptime_of "$id")")
+    [ "$LAST" = "$id" ] && q2="$q2 *"
     qstate='running'
   else
     q2=$(printf '%s  ready' "$(stamped "$id")")
@@ -417,8 +449,15 @@ draw() {
   [ -n "$sel_id" ] && { running "$sel_id" && sel_run=1; is_installed "$sel_id" && sel_inst=1; }
   for id in $(app_ids); do running "$id" && any_run=1; done
 
-  # The verbs, which act on whichever quadrant has the focus.
-  if [ -z "$sel_id" ]; then
+  # The verbs, which act on whichever quadrant has the focus. Focus 0 is the
+  # launcher itself: nothing is lit and the keys below act on all of it.
+  if [ "$SEL" = 0 ]; then
+    if [ "$any_run" = 1 ]; then
+      printf "  ${DIM}on ${OFF}${KEY}launcher${OFF}${DIM}: apps are running, so ${OFF}${KEY}u${OFF}${DIM} needs one lit app${OFF}\n\n"
+    else
+      printf "  ${DIM}on ${OFF}${KEY}launcher${OFF}${DIM}: nothing runs, so ${OFF}${KEY}u${OFF}${DIM} updates all of it${OFF}\n\n"
+    fi
+  elif [ -z "$sel_id" ]; then
     printf "  ${DIM}quadrant 4 is free. The verbs wait for an app.${OFF}\n\n"
   else
     printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}  " "$(field "$(app_row "$sel_id")" 2)"
@@ -434,11 +473,11 @@ draw() {
   # Every label is spelled by its own key: r efresh, c heck, w ipe. A key
   # whose letter does not begin its word has to be read rather than
   # recognised, and this row is meant to be recognised.
-  printf "  "; fkey 1 h "elp" 1; fkey 2 r "efresh" 1; fkey 3 c "heck" 1
-  fkey 4 t "est" 1; fkey 5 i "nstall" 1; printf "\n  "
-  fkey 6 u "pdate" 1; fkey 7 k "ey" 1; fkey 8 S "topAll" "$any_run"
-  fkey 9 w "ipe" 1; fkey 0 q "uit" 1; printf "\n"
-  printf "\n  ${DIM}1 2 3 4 fill a quadrant, arrows move without starting${OFF}\n"
+  printf "  "; fkey "" h "elp " 1; fkey "" r "efresh " 1; fkey "" c "heck " 1
+  fkey "" t "est " 1; fkey "" i "nstall" 1; printf "\n  "
+  fkey "" u "pdate " 1; fkey "" k "ey " 1; fkey "" S "topAll" "$any_run"
+  fkey "" w "ipe " 1; fkey "" q "uit" 1; printf "\n"
+  printf "\n  ${DIM}1-4 light an app (starts it if idle), 0 the launcher${OFF}\n"
   printf "  ${AM}>${OFF} "
 }
 
@@ -511,12 +550,16 @@ screen_help() {
   Four quadrants, one app each. The fourth is free and stays
   drawn, so the screen does not move when a fourth app arrives.
 
-  1 2 3 4 fill a quadrant. An empty quadrant is a server that
-  is not running, so its number starts it and the quadrant
-  fills. If it is already filled, the number opens its page.
+  1 2 3 4 light an app. If it is idle its number starts it. If it
+  is already running the number only moves the light, so with
+  two apps up, 1 and 3 swap between them and nothing reopens.
+  Every running app says RUNNING in its quadrant, with its port.
 
-  Arrows move between quadrants without starting anything,
-  for when you want to look before you press.
+  0 is the launcher itself: nothing is lit and the keys below
+  that belong to no single app act on all of it.
+
+  Arrows move the light without starting anything, for when
+  you want to look before you press.
 
   The verbs are the same for every quadrant and act on the
   focused one, which is the whole point: one set of keys.
@@ -540,7 +583,8 @@ screen_help() {
       c  check the streams without refreshing
       t  test every key this phone holds
       i  install or remove an app
-      u  update from a newer installer file
+      u  update. Nothing running: the whole launcher. Apps
+         running: only the lit one, and 0 or S first for all
       k  the shared google key
       S  stop all of them
       x  uninstall, which asks twice
@@ -651,13 +695,27 @@ case "${1:-}" in
     exit 0 ;;
 esac
 
-FOCUS=1
+# The screen is a status board: it redraws by itself when an app comes up or
+# goes away, so a server started from another window shows up here without a
+# keypress. It redraws only when the picture would change, never on a timer,
+# because a screen that repaints every few seconds flickers and eats the
+# key being typed.
+state_sig() { local id o=""; for id in $(app_ids); do running "$id" && o="$o$id,"; done; printf '%s' "$o"; }
+SIG=$(state_sig)
+REDRAW=1
 while :; do
-  draw
+  [ "$REDRAW" = 1 ] && { draw; SIG=$(state_sig); }
+  REDRAW=1
   # End of input is not a keypress. Reading EOF used to leave c empty, which
   # matched the Enter case and started an app, so piping anything into the
   # launcher launched something. EOF means the person is gone: leave.
-  if ! read -rsn1 c 2>/dev/null; then
+  # A TIMEOUT (status above 128) is not EOF: it is the moment to look again.
+  read -rsn1 -t 4 c 2>/dev/null; rc=$?
+  if [ "$rc" -gt 128 ]; then
+    NEWSIG=$(state_sig)
+    if [ "$NEWSIG" != "$SIG" ]; then SIG="$NEWSIG"; else REDRAW=0; fi
+    continue
+  elif [ "$rc" -ne 0 ]; then
     if ! read -r c 2>/dev/null; then printf "\n\n"; exit 0; fi
   fi
   # An arrow arrives as escape, bracket, letter. The two extra reads carry a
@@ -672,16 +730,18 @@ while :; do
   fi
   SELAPP=$(app_at "$SEL")
   case "$c" in
-    # A number goes to its quadrant AND fills it. An empty quadrant is a
-    # server that is not running, so pressing its number starts it; a
-    # quadrant that is already filled opens its page again. One meaning for
-    # the number, whatever state the quadrant is in: put me in this app.
+    # 0 is the launcher: nothing lit, and the keys act on all of it.
+    0) SEL=0 ;;
+    # A number LIGHTS an app. If it is idle it is started first, which is how
+    # an app gets running; if it is already running the number only moves the
+    # light, so with two apps up, 1 and 3 swap between them without opening a
+    # page each time. Enter or o opens the page.
     1|2|3|4)
       SEL="$c"
       NEW=$(app_at "$SEL")
-      [ -n "$NEW" ] && start_app "$NEW" ;;
-    prev) SEL=$((SEL-1)); [ "$SEL" -lt 1 ] && SEL=4 ;;
-    next) SEL=$((SEL+1)); [ "$SEL" -gt 4 ] && SEL=1 ;;
+      if [ -n "$NEW" ] && ! running "$NEW"; then start_app "$NEW"; fi ;;
+    prev) SEL=$((SEL-1)); [ "$SEL" -lt 0 ] && SEL=4 ;;
+    next) SEL=$((SEL+1)); [ "$SEL" -gt 4 ] && SEL=0 ;;
 
     # the verbs, on the focused quadrant
     "")  [ -n "$SELAPP" ] && start_app "$SELAPP" ;;
@@ -699,7 +759,7 @@ while :; do
     t|T) printf "\n"; "$PY" "$APPHOME/keytest.py"; anykey ;;
     i|I) screen_install ;;
     k|K) screen_key ;;
-    u|U) printf "\n"; bash "$APPHOME/update.sh"; anykey ;;
+    u|U) update_focus ;;
     S)   stop_all ;;
     w|W|x|X) printf "\n"; bash "$APPHOME/uninstall.sh"; anykey ;;
     q|Q) printf "\n"

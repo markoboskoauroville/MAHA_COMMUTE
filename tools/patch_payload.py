@@ -65,6 +65,7 @@ import payload_v17 as V17
 import payload_v18 as V18
 import payload_v19 as V19
 import payload_v20 as V20
+import payload_v21 as V21
 NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
 
 
@@ -249,6 +250,7 @@ FIXES['night'] += V18.NIGHT_FIXES
 FIXES['day'] += V19.DAY_FIXES
 # v20, see payload_v20.py (all.commute's part is patch_all, below)
 FIXES['day'] += V20.DAY_FIXES
+# v21, see payload_v21.py (all.commute's part is V21.patch_all, below)
 
 SNIPPET = '''
 /* ---- MAHA COMMUTE, reset on a new run ---------------------------------
@@ -299,6 +301,7 @@ def main():
                          "the payload changed upstream and has to be re-read" % (pat, got, want))
             src = re.sub(pat, repl, src)
         src = V20.patch_all(src)
+        src = V21.patch_all(src)
 
     keys = RESET.get(app, [])
     if not keys:

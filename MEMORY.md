@@ -9,6 +9,67 @@ this project.
 
 ---
 
+## V21: THE STATIONS ARE PERMANENT, THE LABELS STOP COMING AND GOING, THE LAUNCHER LIGHTS ONE APP
+
+*8.10.2026.* Marko: "cache all stations so they are permanent. Stations are not
+moving, only schedule is changing", the running apps shown in the terminal with
+1 and 3 only moving a highlight, `0` back to the launcher, update the whole
+launcher only when nothing runs, and "sometimes the labels for stations are
+showing, sometimes they're not. What is going on?"
+
+**THE LABELS HAD TWO CAUSES, both found by running the thing, not by reading.**
+
+1. *The index was the day's timetable.* `stops` was filled from "the stops that
+   see a departure today", so a station was a by-product of the schedule. A stop
+   served only on weekdays vanished on Sunday; a night-line stop (rides filed
+   under yesterday as 24:10) was never there; a diverted line took its stops
+   away for the week. Reproduced with a four stop feed: three stops one day,
+   two the next, and the night stop never.
+2. *A race in the page.* `pageshow` and `focus` call `autoLocate()` while boot
+   is still awaiting `/api-keys`. On a phone that answers quickly the first
+   position arrives BEFORE `initFreeMap()`; `drawMe` throws on `.addTo(null)`
+   after `ME` was stored, so `first = !ME` was never true again, the map never
+   moved to the person and the stations, loaded around them, were drawn off
+   screen. Whether the labels were there depended on which finished first.
+   `tests/test6_browser.sh` reproduces it against v20 (6 of 8 fail) and passes
+   on v21 (8 of 8).
+
+**THE FIX.** `stations.json` is its own file. Every rebuild MERGES the feed's
+stops into it and never removes one; a bearing is kept from the last day it
+could be worked out; the first rebuild after the update takes in the old
+index's stops. `stops` in the index is filled from it, the server reads it
+directly when the index is gone or being rebuilt (so `/stops` and
+`/find-stops` never answer "no index" while a file of stations exists), and
+`/status` says `stations: true` so the page draws them at once. Clearing the
+index no longer clears the stations. The page: no drawing onto a map that is
+not there, `CENTRED` (not `!ME`) decides whether to move the map, boot replays
+a fix that beat the map, and a slow `/stops` answer can no longer overwrite a
+newer one.
+
+**THE LAUNCHER.** `0` is the launcher (`SEL=0`, nothing lit). A number starts an
+idle app and only lights a running one; Enter or `o` opens the page. A running
+quadrant says RUNNING with its port and age, and the screen repaints itself
+when the set of running apps changes (read with a 4 s timeout; status above
+128 is a timeout, NOT end of input, which is what the old code would have
+treated as "the person is gone"). `u`: nothing running updates the whole
+launcher; apps running updates only the lit app through `update.sh --app ID`;
+nothing lit says so. The old update.sh parsed no arguments at all, so `--check`
+and a file path had never worked; it parses them now. The F-key digits are gone
+from the bottom row because 0 and 1 to 4 now mean something else.
+
+**WHAT WENT WRONG ON THE WAY.** `pkill -f` and `pgrep -f` with the server's
+name matched the very shell running them (twice), and the shell died with exit
+144 and no output. A test server started inside `( ... ) &` leaves the python
+child behind when the subshell is killed, so the next run found its port taken
+and talked to the dead one: `exec` it, and read the port from the port file.
+test5 passed alone and failed inside test1 because of fixed sleeps; it waits
+for the screen now.
+
+**NOT DONE.** The MANTRA_MANIFEST is private and was not on this machine, so
+none of its rules were read this session. Day and night still rebuild their
+own station lists daily; only all.commute has the permanent file. Nothing has
+been seen on a phone.
+
 ## V17: THE APPS' OWN NAMES OPEN THE LAUNCHER, AND THE WIFI IS TOLD WHAT IT MAY SEE
 
 *4.10.2026.* Brought over from a long chat that had been building the same

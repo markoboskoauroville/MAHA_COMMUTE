@@ -75,7 +75,7 @@ roof, whole and unchanged:
 |---|---|---|---|
 | `day.commute` | the daytime ride, corridors that pick themselves | v17 | 8082 |
 | `night.commute` | the four night trams, and where they are now | v13 | 8087 |
-| `all.commute` | every station around you, in colour | v43 | 8084 |
+| `all.commute` | every station around you, in colour | v44 | 8084 |
 
 ## Installing
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 20-maha_commute_v20.sh
+bash 21-maha_commute_v21.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
@@ -140,7 +140,10 @@ key file.
 
 That is the whole interface. All three apps are on the screen from the first
 frame whether they are installed or not: an app that is not here is dim rather
-than absent, and pressing its number offers to install it. Colour carries the
+than absent, and pressing its number offers to install it. Pressing the number
+of an idle app starts it; pressing the number of a running app only lights it,
+and `0` lights the launcher itself. `u` updates the whole launcher when nothing
+is running, and only the lit app when something is. Colour carries the
 state and nothing else, so green is running, sand is installed and ready, grey
 is present but not available.
 
