@@ -163,6 +163,21 @@ ALL_FIXES = [
      '      const lo = lim.top + o.h / 2, hi = lim.bottom - o.h / 2;\n'
      '      const ny = (hi > lo ? Math.min(Math.max(o.p.y + o.dy, lo), hi) : o.p.y + o.dy) - o.p.y;\n'),
 
+    # The clamp is in screen pixels, so it goes stale the moment the map is panned
+    # (a station dragged up under the GPS chip kept its old, clear, position).
+    ('  map.on("zoomend", layoutPins);\n', '  map.on("zoomend", layoutPins);\n  map.on("moveend", layoutPins);\n'),
+
+    # A watch that is already running delivers nothing until the phone moves, so
+    # pressing locate while one was running never got a fresh position. Restart it.
+    ('  hud("Hold still — collecting satellites for 30 seconds…", true);\n  startBurst(30000);\n',
+     '  stopBurst();       // a running watch says nothing until the phone moves; a new one answers at once\n'
+     '  hud("Hold still — collecting satellites for 30 seconds…", true);\n  startBurst(30000);\n'),
+
+    # Leaflet ignores a setView that arrives while a zoom animation is still running,
+    # and the locate button's own first jump starts one, so the follow-up to the new
+    # fix was swallowed and the map stayed at the old position. The map jumps.
+    ('  else map.setView([v.lat, v.lng], z);\n', '  else map.setView([v.lat, v.lng], z, { animate: false });\n'),
+
     # F8: the locate button waits for the new burst's first fix as well
     ('  WANT_CENTRE = true;          // the button, and only the button, brings the map to you\n'
      '  if (ME) { setView(ME, Math.max(17, curZoom())); WANT_CENTRE = false; }\n',

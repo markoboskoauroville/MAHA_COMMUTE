@@ -125,6 +125,59 @@ none of its rules were read this session. Day and night still rebuild their
 own station lists daily; only all.commute has the permanent file. Nothing has
 been seen on a phone.
 
+## V22: THE ANSWERS TO THE FIRST FIELD TEST (8.10.2026)
+
+The first report from the LOCAL tester (`field-tests/2026-10-08_v21/REPORT.md`,
+Pixel 7 plus emulator) found 14 faults around v21's features, which themselves held.
+Each is fixed with a test, and `tests/test7_v22.sh` holds the ones that need the
+installer or the server.
+
+- **F1 labels under the controls.** The clamp measures the HUD, the buttons, the GPS
+  chip and the watch bar instead of assuming 64 px, and runs on every move as well as
+  every zoom (a clamp in screen pixels goes stale when the map is panned; the test
+  that panned found it). The HUD now sits under the buttons, the GPS chip under it.
+- **F2, F3 the key.** The installer copies the shared key into every app's own key
+  file (field 9 of `MAHA_APPS`; `install-one.sh --sync-key [force]`), the launcher's
+  key screen forces it, and all.commute's server falls back to the shared store. A
+  file counts as a key only if its cleaned content is 20+ characters: a lone newline
+  (one byte, so `-s` was true) had won over the real key and emptied the store.
+- **F4** installed = the command AND the app's server file (`app_files_present`), in
+  the installer and the launcher.
+- **F5** `maha-commute day | cat` hung because `( cd && setsid X & echo )` puts the
+  `&` on the whole list: a forked copy of the launcher stayed as the server's parent
+  holding the caller's stdout. Now `( cd; exec setsid nohup X ... ) &`. Reproduced here
+  (94 s) before the fix and checked after. **F10** without a terminal `read -t` returns
+  at once and the three minute wait was a few seconds: it `sleep`s when stdin is not a
+  tty.
+- **F6** /rebuild, /cache/clear, /sched-delete are POST; every POST and every
+  state-changing GET of all three apps is refused if `Sec-Fetch-Site` is cross-site or
+  same-site, or `Origin` differs from `Host` (`_cross_site`, inside `_phone_only`). curl
+  sends neither header and is allowed: it is the phone talking to itself.
+- **F7** the start-up build retries (30 s, then 1, 2, 5, every 5 minutes; test sets
+  `ALLC_RETRY_FIRST`) and `/status` says `waiting_for_network`.
+- **F8** the locate button restarts the watch (a running one says nothing until the
+  phone moves), keeps `WANT_CENTRE` for the first new fix, and `setView` no longer
+  animates, because Leaflet ignores a setView that arrives during a zoom animation
+  and the button's own first jump starts one.
+- **F9** the dependency table checks `termux-location`, not `termux-open-url`, and says
+  when the Termux:API APP is missing. **F11** `update --check` only describes, with or
+  without a file; a path that does not exist is an error (exit 2).
+- **F12, F13, F14** below 49 columns the four apps are four lines; the key rows wrap
+  by width; the help is `fold`ed to the terminal and no longer mentions F keys; the
+  quadrant's third line is the app's description (the version is on the first line);
+  the attribution is hidden while the 360 view is open; the installer banner says v45.
+
+**WHAT WENT WRONG ON THE WAY.** `printf '%s' | fold | while read` drops the last line
+(no trailing newline): the verbs and hint lines vanished until it was `printf '%s\n'`.
+The scratch copy of the patched page was stale for two runs, so a fix looked broken
+that was never in the page: regenerate before extracting. `pkill -f` killed the tool's
+own shell again (exit 144) whenever the command text held the pattern.
+
+**NOT DONE.** Items the report marks BLOCKED stay for the phone: the 360 imagery, the
+network location provider, a Gemini key. The unplanned findings (the watched stop is
+fetched twice; every start opens a new Chrome tab; github `main` VERSION still 20) are
+not addressed.
+
 ## THE TWO-MACHINE RULE (8.10.2026)
 
 Marko's rule, now first in `MANIFEST.md`: the LOCAL Claude Code (his computer,

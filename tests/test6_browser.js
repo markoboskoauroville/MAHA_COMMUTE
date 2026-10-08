@@ -62,6 +62,28 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
     if (a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b) overlap++;
   }
   check(speed + ": zoomed out, no two labels overlap (" + rects.length + " labels)", rects.length === 3 && overlap === 0);
+  // v22 (field test F1): no label may sit under the status line, the buttons, the GPS
+  // chip or the watch bar, or the tap lands on THEM. Several views, so a station is
+  // sometimes near the top edge and sometimes near the bottom one.
+  const under = async () => page.evaluate(() => {
+    const boxes = ["hud", "tools", "gpsChip", "watchbar"].map(id => document.getElementById(id))
+      .filter(e => e && getComputedStyle(e).display !== "none").map(e => e.getBoundingClientRect())
+      .filter(r => r.width > 0 && r.height > 0);
+    return [...document.querySelectorAll(".pin .pinid span")].filter(e => {
+      const l = e.getBoundingClientRect();
+      return boxes.some(r => l.left < r.right && r.left < l.right && l.top < r.bottom && r.top < l.bottom);
+    }).map(e => e.textContent.trim().split(" ")[0]);
+  });
+  let hidden = [];
+  for (const c of [[45.8035, 15.9800], [45.8075, 15.9800], [45.8055, 15.9780], [45.8055, 15.9825]]) {
+    await page.evaluate(([la, lo]) => { map.setView([la, lo], 17, { animate: false }); }, c);
+    await page.waitForTimeout(500);
+    hidden = hidden.concat(await under());
+  }
+  check(speed + ": no label sits under the status line, buttons, GPS chip or watch bar" +
+        (hidden.length ? " (under: " + hidden.join(",") + ")" : ""), hidden.length === 0);
+  await page.evaluate(() => { map.setView([45.8055, 15.9800], 15, { animate: false }); });
+  await page.waitForTimeout(500);
   let rightOnes = 0;
   for (const id of ["100", "101", "200"]) {
     await page.locator(".pin .pinid span", { hasText: id }).first().click();
@@ -88,6 +110,14 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   await page.waitForTimeout(2500);
   const back = await page.evaluate(() => ({ lat: map.getCenter().lat, z: map.getZoom() }));
   check(speed + ": the locate button brings the map to the dot", Math.abs(back.lat - 45.8049) < 0.002 && back.z >= 17);
+  // v22 (F8): the phone is 3 km away and no burst is running; the button must end up
+  // THERE, not at the old position, once the new fix arrives.
+  await ctx.setGeolocation({ latitude: 45.8300, longitude: 15.9900, accuracy: 5 });
+  await page.evaluate(() => { map.setView([45.8049, 15.9801], 15, { animate: false }); });
+  await page.click("#btnLocate");
+  await page.waitForTimeout(4000);
+  const far = await page.evaluate(() => ({ lat: map.getCenter().lat }));
+  check(speed + ": the locate button follows up on the new fix (3 km away)", Math.abs(far.lat - 45.83) < 0.002);
   if (errors.length) console.log("errors: " + errors.join(" | "));
   await b.close();
   process.exit(0);

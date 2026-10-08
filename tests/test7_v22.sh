@@ -95,10 +95,10 @@ eq "F5: no copy of the launcher is left holding the terminal" "0" "$leftover"
 pkill -f "$HOME/.commute/commute_server.py" 2>/dev/null
 
 # ---- F11: update --check only describes ----------------------------------
-out=$(maha-commute-update --check "$ART" </dev/null 2>&1); rc=$?
+out=$(bash "$PREFIX/bin/maha-commute-update" --check "$ART" </dev/null 2>&1); rc=$?
 eq "F11: --check <file> exits 0" "0" "$rc"
 case "$out" in *"install it"*) bad "F11: --check <file> offered to install" ;; *) ok ;; esac
-out=$(maha-commute-update --check "$T/no-such-file.sh" </dev/null 2>&1); rc=$?
+out=$(bash "$PREFIX/bin/maha-commute-update" --check "$T/no-such-file.sh" </dev/null 2>&1); rc=$?
 eq "F11: a missing file is an error" "2" "$rc"
 
 # ---- F6, F7, F1 need the app's server: take it out of the artefact --------

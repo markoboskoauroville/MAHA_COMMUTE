@@ -5,11 +5,11 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-08 17:01 UTC
+# built            2026-10-08 17:06 UTC
 # payloads, as carried, key stripped:
 #   day    v17    191418 bytes  sha256 d31f10c547da4bec
 #   night  v13    149613 bytes  sha256 0a22262ebb2964a5
-#   all    v45    358171 bytes  sha256 075800bfb3fb88c8
+#   all    v45    358326 bytes  sha256 c79e858e51e076c6
 #
 # The Google Maps key that was inside two of these payloads has
 # been taken out and replaced with a placeholder. The installer
@@ -11119,6 +11119,7 @@ function initFreeMap(){
   names = L.layerGroup();
   map.on("moveend", saveView);
   map.on("zoomend", layoutPins);
+  map.on("moveend", layoutPins);
   map.on("click", (e) => { if (PINMODE) pinAt(e.latlng.lat, e.latlng.lng); });
 }
 
@@ -11260,7 +11261,7 @@ function currentView(){
 function setView(v, zoom){
   const z = zoom == null ? (v.zoom == null ? 17 : v.zoom) : zoom;
   if (usingGoogle()) { gmap.setCenter({ lat:v.lat, lng:v.lng }); gmap.setZoom(z); }
-  else map.setView([v.lat, v.lng], z);
+  else map.setView([v.lat, v.lng], z, { animate: false });
 }
 function saveView(){ const v = currentView(); if (v) LS.set("view", v); }
 function inView(lat, lng){
@@ -11650,6 +11651,7 @@ function autoLocate(force){
 function sharpen(){
   if (ME && ME.pinned) { hud("You are pinned by hand. Unpin in ⚙ first."); return; }
   FIXES = [];
+  stopBurst();       // a running watch says nothing until the phone moves; a new one answers at once
   hud("Hold still — collecting satellites for 30 seconds…", true);
   startBurst(30000);
 }
@@ -15534,4 +15536,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v22 d852b82b28e90a05
+# MAHA_COMMUTE_SENTINEL v22 4f3baa44fbb053c5

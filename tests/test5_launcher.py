@@ -117,6 +117,41 @@ subprocess.Popen(["sh", A + "/orig/night.commute"], env=env, stdin=subprocess.DE
 pump(9)
 check("an app started elsewhere appears on its own", "RUNNING 18087" in last_screen())
 key("q", 1)
+
+# the frame must hold at narrow widths (field test v21, F12 and F13): no line wider
+# than the terminal, on the main screen and on the help screen
+def at_width(cols):
+    global buf
+    p2, fd2 = pty.fork()
+    if p2 == 0:
+        os.environ.update(env)
+        os.execvp("sh", ["sh", "-c", "stty cols %d rows 50; exec maha-commute" % cols])
+    out = b""
+    def grab(t):
+        nonlocal out
+        end = time.time() + t
+        while time.time() < end:
+            rr, _, _ = select.select([fd2], [], [], 0.1)
+            if rr:
+                try: out += os.read(fd2, 65536)
+                except OSError: return
+    grab(2.5)
+    main = strip(out).split("MAHA COMMUTE")[-1]
+    out = b""; os.write(fd2, b"h"); grab(1.5)
+    helptxt = strip(out)
+    os.write(fd2, b" "); grab(0.5); os.write(fd2, b"q"); grab(0.5)
+    try: os.kill(p2, signal.SIGKILL)
+    except OSError: pass
+    return main, helptxt
+for cols in (40, 50, 60):
+    main, helptxt = at_width(cols)
+    widest = max((len(l) for l in main.splitlines()), default=0)
+    check("%d columns: nothing on the main screen is wider than the terminal (widest %d)" % (cols, widest), widest <= cols)
+    check("%d columns: all four apps are on screen" % cols, all(x in main for x in ("day.commute", "night.commute", "all.commute")))
+    hw = max((len(l) for l in helptxt.splitlines()), default=0)
+    check("%d columns: the help fits (widest %d)" % (cols, hw), hw <= cols)
+    check("%d columns: help no longer mentions F keys, and says w for wipe" % cols, "F keys" not in helptxt and "w  wipe" in helptxt.replace("\n  ", "  ").replace("\n", " ") or "wipe" in helptxt)
+
 try: os.kill(pid, signal.SIGKILL)
 except OSError: pass
 subprocess.run("pkill -f '%s' 2>/dev/null" % T, shell=True)
