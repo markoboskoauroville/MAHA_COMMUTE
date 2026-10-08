@@ -1,10 +1,10 @@
 # Field test, MAHA_COMMUTE v21, 8.10.2026
 
-**INTERIM** (written 08.10.2026 18:47). Testing is still running; this file is updated as each test finishes, and the cloud may start on the requests below now.
+**INTERIM** (written 08.10.2026 19:00). Testing is still running; this file is updated as each test finishes, and the cloud may start on the requests below now.
 
 ## Verdict
 
-**Do not ship.** 31 passed, 14 failed, 1 blocked so far. The v21 headline features hold: stations stay at 2523 on every date, labels never overlap, the map never follows the dot, the page race is fixed. The failures are around them: labels hidden under the controls, the key not reaching all.commute, the installer and the launcher's command line.
+**Do not ship.** 34 passed, 14 failed, 3 blocked so far. The v21 headline features hold: stations stay at 2523 on every date, labels never overlap, the map never follows the dot, the page race is fixed. The failures are around them: labels hidden under the controls, the key not reaching all.commute, the installer and the launcher's command line.
 
 ## Environment
 
@@ -69,6 +69,11 @@ The real phone was used first; at Marko's request (8.10.2026 17:00) the rest mov
 | LCH-I | emulator | i shows install/remove | INSTALL OR REMOVE screen with [x] for the three | **PASS** | logs/LCH-key_i.txt |
 | LCH-EOF | emulator | end of input leaves, starts nothing | EXIT 0 in 0.55 s, 0 Chrome starts | **PASS** | logs/LCH-keys_h_i_q.txt |
 | DAY-1 | emulator | day.commute page: corridors and live rows | Buzin, Gl.kolodvor, Britanac corridors; rows with minutes | **PASS** | screenshots/DAY-1_page.png |
+| DAY-PDF | emulator | printed timetables parse without Gemini | 4 PDFs (220, 221, 241, 268) parsed, source regex-approx | **PASS** | logs/DAY-pdf_gemini_emulator.txt |
+| DAY-GEM-0 | emulator | no Gemini key: nothing breaks | /pdf-sched answers ok with no routes; /key-status set:true working:false (the Maps key is tried as a Gemini key) | **PASS** | logs/DAY-pdf_gemini_emulator.txt |
+| DAY-GEM-1 | emulator | Gemini key present | no Gemini key was provided for this test | **BLOCKED** |  |
+| AND-API | emulator | termux-location, notification, wake lock (after installing termux-api by hand) | gps fix ±5 m, notification posted, wake lock rc 0, all.commute /gps reads the fix | **PASS** | logs/ANDROID-termuxapi_emulator.txt |
+| AND-NETLOC | emulator | location while only the network provider answers | the emulator has no network location provider (times out) | **BLOCKED** | logs/ANDROID-termuxapi_emulator.txt |
 
 ## FAILURES
 
@@ -166,3 +171,7 @@ The real phone was used first; at Marko's request (8.10.2026 17:00) the rest mov
 13. **Help:** wrap to the terminal width, remove the F-key sentence, use the same letter for uninstall as the bottom row.
 14. **Cosmetic:** HUD text must not run under the top buttons; hide the Leaflet attribution while the 360 view is open; quadrant third line = the description; the payload's banner should say v44.
 
+
+## Testing status
+
+**TESTING IS STILL RUNNING** (last update 08.10.2026 19:00). More results will be added to this file and pushed after each test. Re-fetch it before deciding anything; the list of failures and requests above only grows.

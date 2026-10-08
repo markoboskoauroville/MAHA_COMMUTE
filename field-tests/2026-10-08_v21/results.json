@@ -366,5 +366,45 @@
   "actual": "Buzin, Gl.kolodvor, Britanac corridors; rows with minutes",
   "status": "PASS",
   "evidence": "screenshots/DAY-1_page.png"
+ },
+ {
+  "id": "DAY-PDF",
+  "device": "emulator",
+  "expect": "printed timetables parse without Gemini",
+  "actual": "4 PDFs (220, 221, 241, 268) parsed, source regex-approx",
+  "status": "PASS",
+  "evidence": "logs/DAY-pdf_gemini_emulator.txt"
+ },
+ {
+  "id": "DAY-GEM-0",
+  "device": "emulator",
+  "expect": "no Gemini key: nothing breaks",
+  "actual": "/pdf-sched answers ok with no routes; /key-status set:true working:false (the Maps key is tried as a Gemini key)",
+  "status": "PASS",
+  "evidence": "logs/DAY-pdf_gemini_emulator.txt"
+ },
+ {
+  "id": "DAY-GEM-1",
+  "device": "emulator",
+  "expect": "Gemini key present",
+  "actual": "no Gemini key was provided for this test",
+  "status": "BLOCKED",
+  "evidence": ""
+ },
+ {
+  "id": "AND-API",
+  "device": "emulator",
+  "expect": "termux-location, notification, wake lock (after installing termux-api by hand)",
+  "actual": "gps fix ±5 m, notification posted, wake lock rc 0, all.commute /gps reads the fix",
+  "status": "PASS",
+  "evidence": "logs/ANDROID-termuxapi_emulator.txt"
+ },
+ {
+  "id": "AND-NETLOC",
+  "device": "emulator",
+  "expect": "location while only the network provider answers",
+  "actual": "the emulator has no network location provider (times out)",
+  "status": "BLOCKED",
+  "evidence": "logs/ANDROID-termuxapi_emulator.txt"
  }
 ]
