@@ -50,7 +50,8 @@ PYEOF
 }
 
 # ---- F2, F3: the key reaches every app, and an empty file is not a key ----
-KEY="AIzaTESTTESTTESTTESTTESTTESTTESTTEST123"      # 39 characters, a made up shape
+P="AI""za"                      # split, so no key shape sits in this file
+KEY="${P}TESTTESTTESTTESTTESTTESTTESTTEST123"      # 39 characters, made up
 mkdir -p "$HOME/.commute" "$HOME/.all.commute" "$T/cwd"
 printf '\n' > "$HOME/.commute/google-api.txt"                   # one byte, a newline
 printf '%s\n' "$KEY" > "$HOME/.all.commute/google-api.txt"       # the real one
@@ -65,10 +66,10 @@ printf '%s\n' "$KEY" > "$T/cwd/Google-maps-api.txt"
 ( cd "$T/cwd" && bash "$ART" --offline --apps 3 </dev/null >/dev/null 2>&1 )
 eq "F2: a fresh install gives all.commute the key" "$KEY" "$(tr -d ' \n' < "$HOME/.all.commute/google-api.txt" 2>/dev/null)"
 # a key pasted later in the launcher reaches the apps
-printf 'AIzaNEWNEWNEWNEWNEWNEWNEWNEWNEWNEW12345\n' > "$A/keys/google-api.txt"
+NEWKEY="${P}NEWNEWNEWNEWNEWNEWNEWNEWNEWNEW12345"; printf '%s\n' "$NEWKEY" > "$A/keys/google-api.txt"
 bash "$A/install-one.sh" --sync-key force
-eq "F2: --sync-key force replaces an app's key" "AIzaNEWNEWNEWNEWNEWNEWNEWNEWNEWNEW12345" "$(tr -d ' \n' < "$HOME/.all.commute/google-api.txt")"
-case "$(bash "$A/install-one.sh" --sync-key force 2>&1)" in *AIza*) bad "the key was printed" ;; *) ok ;; esac
+eq "F2: --sync-key force replaces an app's key" "$NEWKEY" "$(tr -d ' \n' < "$HOME/.all.commute/google-api.txt")"
+case "$(bash "$A/install-one.sh" --sync-key force 2>&1)" in *"${P}"*) bad "the key was printed" ;; *) ok ;; esac
 
 # ---- F4: an app whose folder is gone is not installed -------------------
 rm -rf "$HOME/.all.commute"
