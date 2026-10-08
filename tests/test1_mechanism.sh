@@ -948,7 +948,7 @@ printf '%s' "$dp" | grep -qF 'pkill -f commute_server.py' && bad "day.commute st
 printf '%s' "$dp" | grep -qF 'if pgrep -f "$SERVER" >/dev/null 2>&1; then' && ok || bad "day.commute status asks about its own server"
 printf '%s' "$dp" | grep -qF 'already running${OFF}' && ok || bad "a second day.commute opens the first instead of doubling it"
 printf '%s' "$dp" | grep -qF '_mine = _pf.read().strip() == str(port)' && ok || bad "a day server only deletes its own port file"
-printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v17"' && ok || bad "day answers v17"
+printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v18"' && ok || bad "day answers v18"
 # the menu: up is the process AND the port it wrote down
 (
   T=$(mktemp -d); HOME="$T"; mkdir -p "$T/.commute"

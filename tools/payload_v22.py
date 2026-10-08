@@ -203,11 +203,22 @@ ALL_FIXES = [
 
 # ------------------------------------------------------------- day.commute
 DAY_FIXES = [
+    # a changed payload is a new version: the umbrella leaves an app alone only when
+    # its payload is byte for byte the one on the phone
+    ('COMMUTE_VERSION="v17"', 'COMMUTE_VERSION="v18"'),
+    ('APP_VERSION = "v17"', 'APP_VERSION = "v18"'),
+    ('(v.version || "v17")', '(v.version || "v18")'),
+    ('if (el) el.textContent = "v17 (a)"; });', 'if (el) el.textContent = "v18 (a)"; });'),
     (_OLD_GUARD, _new_guard(("/update-bus", "/pdf-delete", "/pdf-sched"))),
 ]
 
 # ----------------------------------------------------------- night.commute
 NIGHT_FIXES = [
+    ('NIGHT_VERSION="v13 (a)"', 'NIGHT_VERSION="v14 (a)"'),
+    ('APP_VERSION = "v13"', 'APP_VERSION = "v14"'),
+    ('(v.version||"v13")', '(v.version||"v14")'),
+    ('textContent="v13 (a)"; });', 'textContent="v14 (a)"; });'),
+    ('installed  night.commute v13 (a)', 'installed  night.commute v14 (a)'),
     (_OLD_GUARD, _new_guard(("/night-rebuild", "/pdf-delete", "/pdf-sched"))),
 ]
 

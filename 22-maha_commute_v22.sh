@@ -5,10 +5,10 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-08 17:06 UTC
+# built            2026-10-08 17:14 UTC
 # payloads, as carried, key stripped:
-#   day    v17    191418 bytes  sha256 d31f10c547da4bec
-#   night  v13    149613 bytes  sha256 0a22262ebb2964a5
+#   day    v18    191418 bytes  sha256 c06bd32336b7e0cb
+#   night  v14    149613 bytes  sha256 d74deef8be41cbd8
 #   all    v45    358326 bytes  sha256 c79e858e51e076c6
 #
 # The Google Maps key that was inside two of these payloads has
@@ -63,8 +63,8 @@ STAMPDIR="$APPHOME/installed"
 # cannot keep: at twenty one characters "the four night trams" loses its
 # last letter and "every station around you" loses three. So the layout is
 # not narrowed and the words are not cut. A shorter sentence is written.
-MAHA_APPS="day|day.commute|.commute|v17|8082|the daytime ride|/.commute/commute_server.py|the daytime ride|google-api.txt
-night|night.commute|.nightcommute|v13|8087|the four night trams|night_server.py|four night trams|gmaps-api.txt
+MAHA_APPS="day|day.commute|.commute|v18|8082|the daytime ride|/.commute/commute_server.py|the daytime ride|google-api.txt
+night|night.commute|.nightcommute|v14|8087|the four night trams|night_server.py|four night trams|gmaps-api.txt
 all|all.commute|.all.commute|v45|8084|every station around you|all_commute_server.py|stations around you|google-api.txt"
 
 MODE=""
@@ -267,7 +267,7 @@ maha_emit_payload() {
 #   bash 13-install-day-commute-termux-v13.sh --offline  skip the python check
 
 set -e
-COMMUTE_VERSION="v17"
+COMMUTE_VERSION="v18"
 BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 APPDIR="$HOME/.commute"
 
@@ -453,7 +453,7 @@ import http.server
 # Version constants for the /version endpoint. These live in Python because the
 # server file is written via a quoted heredoc, so the shell COMMUTE_VERSION is
 # NOT expanded in here; referencing it raised NameError. Keep in sync manually.
-APP_VERSION = "v17"
+APP_VERSION = "v18"
 APP_BUILD = "b41"
 import socket
 import socketserver
@@ -4178,9 +4178,9 @@ function openSetup() {
       : "on this phone only (no Wi-Fi address)"; }).catch(() => {});
   fetch("version", { cache: "no-store" }).then(r => r.json())
     .then(v => { const el = document.getElementById("verLine");
-      if (el) el.textContent = (v.version || "v17") + " (a) · " + (v.build || ""); })
+      if (el) el.textContent = (v.version || "v18") + " (a) · " + (v.build || ""); })
     .catch(() => { const el = document.getElementById("verLine");
-      if (el) el.textContent = "v17 (a)"; });
+      if (el) el.textContent = "v18 (a)"; });
   renderZetStatic();
   syncAutoDirButtons();
   syncMapStyleButtons();
@@ -4551,7 +4551,7 @@ MAHA_PAY_day_7c1a
 #   bash night.commute.v9.sh            Enter = offline install
 #   bash night.commute.v9.sh --offline  skip the python check
 set -e
-NIGHT_VERSION="v13 (a)"
+NIGHT_VERSION="v14 (a)"
 BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 APPDIR="$HOME/.nightcommute"
 
@@ -4684,7 +4684,7 @@ import os, json, time, base64, hashlib, threading, socket, urllib.parse, urllib.
 import urllib.error, io, csv, zipfile, collections, datetime
 import http.server, socketserver, logging
 
-APP_VERSION = "v13"
+APP_VERSION = "v14"
 APP_BUILD = "n13-a"
 APPDIR = os.environ.get("NIGHTCOMMUTE_DIR", os.path.expanduser("~/.nightcommute"))
 START_PORT = int(os.environ.get("NIGHTCOMMUTE_PORT", "8087"))
@@ -6894,8 +6894,8 @@ function openSetup(){ refreshDots(); renderPdfMgr(); renderViewGrid(); renderNig
     if (el) el.textContent = (d && d.ip) ? "on Wi-Fi:  http://" + d.ip + ":" + (location.port || "8087") + "/night.html"
       : "on this phone only (no Wi-Fi address)"; }).catch(() => {});
   fetch("version",{cache:"no-store"}).then(r=>r.json())
-    .then(v=>{ document.getElementById("verLine").textContent=(v.version||"v13")+" (a) · "+(v.build||""); })
-    .catch(()=>{ document.getElementById("verLine").textContent="v13 (a)"; });
+    .then(v=>{ document.getElementById("verLine").textContent=(v.version||"v14")+" (a) · "+(v.build||""); })
+    .catch(()=>{ document.getElementById("verLine").textContent="v14 (a)"; });
   document.getElementById("setupmodal").classList.add("show"); }
 function closeSetup(){ document.getElementById("setupmodal").classList.remove("show"); }
 
@@ -7604,7 +7604,7 @@ sed -i 's/\r$//' "$BIN/night.commute" 2>/dev/null || true
 chmod +x "$BIN/night.commute"
 done_
 
-printf "\n  ${OK}installed  night.commute v13 (a)${OFF}\n"
+printf "\n  ${OK}installed  night.commute v14 (a)${OFF}\n"
 printf "  type ${KEY}night.commute${OFF} to start it, or ${KEY}commute${OFF} for the family menu\n"
 printf "  ${DIM}four night trams, 23:50–04:40, served locally${OFF}\n"
 printf "  ${WARN}if the app looks unchanged: close the old browser tab and open the${OFF}\n"
@@ -15536,4 +15536,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v22 4f3baa44fbb053c5
+# MAHA_COMMUTE_SENTINEL v22 64cf094f8ad084b8

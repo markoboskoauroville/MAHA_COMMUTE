@@ -73,8 +73,8 @@ roof, whole and unchanged:
 
 | | what it is | version | port |
 |---|---|---|---|
-| `day.commute` | the daytime ride, corridors that pick themselves | v17 | 8082 |
-| `night.commute` | the four night trams, and where they are now | v13 | 8087 |
+| `day.commute` | the daytime ride, corridors that pick themselves | v18 | 8082 |
+| `night.commute` | the four night trams, and where they are now | v14 | 8087 |
 | `all.commute` | every station around you, in colour | v45 | 8084 |
 
 ## Installing
