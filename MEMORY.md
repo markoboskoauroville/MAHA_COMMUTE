@@ -72,6 +72,19 @@ so every server and page test still runs on a four stop feed built by
 `tests/fixtures/mkgtfs.py`. Allow `zet.hr` and `www.zet.hr` under the
 environment's Allowed domains to test against the real feed.
 
+**THE REAL FEED (uploaded by Marko, 8.10.2026) CAUGHT A BUG THE FAKE ONE HID.**
+ZET's stops.txt has 3800 rows: 2525 platforms (`location_type` 0, ids like
+`98_1`) and 1275 PARENT stations (`location_type` 1, id `98`). Merging every row
+would have drawn a second label over each stop's own platforms, so only
+platforms are kept (`2525 stations`). On the real feed the old behaviour lost
+17 platforms today (Thursday), 74 on Saturday and 188 on Sunday (2337 of 2525
+served): those were the vanishing labels. The real rebuild takes about 6 s.
+Checked on the real data: `/stops`, `/find-stops`, `/board` (37 departures at
+109_1), and the page in Chromium with ids like `109_1` and `110_61`. Several
+platforms sit within metres of each other (110_x), so their labels overlap; that
+is the existing design and was not changed. The feed itself is not in git (the
+repository is public, and it is 12 MB).
+
 **WHAT WENT WRONG ON THE WAY.** `pkill -f` and `pgrep -f` with the server's
 name matched the very shell running them (twice), and the shell died with exit
 144 and no output. A test server started inside `( ... ) &` leaves the python

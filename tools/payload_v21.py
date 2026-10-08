@@ -65,6 +65,15 @@ ALL_FIXES = [
      '\n'
      'def db_fresh_for(ymd):\n'),
 
+    # ZET's stops.txt lists 1275 PARENT stations (location_type 1: "98" over its
+    # platforms "98_1", "98_2") beside the 2525 platforms. A parent has no
+    # departures of its own, and keeping it would draw a second label on top of
+    # its own platforms. Only platforms are stations here.
+    ('    coord = {}\n    for r in rows(zf, "stops.txt"):\n        try:\n',
+     '    coord = {}\n    not_platform = set()\n    for r in rows(zf, "stops.txt"):\n'
+     '        if (r.get("location_type") or "0").strip() != "0":\n'
+     '            not_platform.add(r.get("stop_id"))\n        try:\n'),
+
     ('    served = {r[0] for r in con.execute("select distinct stop_id from dep")}\n'
      '    log("%d stops actually see a departure today" % len(served))\n'
      '    srows = []\n'
@@ -94,6 +103,8 @@ ALL_FIXES = [
      '        except Exception:\n'
      '            pass\n'
      '    for sid, (la, lo) in coord.items():\n'
+     '        if sid in not_platform and sid not in served:\n'
+     '            continue                # a parent station is not somewhere you stand\n'
      '        s_, c_ = sin_sum.get(sid), cos_sum.get(sid)\n'
      '        brg = None\n'
      '        if s_ is not None and (abs(s_) > 1e-9 or abs(c_) > 1e-9):\n'

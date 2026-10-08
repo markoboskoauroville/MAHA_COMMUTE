@@ -2,11 +2,12 @@ import zipfile, sys, datetime, io
 def make(path, x_runs_today):
     t = datetime.date.today(); y = t - datetime.timedelta(days=1)
     f = lambda d: d.strftime("%Y%m%d")
-    stops = "stop_id,stop_name,stop_lat,stop_lon\n" + "\n".join([
-        "100,Glavni kolodvor,45.8050,15.9800",
-        "101,Branimirova,45.8055,15.9810",
-        "200,Samo radnim danom,45.8060,15.9790",
-        "300,Nocna linija,45.8070,15.9820"])
+    stops = "stop_id,stop_name,stop_lat,stop_lon,location_type\n" + "\n".join([
+        "100,Glavni kolodvor,45.8050,15.9800,0",
+        "101,Branimirova,45.8055,15.9810,0",
+        "200,Samo radnim danom,45.8060,15.9790,0",
+        "300,Nocna linija,45.8070,15.9820,",
+        "900,Parent station,45.8052,15.9805,1"])
     routes = "route_id,route_short_name,route_long_name\n6,6,Sljeme\n31,31,Nocna"
     trips = "route_id,service_id,trip_id,trip_headsign\n6,DAILY,t1,Sljeme\n6,SPECIAL,t2,Sljeme\n31,NIGHT,t3,Nocna"
     st = ["trip_id,arrival_time,departure_time,stop_id,stop_sequence",

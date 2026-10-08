@@ -981,7 +981,7 @@ path, special = sys.argv[1], sys.argv[2] == "1"
 t = datetime.date.today(); y = t - datetime.timedelta(days=1)
 f = lambda d: d.strftime("%Y%m%d")
 files = {
- "stops.txt": "stop_id,stop_name,stop_lat,stop_lon\n100,Glavni kolodvor,45.8050,15.9800\n101,Branimirova,45.8055,15.9810\n200,Samo radnim danom,45.8060,15.9790\n300,Nocna linija,45.8070,15.9820\n",
+ "stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type\n100,Glavni kolodvor,45.8050,15.9800,0\n101,Branimirova,45.8055,15.9810,0\n200,Samo radnim danom,45.8060,15.9790,0\n300,Nocna linija,45.8070,15.9820,\n900,Parent station,45.8052,15.9805,1\n",
  "routes.txt": "route_id,route_short_name,route_long_name\n6,6,Sljeme\n31,31,Nocna\n",
  "trips.txt": "route_id,service_id,trip_id,trip_headsign\n6,DAILY,t1,Sljeme\n6,SPECIAL,t2,Sljeme\n31,NIGHT,t3,Nocna\n",
  "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nt1,08:00:00,08:00:00,100,1\nt1,08:05:00,08:05:00,101,2\nt2,09:00:00,09:00:00,200,1\nt2,09:05:00,09:05:00,100,2\nt3,24:10:00,24:10:00,300,1\nt3,24:15:00,24:15:00,100,2\n",
@@ -997,6 +997,7 @@ eq "a day with the special service: all four stations" "100 101 200 300" "$(ids2
 python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 0
 ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "a day without it: the same four, none dropped"     "100 101 200 300" "$(ids21)"
+eq "a parent station (location_type 1) is not a station you stand at" "no" "$(ids21 | grep -qw 900 && echo yes || echo no)"
 eq "the permanent file holds them too" "4" "$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['stops']))" "$T21/stations.json")"
 eq "a quiet stop keeps the way it faces" "yes" "$(python3 -c "import json,sys;b=json.load(open(sys.argv[1]))['stops']['200'][3];print('yes' if b is not None else 'no')" "$T21/stations.json")"
 rm -f "$T21/network.db"

@@ -5,11 +5,11 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-08 13:17 UTC
+# built            2026-10-08 13:24 UTC
 # payloads, as carried, key stripped:
 #   day    v17    190668 bytes  sha256 a26d0fc5eacdbcee
 #   night  v13    148860 bytes  sha256 f7f62b158e4ef4ea
-#   all    v44    217125 bytes  sha256 4d3936c18b38cf44
+#   all    v44    217392 bytes  sha256 fa78fb5042f5c789
 #
 # The Google Maps key that was inside two of these payloads has
 # been taken out and replaced with a placeholder. The installer
@@ -10189,7 +10189,10 @@ def main():
                     list(route_name.items()))
 
     coord = {}
+    not_platform = set()
     for r in rows(zf, "stops.txt"):
+        if (r.get("location_type") or "0").strip() != "0":
+            not_platform.add(r.get("stop_id"))
         try:
             coord[r["stop_id"]] = (float(r["stop_lat"]), float(r["stop_lon"]))
         except (KeyError, ValueError):
@@ -10268,6 +10271,8 @@ def main():
         except Exception:
             pass
     for sid, (la, lo) in coord.items():
+        if sid in not_platform and sid not in served:
+            continue                # a parent station is not somewhere you stand
         s_, c_ = sin_sum.get(sid), cos_sum.get(sid)
         brg = None
         if s_ is not None and (abs(s_) > 1e-9 or abs(c_) > 1e-9):
@@ -15210,4 +15215,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v21 5a21341f39b4b294
+# MAHA_COMMUTE_SENTINEL v21 415406d7344d8333
