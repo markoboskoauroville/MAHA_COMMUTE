@@ -99,6 +99,19 @@ refuses a file that contains one. The pre-install `pkill -f` of the all
 installer killed the tool's own shell (exit 144) when the command text held the
 server's name, so fresh-install checks run detached (`setsid nohup`).
 
+**LABELS DO NOT OVERLAP (8.10.2026).** Marko: platforms a few metres apart drew
+their labels on top of each other and could not be selected. `layoutPins()` in
+the page moves each label off its station to the right of the way vehicles
+leave it (they drive on the right), far enough that the label's edge clears the
+station, then pushes any labels that still touch apart, keeps them inside the
+screen (Leaflet engine), and draws a line and dot to the true position. It runs
+after every draw and every zoom, in pixels. test6 zooms out until the three
+fixture stops would collide, asserts no two label rectangles intersect, and taps
+each label to check it opens its own station. First version left one label at
+x = -20 (off screen); the clamp is why that no longer happens. A single quote in
+a JS comment broke the repr'd string in payload_v21.py: no apostrophes there.
+The Google engine path is written the same way but was not exercised (no key).
+
 **WHAT WENT WRONG ON THE WAY.** `pkill -f` and `pgrep -f` with the server's
 name matched the very shell running them (twice), and the shell died with exit
 144 and no output. A test server started inside `( ... ) &` leaves the python

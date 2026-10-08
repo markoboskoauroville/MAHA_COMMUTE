@@ -5,11 +5,11 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-08 13:26 UTC
+# built            2026-10-08 13:31 UTC
 # payloads, as carried, key stripped:
 #   day    v17    190668 bytes  sha256 a26d0fc5eacdbcee
 #   night  v13    148860 bytes  sha256 f7f62b158e4ef4ea
-#   all    v44    350625 bytes  sha256 c7e2e70942f269cd
+#   all    v44    354849 bytes  sha256 a8943b8d278b958f
 #
 # The Google Maps key that was inside two of these payloads has
 # been taken out and replaced with a placeholder. The installer
@@ -10426,12 +10426,18 @@ cat > "$APPDIR/all.html" << 'ALLC_STAR_HTML'
   .pin.armed .pinid span{box-shadow:0 0 0 2px #fff,0 0 10px rgba(255,255,255,.55);}
   /* v20: the label is centred on the station and is itself the tap target,
      with a margin of extra reach around it for a thumb */
-  .pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  .pin{position:absolute;left:50%;top:50%;
+    transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,0px)));
     cursor:pointer;touch-action:manipulation;}
   .pin::before{content:"";position:absolute;inset:-12px -10px;}
   .pinchip{position:absolute;left:37px;top:50%;transform:translateY(-50%);
     pointer-events:none;}
-  .pinid{position:relative;display:block;pointer-events:auto;}
+  .pinid{position:relative;display:block;pointer-events:auto;z-index:1;}
+  .pinlead{position:absolute;left:50%;top:50%;height:2px;margin-top:-1px;opacity:.85;
+    transform-origin:0 50%;pointer-events:none;z-index:0;}
+  .pinlead::after{content:"";position:absolute;right:-4px;top:50%;width:8px;height:8px;
+    margin-top:-4px;border-radius:50%;background:currentColor;
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.7);}
   .pinid span{display:inline-block;padding:7px 9px;border-radius:7px;
     font:800 .71rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     color:var(--c,#fff);background:rgba(13,17,23,.72);
@@ -11031,6 +11037,7 @@ function initFreeMap(){
   map.getPane("names").style.pointerEvents = "none";
   names = L.layerGroup();
   map.on("moveend", saveView);
+  map.on("zoomend", layoutPins);
   map.on("click", (e) => { if (PINMODE) pinAt(e.latlng.lat, e.latlng.lng); });
 }
 
@@ -11155,6 +11162,7 @@ function buildGoogleMap(g){
   });
   makeMarkerClass(g);
   gmap.addListener("idle", saveView);
+  gmap.addListener("idle", layoutPins);
   gmap.addListener("click", onMapClick);
 }
 
@@ -11296,6 +11304,90 @@ function clearStars(){
   gPins.forEach(p => { try { p.setMap(null); } catch (e) {} });
   gPins = [];
 }
+
+/* v21: labels never sit on top of each other. A label is moved off its station,
+   to the side of the street the platform is on (the right of the way the
+   vehicles leave, as they drive on the right), far enough that its edge clears
+   the station; labels that still touch are pushed apart. A thin line and a dot
+   keep the true position visible. Recomputed on every zoom, in screen pixels. */
+function pxOf(s){
+  try {
+    if (usingGoogle()) {
+      const pr = gmap.getProjection(); if (!pr) return null;
+      const q = pr.fromLatLngToPoint(new google.maps.LatLng(s.lat, s.lon));
+      const k = Math.pow(2, gmap.getZoom());
+      return { x: q.x * k, y: q.y * k };
+    }
+    const q = map.latLngToContainerPoint([s.lat, s.lon]);
+    return { x: q.x, y: q.y };
+  } catch (e) { return null; }
+}
+function pinEl(s){
+  if (usingGoogle()) {
+    const p = gPins[STOPS.indexOf(s)];
+    return p && p.div ? p.div.querySelector(".pin") : null;
+  }
+  const m = MARKS[s.stop_id], e = m && m.getElement ? m.getElement() : null;
+  return e ? e.querySelector(".pin") : null;
+}
+function layoutPins(){
+  const it = [];
+  STOPS.forEach(s => {
+    const el = pinEl(s), p = pxOf(s);
+    if (!el || !p) return;
+    const sp = el.querySelector(".pinid span");
+    const r = sp ? sp.getBoundingClientRect() : { width: 60, height: 27 };
+    const w = (r.width || 60) + 6, h = (r.height || 27) + 6;
+    let dx = 0, dy = 0;
+    if (s.bearing != null) {
+      const b = s.bearing * Math.PI / 180;
+      const rx = Math.cos(b), ry = Math.sin(b);          // right of the way it leaves
+      const d = Math.abs(rx) * w / 2 + Math.abs(ry) * h / 2 + 18;
+      dx = rx * d; dy = ry * d;
+    }
+    it.push({ s, el, p, w, h, dx, dy });
+  });
+  // a label must stay on the screen: keep its centre inside the map, with a margin
+  // (the Leaflet map only; the Google pixels have no fixed origin to clamp against)
+  const sz = !usingGoogle() && map ? map.getSize() : null;
+  const clampAll = () => {
+    if (!sz) return false;
+    let c = false;
+    it.forEach(o => {
+      const nx = Math.min(Math.max(o.p.x + o.dx, o.w / 2 + 4), sz.x - o.w / 2 - 4) - o.p.x;
+      const ny = Math.min(Math.max(o.p.y + o.dy, o.h / 2 + 64), sz.y - o.h / 2 - 4) - o.p.y;
+      if (Math.abs(nx - o.dx) > .5 || Math.abs(ny - o.dy) > .5) c = true;
+      o.dx = nx; o.dy = ny;
+    });
+    return c;
+  };
+  for (let k = 0; k < 80; k++) {
+    let moved = false;
+    for (let i = 0; i < it.length; i++) for (let j = i + 1; j < it.length; j++) {
+      const a = it[i], b = it[j];
+      const cx = (b.p.x + b.dx) - (a.p.x + a.dx), cy = (b.p.y + b.dy) - (a.p.y + a.dy);
+      const ox = (a.w + b.w) / 2 - Math.abs(cx), oy = (a.h + b.h) / 2 - Math.abs(cy);
+      if (ox <= 0 || oy <= 0) continue;
+      moved = true;
+      if (ox < oy) { const sg = cx === 0 ? (i < j ? 1 : -1) : Math.sign(cx); a.dx -= sg * ox / 2; b.dx += sg * ox / 2; }
+      else { const sg = cy === 0 ? (i < j ? 1 : -1) : Math.sign(cy); a.dy -= sg * oy / 2; b.dy += sg * oy / 2; }
+    }
+    if (clampAll()) moved = true;
+    if (!moved) break;
+  }
+  it.forEach(o => {
+    const L = Math.hypot(o.dx, o.dy);
+    o.el.style.setProperty("--dx", o.dx.toFixed(1) + "px");
+    o.el.style.setProperty("--dy", o.dy.toFixed(1) + "px");
+    let ld = o.el.querySelector(".pinlead");
+    if (!ld) { ld = document.createElement("i"); ld.className = "pinlead"; o.el.insertBefore(ld, o.el.firstChild); }
+    ld.style.display = L < 6 ? "none" : "block";
+    ld.style.width = L.toFixed(1) + "px";
+    ld.style.background = COLOUR[o.s.stop_id] || "#fff";
+    ld.style.color = COLOUR[o.s.stop_id] || "#fff";
+    ld.style.transform = "rotate(" + (Math.atan2(-o.dy, -o.dx) * 180 / Math.PI).toFixed(1) + "deg)";
+  });
+}
 function drawStars(){
   clearStars();
   if (MODE === "google") return;   // Google draws the stations in that view
@@ -11314,6 +11406,7 @@ function drawStars(){
       MARKS[s.stop_id] = m;
     }
   });
+  layoutPins(); setTimeout(layoutPins, 80);
 }
 let gAcc = null, meAcc = null;
 function meHTML(){
@@ -15227,4 +15320,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v21 85155446f6e84b77
+# MAHA_COMMUTE_SENTINEL v21 0cb9477d42d1ca12

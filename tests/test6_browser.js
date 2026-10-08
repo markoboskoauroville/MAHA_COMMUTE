@@ -50,6 +50,29 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
     id: document.getElementById("dId").textContent }));
   check(speed + ": tapping a label opens that station's dashboard", d.on && d.id === "100");
   await page.click("#dClose"); await page.waitForTimeout(300);
+  // Zoomed out, the three stations are a few pixels apart. The labels must not
+  // overlap, and each must open ITS OWN station when tapped.
+  await page.evaluate(() => { map.setView([45.8055, 15.9800], 15, { animate: false }); });
+  await page.waitForTimeout(600);
+  const rects = await page.evaluate(() => [...document.querySelectorAll(".pin .pinid span")].map(e => {
+    const r = e.getBoundingClientRect(); return { id: e.textContent.trim().split(" ")[0], l: r.left, t: r.top, r: r.right, b: r.bottom }; }));
+  let overlap = 0;
+  for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+    const a = rects[i], b = rects[j];
+    if (a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b) overlap++;
+  }
+  check(speed + ": zoomed out, no two labels overlap (" + rects.length + " labels)", rects.length === 3 && overlap === 0);
+  let rightOnes = 0;
+  for (const id of ["100", "101", "200"]) {
+    await page.locator(".pin .pinid span", { hasText: id }).first().click();
+    await page.waitForTimeout(700);
+    const got = await page.evaluate(() => document.getElementById("dId").textContent);
+    if (got === id) rightOnes++;
+    await page.click("#dClose"); await page.waitForTimeout(300);
+  }
+  check(speed + ": each separated label opens its own station", rightOnes === 3);
+  await page.evaluate(() => { map.setView([45.8052, 15.9805], 17, { animate: false }); });
+  await page.waitForTimeout(300);
   // The map does not follow the dot. Pan away and zoom out; the phone moves; a new
   // burst of fixes arrives. The map must stay exactly where the person left it,
   // and only the locate button brings it back.
