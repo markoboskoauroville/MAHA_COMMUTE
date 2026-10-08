@@ -1,5 +1,27 @@
 # MANIFEST
 
+## THE TWO-MACHINE RULE (set by Marko, 8.10.2026, applies to every version)
+
+**The local machine tests. The cloud machine upgrades.**
+
+- The **cloud** Claude Code owns the repository: sources, tools, tests, docs,
+  version numbers, the build, the memory. Every change is made here, and only
+  here.
+- The **local** Claude Code (Marko's computer, with the Android emulator and real
+  Termux) only **tests**. It follows `docs/LOCAL_TEST_PROMPT.md`, never edits
+  anything outside `field-tests/`, writes its results to
+  `field-tests/<date>_v<VERSION>/REPORT.md` (+ `results.json`, logs,
+  screenshots), pushes only that folder, and ends by telling Marko to ask the
+  cloud Claude Code to read the report and make the changes.
+- The cycle is: cloud builds and tests what it can, local tests the rest on the
+  emulator, cloud reads `field-tests/` and fixes, a new version, local tests
+  again. A fix made on the test machine is a second copy of the source and is
+  erased by the next build, so it is not allowed.
+- When the cloud Claude Code starts a session, it checks `field-tests/` for a
+  report newer than the last version and reads it before anything else.
+
+---
+
 **Change log for MAHA_COMMUTE. One entry per version, newest first.**
 
 ---

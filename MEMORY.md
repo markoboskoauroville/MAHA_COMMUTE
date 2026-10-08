@@ -125,6 +125,15 @@ none of its rules were read this session. Day and night still rebuild their
 own station lists daily; only all.commute has the permanent file. Nothing has
 been seen on a phone.
 
+## THE TWO-MACHINE RULE (8.10.2026)
+
+Marko's rule, now first in `MANIFEST.md`: the LOCAL Claude Code (his computer,
+Android emulator, real Termux from F-Droid) only TESTS and writes
+`field-tests/<date>_v<VERSION>/`; the CLOUD Claude Code upgrades. The local one
+must end by telling Marko to ask the cloud one to read the report. Its prompt is
+`docs/LOCAL_TEST_PROMPT.md`. At the start of a session here, read the newest
+`field-tests/*/REPORT.md`; its "Requests for the cloud" list is the work.
+
 ## V17: THE APPS' OWN NAMES OPEN THE LAUNCHER, AND THE WIFI IS TOLD WHAT IT MAY SEE
 
 *4.10.2026.* Brought over from a long chat that had been building the same

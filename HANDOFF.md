@@ -8,6 +8,10 @@ Written 27.8.2026, at the end of the session that built v1.
 
 ## Read first
 
+**The two-machine rule, first in `MANIFEST.md`: the local machine tests (emulator,
+real Termux) and writes `field-tests/`; the cloud machine upgrades. Read the
+newest `field-tests/*/REPORT.md` before starting.**
+
 `MEMORY.md` in this repo. Then `MANTRA_MANIFEST/START_HERE.md`, and from it
 `four-tests.md`, `secrets.md`, `design-language.md`, `termux-app.md` and
 `versioning.md`. This project matches all five of those rows.
