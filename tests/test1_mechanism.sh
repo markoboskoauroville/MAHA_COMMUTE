@@ -76,9 +76,10 @@ eq "no zero padding" "1-maha_commute_v1.sh" "$(maha_artefact_name 1)"
 # ---- installed is about the command, not the claim ----------------
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 BIN="$T/bin"; STAMPDIR="$T/stamps"; mkdir -p "$BIN" "$STAMPDIR"
-MAHA_APPS="day|day.commute|.commute|v13|8082|the daytime ride
-night|night.commute|.nightcommute|v9|8087|the four night trams
-all|all.commute|.all.commute|v39|8084|every station around you"
+MAHA_APPS="day|day.commute|.commute|v13|8082|the daytime ride|/.commute/commute_server.py|the daytime ride
+night|night.commute|.nightcommute|v9|8087|the four night trams|night_server.py|four night trams
+all|all.commute|.all.commute|v39|8084|every station around you|all_commute_server.py|stations around you"
+HOME_REAL="$HOME"; HOME="$T/home"; mkdir -p "$HOME"
 
 is_installed day && bad "empty bin reported an install" || ok
 printf 'v13\n' > "$STAMPDIR/day"
@@ -86,7 +87,11 @@ if is_installed day; then bad "a stamp with no command behind it was believed"; 
 printf '#!/bin/sh\n' > "$BIN/day.commute"
 if is_installed day; then bad "a file with no execute bit counted"; else ok; fi
 chmod +x "$BIN/day.commute"
+# v22: the command alone is not an install; its folder has to be there too
+if is_installed day; then bad "a command whose app folder is gone counted as installed"; else ok; fi
+mkdir -p "$HOME/.commute"; : > "$HOME/.commute/commute_server.py"
 if is_installed day; then ok; else bad "a real command was not seen"; fi
+HOME="$HOME_REAL"
 eq "version comes from the stamp" "v13" "$(stamped_version day)"
 rm -f "$STAMPDIR/day"
 eq "no stamp is a question mark" "?" "$(stamped_version day)"
@@ -911,7 +916,7 @@ printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that 
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
 printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
-printf '%s' "$ap" | grep -qF 'APP_VERSION = "v44"' && ok || bad "all: answers v44"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v45"' && ok || bad "all: answers v45"
 printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
 # the dashboard renders the station that was opened, and only that one
 if command -v node >/dev/null 2>&1; then

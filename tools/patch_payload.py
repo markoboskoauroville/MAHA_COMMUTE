@@ -66,6 +66,7 @@ import payload_v18 as V18
 import payload_v19 as V19
 import payload_v20 as V20
 import payload_v21 as V21
+import payload_v22 as V22
 NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
 
 
@@ -302,6 +303,11 @@ def main():
             src = re.sub(pat, repl, src)
         src = V20.patch_all(src)
         src = V21.patch_all(src)
+        src = V22.patch_all(src)
+    if app == "day":
+        src = V22.patch_day(src)
+    if app == "night":
+        src = V22.patch_night(src)
 
     keys = RESET.get(app, [])
     if not keys:

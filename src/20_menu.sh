@@ -78,7 +78,14 @@ app_ids() { printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1; }
 app_at()  { case "$1" in ''|0|*[!0-9]*) return 0 ;; esac; app_ids | sed -n "${1}p"; }
 n_apps()  { app_ids | wc -l | tr -d ' '; }
 
-is_installed() { local c; c=$(field "$(app_row "$1")" 2); [ -n "$c" ] && [ -x "$BIN/$c" ]; }
+# Installed means the command AND the app's own files (field test v21, F4): a
+# command whose folder was deleted is a broken install, not an installed app.
+app_files_present() {
+  local row dir proc
+  row=$(app_row "$1"); dir=$(field "$row" 3); proc=$(field "$row" 7)
+  [ -n "$dir" ] && [ -f "$HOME/$dir/$(basename "$proc")" ]
+}
+is_installed() { local c; c=$(field "$(app_row "$1")" 2); [ -n "$c" ] && [ -x "$BIN/$c" ] && app_files_present "$1"; }
 stamped()      { if [ -f "$STAMPDIR/$1" ]; then tr -d ' \n' < "$STAMPDIR/$1"; else printf '?'; fi; }
 
 # The app's OWN launcher. Since v17 the command on the PATH (day.commute and
@@ -188,10 +195,22 @@ start_app() {
   # it cannot compete with this menu for a keypress and it does not die when
   # the menu is quit. Inheriting the terminal is how a backgrounded server
   # ends up eating the key you pressed for something else.
-  ( cd "$HOME" && setsid nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-    echo $! > "$RUNDIR/$id.pid" ) 2>/dev/null ||
-  ( cd "$HOME" && nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-    echo $! > "$RUNDIR/$id.pid" )
+  #
+  # FIELD TEST v21, F5. This used to be `( cd "$HOME" && setsid nohup X ... & echo $! )`,
+  # and the `&` belongs to the WHOLE `cd && setsid ...` list: it ran in a forked
+  # copy of this script that stayed alive as the server's parent, holding the
+  # caller's stdout. `maha-commute day | cat` (a script, a widget, Termux:Boot)
+  # never returned, 94 seconds here, 25 minutes on the phone. Now the subshell
+  # that backgrounds the server is a single exec: nothing of this script is left
+  # behind and nothing holds the caller's terminal or pipe.
+  L=$(launcher_of "$id")
+  if command -v setsid >/dev/null 2>&1; then
+    ( cd "$HOME" 2>/dev/null; exec setsid nohup "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
+  else
+    ( cd "$HOME" 2>/dev/null; exec nohup "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
+  fi
+  echo $! > "$RUNDIR/$id.pid"
+  disown 2>/dev/null || true
 
   # A FIRST start is not a restart. day.commute fetches an eleven megabyte
   # schedule from ZET and builds its caches before it binds anything, which
@@ -212,11 +231,17 @@ start_app() {
       [ -n "$last" ] && [ "$last" != "$shown" ] && { printf "  ${DIM}%s${OFF}\n" "$last"; shown="$last"; }
       printf "\r  ${AM}%ss${OFF}${DIM} waiting for port %s${OFF}   " "$((i * 2 / 5))" "$(app_port "$id")"
     fi
-    # A key means stop waiting, not stop the app.
-    if read -rsn1 -t 0.4 _k 2>/dev/null; then
-      printf "\n\n  ${SAND}left working in the background.${OFF}\n"
-      printf "  ${DIM}the quadrant fills when it answers${OFF}\n"
-      sleep 1; return
+    # A key means stop waiting, not stop the app. Without a terminal (a script,
+    # a widget, Termux:Boot) `read -t` returns at once, which turned the three
+    # minute wait into a few seconds (field test v21, F10), so it sleeps instead.
+    if [ -t 0 ]; then
+      if read -rsn1 -t 0.4 _k 2>/dev/null; then
+        printf "\n\n  ${SAND}left working in the background.${OFF}\n"
+        printf "  ${DIM}the quadrant fills when it answers${OFF}\n"
+        sleep 1; return
+      fi
+    else
+      sleep 0.4
     fi
   done
   printf "\r                                                  \r"
@@ -374,7 +399,8 @@ W=21   # inner width of one quadrant, so two of them plus the rules fit a
 # afterwards. printf counts the bytes of an escape sequence as width, so a
 # coloured string handed to %-21s comes out short by exactly the length of
 # the escapes, and every rule on the right hand side walks left.
-pad() { printf "%-${W}.${W}s" "$1"; }
+PW=$W
+pad() { printf "%-${PW}.${PW}s" "$1"; }
 
 uptime_of() {
   local id="$1" pidf="$RUNDIR/$1.pid" s
@@ -394,16 +420,19 @@ cell() {
     qstate='empty'; return
   fi
   cmd=$(field "$(app_row "$id")" 2)
-  q1=$(printf '%d %s' "$slot" "$cmd")
-  q3=$(stamped "$id")
+  # the version rides on the first line; the third line is what the app is for
+  q3=$(field "$(app_row "$id")" 8)
   if ! is_installed "$id"; then
+    q1=$(printf '%d %s' "$slot" "$cmd")
     q2='not installed'; qstate='absent'
   elif running "$id"; then
+    q1=$(printf '%d %s %s' "$slot" "$cmd" "$(stamped "$id")")
     q2=$(printf 'RUNNING %s  %s' "$(app_port "$id")" "$(uptime_of "$id")")
     [ "$LAST" = "$id" ] && q2="$q2 *"
     qstate='running'
   else
-    q2=$(printf '%s  ready' "$(stamped "$id")")
+    q1=$(printf '%d %s %s' "$slot" "$cmd" "$(stamped "$id")")
+    q2='ready'
     qstate='ready'
   fi
 }
@@ -439,11 +468,57 @@ quad_row() {
     "$(pad "  $l3")" "$(pad "  $r3")"
 }
 
+# Width of the terminal. Below 49 columns the 2 by 2 frame (47 wide) cannot be
+# drawn, so the four apps are four lines instead (field test v21, F12).
+term_cols() {
+  local c; c=$(tput cols 2>/dev/null || true)
+  case "$c" in ''|*[!0-9]*) c=${COLUMNS:-80} ;; esac
+  case "$c" in ''|*[!0-9]*) c=80 ;; esac
+  printf '%s' "$c"
+}
+
+# Dim text wrapped to the terminal, never cut mid-word.
+say_wrapped() {
+  local l
+  printf '%s\n' "$1" | fold -s -w "$((COLS-4))" | while IFS= read -r l; do
+    printf "  ${DIM}%s${OFF}\n" "$l"
+  done
+}
+
+grid_narrow() {
+  local n focused
+  PW=$((COLS-4)); [ "$PW" -lt 20 ] && PW=20
+  for n in 1 2 3 4; do
+    cell "$n"
+    focused=0; [ "$SEL" = "$n" ] && focused=1
+    if [ -n "$q2" ]; then _l=$(printf '%s  %s' "$q1" "$q2"); else _l="$q1"; fi
+    printf "  %b\n" "$(paint "$_l" "$qstate" "$focused")"
+  done
+  PW=$W
+}
+
+# The ten keys, five to a row where they fit and fewer where they do not.
+draw_keys() {
+  local any_run="$1" per n=0 item
+  per=$(( (COLS-2) / 8 )); [ "$per" -gt 5 ] && per=5; [ "$per" -lt 2 ] && per=2
+  printf "  "
+  for item in "h|elp |1" "r|efresh |1" "c|heck |1" "t|est |1" "i|nstall|1" \
+              "u|pdate |1" "k|ey |1" "S|topAll|$any_run" "w|ipe |1" "q|uit|1"; do
+    fkey "" "${item%%|*}" "$(printf '%s' "$item" | cut -d'|' -f2)" "${item##*|}"
+    n=$((n+1))
+    if [ $((n % per)) = 0 ] && [ "$n" -lt 10 ]; then printf "\n  "; fi
+  done
+  printf "\n"
+}
+
 draw() {
   clear 2>/dev/null || true
-  local id any_run=0 sel_id sel_run=0 sel_inst=0
+  COLS=$(term_cols)
+  local id any_run=0 sel_id sel_run=0 sel_inst=0 narrow=0
+  [ "$COLS" -lt 49 ] && narrow=1
   printf "\n  ${KEY}MAHA COMMUTE${OFF} ${DIM}%s${OFF}\n" "$MAHA_VERSION"
-  rule; quad_row 1 2; rule; quad_row 3 4; rule
+  if [ "$narrow" = 1 ]; then grid_narrow
+  else rule; quad_row 1 2; rule; quad_row 3 4; rule; fi
 
   sel_id=$(app_at "$SEL")
   [ -n "$sel_id" ] && { running "$sel_id" && sel_run=1; is_installed "$sel_id" && sel_inst=1; }
@@ -453,14 +528,17 @@ draw() {
   # launcher itself: nothing is lit and the keys below act on all of it.
   if [ "$SEL" = 0 ]; then
     if [ "$any_run" = 1 ]; then
-      printf "  ${DIM}on ${OFF}${KEY}launcher${OFF}${DIM}: apps are running, so ${OFF}${KEY}u${OFF}${DIM} needs one lit app${OFF}\n\n"
+      say_wrapped "launcher: apps are running, so u needs one lit app"
     else
-      printf "  ${DIM}on ${OFF}${KEY}launcher${OFF}${DIM}: nothing runs, so ${OFF}${KEY}u${OFF}${DIM} updates all of it${OFF}\n\n"
+      say_wrapped "launcher: nothing runs, so u updates all of it"
     fi
+    printf "\n"
   elif [ -z "$sel_id" ]; then
-    printf "  ${DIM}quadrant 4 is free. The verbs wait for an app.${OFF}\n\n"
+    say_wrapped "quadrant 4 is free. The verbs wait for an app."
+    printf "\n"
   else
-    printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}  " "$(field "$(app_row "$sel_id")" 2)"
+    printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}" "$(field "$(app_row "$sel_id")" 2)"
+    if [ "$narrow" = 1 ]; then printf "\n  "; else printf "  "; fi
     if [ "$sel_inst" != 1 ]; then
       printf "${KEY}Enter${OFF}${SAND}=install${OFF}${DIM}  open stop restart log${OFF}"
     elif [ "$sel_run" = 1 ]; then
@@ -473,11 +551,9 @@ draw() {
   # Every label is spelled by its own key: r efresh, c heck, w ipe. A key
   # whose letter does not begin its word has to be read rather than
   # recognised, and this row is meant to be recognised.
-  printf "  "; fkey "" h "elp " 1; fkey "" r "efresh " 1; fkey "" c "heck " 1
-  fkey "" t "est " 1; fkey "" i "nstall" 1; printf "\n  "
-  fkey "" u "pdate " 1; fkey "" k "ey " 1; fkey "" S "topAll" "$any_run"
-  fkey "" w "ipe " 1; fkey "" q "uit" 1; printf "\n"
-  printf "\n  ${DIM}1-4 light an app (starts it if idle), 0 the launcher${OFF}\n"
+  draw_keys "$any_run"
+  printf "\n"
+  say_wrapped "1-4 light an app (starts it if idle), 0 the launcher"
   printf "  ${AM}>${OFF} "
 }
 
@@ -543,55 +619,45 @@ screen_info() {
 
 screen_help() {
   clear 2>/dev/null || true
-  cat <<'HELPTEXT'
+  COLS=$(term_cols)
+  # fold -s wraps at the terminal's width on a space, so nothing is cut in a word
+  fold -s -w "$((COLS-2))" <<'HELPTEXT'
 
-  MAHA COMMUTE
+MAHA COMMUTE
 
-  Four quadrants, one app each. The fourth is free and stays
-  drawn, so the screen does not move when a fourth app arrives.
+Four quadrants, one app each. The fourth is free and stays drawn, so the screen does not move when a fourth app arrives.
 
-  1 2 3 4 light an app. If it is idle its number starts it. If it
-  is already running the number only moves the light, so with
-  two apps up, 1 and 3 swap between them and nothing reopens.
-  Every running app says RUNNING in its quadrant, with its port.
+1 2 3 4 light an app. If it is idle its number starts it. If it is already running the number only moves the light, so with two apps up, 1 and 3 swap between them and nothing reopens. Every running app says RUNNING in its quadrant, with its port.
 
-  0 is the launcher itself: nothing is lit and the keys below
-  that belong to no single app act on all of it.
+0 is the launcher itself: nothing is lit and the keys that belong to no single app act on all of it.
 
-  Arrows move the light without starting anything, for when
-  you want to look before you press.
+Arrows move the light without starting anything, for when you want to look before you press.
 
-  The verbs are the same for every quadrant and act on the
-  focused one, which is the whole point: one set of keys.
+The verbs are the same for every quadrant and act on the lit one, which is the whole point: one set of keys.
 
-      Enter  open it, starting it first if it is not running
-      o      open the page again
-      s      stop it
-      R      restart it
-      l      its log, the last twenty lines
-      i      install it, or remove it if it is here
+  Enter  open it, starting it first if it is not running
+  o      open the page again
+  s      stop it
+  R      restart it
+  l      its log, the last twenty lines
+  i      install it, or remove it if it is here
 
-  Servers stack: start all three and all three keep running,
-  on 8082, 8087 and 8084.
+Servers stack: start all three and all three keep running, on 8082, 8087 and 8084.
 
-  The bottom row is always the same ten keys, dim when they do
-  not apply. Press the letter. The number is only there because
-  a phone has no F keys.
+The bottom rows are always the same ten keys, dim when they do not apply. Press the letter shown in white.
 
-      h  this
-      r  refresh every ZET stream, then check it
-      c  check the streams without refreshing
-      t  test every key this phone holds
-      i  install or remove an app
-      u  update. Nothing running: the whole launcher. Apps
-         running: only the lit one, and 0 or S first for all
-      k  the shared google key
-      S  stop all of them
-      x  uninstall, which asks twice
-      q  quit the menu, leaving the servers running
+  h  this
+  r  refresh every ZET stream, then check it
+  c  check the streams without refreshing
+  t  test every key this phone holds
+  i  install or remove an app
+  u  update. Nothing running: the whole launcher. Apps running: only the lit one (0 or S first for all)
+  k  the shared google key
+  S  stop all of them
+  w  wipe: uninstall, which asks twice
+  q  quit the menu, leaving the servers running
 
-  Quitting does not stop anything. The servers keep serving and
-  the pages stay open. S is what stops them.
+Quitting does not stop anything. The servers keep serving and the pages stay open. S is what stops them.
 
 HELPTEXT
   anykey
@@ -656,7 +722,8 @@ screen_key() {
          k=$(printf '%s' "$k" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
          if [ -n "$k" ]; then
            mkdir -p "$KEYDIR"; printf '%s\n' "$k" > "$KEYFILE"; chmod 600 "$KEYFILE"
-           printf "\n  ${OK}stored${OFF}\n"
+           bash "$APPHOME/install-one.sh" --sync-key force >/dev/null 2>&1 || true
+           printf "\n  ${OK}stored, and given to every app that is here${OFF}\n"
          else
            printf "\n  ${DIM}nothing was changed${OFF}\n"
          fi

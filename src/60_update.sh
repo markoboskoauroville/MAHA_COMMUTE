@@ -56,7 +56,8 @@ while [ $# -gt 0 ]; do
     --check) MODE="check" ;;
     --app)   ONLY="${2:-}"; shift ;;
     -*)      ;;
-    *)       [ -f "$1" ] && CAND="$1" ;;
+    *)       if [ -f "$1" ]; then CAND="$1"
+             else printf "update: no such file: %s\n" "$1"; exit 2; fi ;;
   esac
   shift
 done
@@ -201,6 +202,11 @@ else
     [ -x "$BIN/$cmd" ] && printf " ${SAND}%s${OFF}" "$cmd"
   done
   printf "\n"
+fi
+
+# --check only describes. It must not offer to install, with a file or without.
+if [ "$MODE" = "check" ]; then
+  printf "\n  ${DIM}--check: nothing was changed${OFF}\n\n"; exit 0
 fi
 
 printf "\n  ${KEY}Enter${OFF} ${DIM}install it${OFF}    ${KEY}n${OFF} ${DIM}stop, change nothing${OFF}\n"

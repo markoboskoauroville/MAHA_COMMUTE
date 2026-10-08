@@ -65,6 +65,10 @@ have() { command -v "$1" >/dev/null 2>&1; }
 HAVE_PY=0;   have python  && HAVE_PY=1
 have python3 && HAVE_PY=1
 HAVE_OPEN=0; have termux-open-url && HAVE_OPEN=1
+# termux-open-url comes from termux-tools, which every Termux has, so it says
+# nothing about the termux-api PACKAGE (field test v21, F9). termux-location is
+# the command only that package brings.
+HAVE_TAPI=0; have termux-location && HAVE_TAPI=1
 HAVE_FUSER=0; have fuser && HAVE_FUSER=1
 HAVE_SHA=0;  have sha256sum && HAVE_SHA=1
 HAVE_PGREP=0; have pgrep && HAVE_PGREP=1
@@ -83,7 +87,7 @@ dep_row() {
 }
 printf "\n  ${KEY}what this phone has${OFF}\n"
 dep_row "python"       "$HAVE_PY"    "all three servers"        "req"
-dep_row "termux-api"   "$HAVE_OPEN"  "opens the page by itself" "opt"
+dep_row "termux-api"   "$HAVE_TAPI"  "GPS and notifications"    "opt"
 dep_row "fuser"        "$HAVE_FUSER" "frees a busy port"        "opt"
 dep_row "procps"       "$HAVE_PGREP" "finds and stops servers"  "opt"
 dep_row "sha256sum"    "$HAVE_SHA"   "checks the payloads"      "opt"
@@ -116,7 +120,7 @@ fi
 # ---------------------------------------------------------------
 NEED=""
 [ "$HAVE_PY" = "0" ]    && NEED="$NEED python"
-[ "$HAVE_OPEN" = "0" ]  && NEED="$NEED termux-api"
+[ "$HAVE_TAPI" = "0" ]  && NEED="$NEED termux-api"
 [ "$HAVE_FUSER" = "0" ] && NEED="$NEED psmisc"
 [ "$HAVE_PGREP" = "0" ] && NEED="$NEED procps"
 
@@ -131,6 +135,11 @@ else
     if pkg install -y "$pkgname" >/dev/null 2>&1; then done_; else fail_ "not fetched"; fi
   done
   command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 && HAVE_PY=1
+fi
+# The package is only half of Termux:API: the commands talk to an APP, which is
+# a separate install from F-Droid. Say so, plainly, when pm can tell us it is not.
+if have pm && ! pm list packages 2>/dev/null | grep -q 'package:com.termux.api$'; then
+  printf "  ${DIM}the Termux:API app (F-Droid) is not installed. GPS through Termux needs it.${OFF}\n"
 fi
 # ---------------------------------------------------------------
 # storage, asked for rather than left to the person
@@ -177,7 +186,7 @@ fi
 step "google maps key"
 mkdir -p "$KEYDIR"; chmod 700 "$KEYDIR" 2>/dev/null || true
 FOUND=""
-if [ -s "$KEYFILE" ]; then
+if maha_key_ok "$KEYFILE"; then
   FOUND="the shared store"
 else
   for c in "$HOME/.commute/google-api.txt" \
@@ -187,7 +196,7 @@ else
            "$HOME/storage/downloads/google-api.txt" \
            "$HOME/storage/downloads/Google-maps-api.txt" \
            "$HOME/downloads/google-api.txt"; do
-    if [ -s "$c" ]; then
+    if maha_key_ok "$c"; then
       grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key > "$KEYFILE"
       chmod 600 "$KEYFILE"
       FOUND="$c"
@@ -356,6 +365,11 @@ for id in $CHOSEN; do
     FAILED="$FAILED $id"
   fi
 done
+
+# The key reaches every app that is here, from the one shared store. It is done
+# after the apps, not inside them, so a key found late (or an app reinstalled on
+# its own) still gets it (field test v21, F2: all.commute never received it).
+bash "$APPHOME/install-one.sh" --sync-key >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------
 # what happened
