@@ -1,0 +1,123 @@
+===== h, i, q: 60x40
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  50m  |  RUNNING 8087  50m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  40m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on launcher: apps are running, so u needs one lit app
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the launcher
+  >
+----- after key 'h' (chrome starts so far: 0)
+  Arrows move the light without starting anything, for when
+  you want to look before you press.
+
+  The verbs are the same for every quadrant and act on the
+  focused one, which is the whole point: one set of keys.
+
+      Enter  open it, starting it first if it is not running
+      o      open the page again
+      s      stop it
+      R      restart it
+      l      its log, the last twenty lines
+      i      install it, or remove it if it is here
+
+  Servers stack: start all three and all three keep running,
+  on 8082, 8087 and 8084.
+
+  The bottom row is always the same ten keys, dim when they
+do
+  not apply. Press the letter. The number is only there beca
+use
+  a phone has no F keys.
+
+      h  this
+      r  refresh every ZET stream, then check it
+      c  check the streams without refreshing
+      t  test every key this phone holds
+      i  install or remove an app
+      u  update. Nothing running: the whole launcher. Apps
+         running: only the lit one, and 0 or S first for all
+      k  the shared google key
+      S  stop all of them
+      x  uninstall, which asks twice
+      q  quit the menu, leaving the servers running
+
+  Quitting does not stop anything. The servers keep serving
+and
+  the pages stay open. S is what stops them.
+
+
+  any key
+----- after key 'x' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  50m  |  RUNNING 8087  50m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  41m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on launcher: apps are running, so u needs one lit app
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the launcher
+  >
+----- after key 'i' (chrome starts so far: 0)
+
+  INSTALL OR REMOVE
+  a number adds it if missing, takes it away if here
+
+  1  [x] day.commute     v17
+  2  [x] night.commute   v13
+  3  [x] all.commute     v44
+
+  a all three   q back
+
+  >
+----- after key 'x' (chrome starts so far: 0)
+
+  INSTALL OR REMOVE
+  a number adds it if missing, takes it away if here
+
+  1  [x] day.commute     v17
+  2  [x] night.commute   v13
+  3  [x] all.commute     v44
+
+  a all three   q back
+
+  >
+----- after key 'q' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  50m  |  RUNNING 8087  50m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  41m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on launcher: apps are running, so u needs one lit app
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the launcher
+  >
+launcher alive at end: True

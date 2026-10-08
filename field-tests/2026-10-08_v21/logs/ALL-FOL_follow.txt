@@ -1,0 +1,9 @@
+locate at Glavni {"c": [45.8152, 16.0044], "z": 18, "me": [45.805, 15.98], "centred": true, "want": false} 
+  locate centred within 3841 m
+panned+zoomed out {"c": [45.815, 15.96], "z": 14, "me": [45.805, 15.98], "centred": true, "want": false} 
+geo fix moved + burst {"c": [45.815, 15.96], "z": 14, "me": [45.80586, 15.98214], "centred": true, "want": false} PASS
+after 2 min {"c": [45.815, 15.96], "z": 14, "me": [45.807, 15.985], "centred": true, "want": false} PASS
+app switch and back {"c": [45.815, 15.96], "z": 14, "me": [45.807, 15.985], "centred": true, "want": false} PASS
+lock and unlock {"c": [45.815, 15.96], "z": 14, "me": [45.807, 15.985], "centred": true, "want": false} PASS
+locate button {"c": [45.807, 15.985], "z": 17, "me": [45.807, 15.985], "centred": true, "want": false} PASS
+  locate centred within 0 m

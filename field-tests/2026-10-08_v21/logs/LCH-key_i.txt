@@ -1,0 +1,32 @@
+===== i alone: 60x40
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  50m  |  RUNNING 8087  50m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  41m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on launcher: apps are running, so u needs one lit app
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the launcher
+  >
+----- after key 'i' (chrome starts so far: 0)
+
+  INSTALL OR REMOVE
+  a number adds it if missing, takes it away if here
+
+  1  [x] day.commute     v17
+  2  [x] night.commute   v13
+  3  [x] all.commute     v44
+
+  a all three   q back
+
+  >
+launcher alive at end: True

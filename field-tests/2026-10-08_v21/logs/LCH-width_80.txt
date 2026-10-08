@@ -1,0 +1,39 @@
+===== width 80: 80x34
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  49m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  40m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on launcher: apps are running, so u needs one lit app
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the launcher
+  >
+----- after key '1' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  49m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  40m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on day.commute:  Enter=open  stop  Restart  log
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the launcher
+  >
+launcher alive at end: True

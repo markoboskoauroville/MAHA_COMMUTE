@@ -1,0 +1,36 @@
+.all.commute/network.db 25042944 f1e5920c1301320a
+.all.commute/google-api.txt 40 ea5229e782f32067
+.commute/google-api.txt 1 01ba4719c80b6fe9
+.nightcommute/night.json 1870 2bafda173c4c0184
+.nightcommute/coords.json 1397 f4c6d4e15e8b09bd
+8
+total 25115
+drwx------.  2 u0_a331 u0_a331     3452 Oct  8 16:40 .
+drwx------. 24 u0_a331 u0_a331     3452 Oct  7 16:36 ..
+-rw-------.  1 u0_a331 u0_a331   107162 Oct  8 16:40 all.html
+-rw-------.  1 u0_a331 u0_a331   101814 Oct  8 16:40 all.html.prev.bak
+-rw-------.  1 u0_a331 u0_a331    88425 Oct  8 16:40 all_commute_server.py
+-rw-------.  1 u0_a331 u0_a331    86953 Oct  8 16:40 all_commute_server.py.prev.bak
+-rw-------.  1 u0_a331 u0_a331       40 Oct  7 07:09 google-api.txt
+-rw-------.  1 u0_a331 u0_a331 25042944 Oct  7 06:02 network.db
+-rw-------.  1 u0_a331 u0_a331        4 Oct  7 06:02 port
+-rw-------.  1 u0_a331 u0_a331    66049 Oct  7 07:42 server.log
+-rw-------.  1 u0_a331 u0_a331   132846 Oct  8 16:40 stations.json
+-rw-------.  1 u0_a331 u0_a331    13515 Oct  8 16:40 update_all.py
+-rw-------.  1 u0_a331 u0_a331    11258 Oct  8 16:40 update_all.py.prev.bak
+-rw-------.  1 u0_a331 u0_a331      164 Oct  7 06:02 zet_gtfs.zip.meta.json
+dict 3
+v44
+google-api.txt
+  the umbrella
+    payloads /data/data/com.termux/files/home/.maha.commute/payloads
+    checked  all three match
+    key      none
+
+all.commute
+day.commute
+maha-commute
+maha-commute-update
+maha.commute
+maha.commute-update
+night.commute

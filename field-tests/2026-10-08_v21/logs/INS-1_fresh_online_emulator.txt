@@ -1,0 +1,150 @@
+
+  ॐ  MAHA COMMUTE  installer v21
+  day, night and all of Zagreb, under one word
+
+  > checking Termux... ok
+
+  what this phone has
+    MISSING  python         all three servers
+    ok       termux-api     opens the page by itself
+    ok       fuser          frees a busy port
+    ok       procps         finds and stops servers
+    ok       sha256sum      checks the payloads
+    ok       base64         used by all.commute
+
+  missing: python
+  > installing python... ok
+  > storage... tap Allow on the popup  > storage... allowed
+  > google maps key... found (/data/data/com.termux/files/home/storage/downloads/Google-maps-api.txt)
+  > the umbrella... ok
+  > payloads, all three... ok
+  > the install routine... ok
+  > the stream checker... ok
+  > the key tester... ok
+  > the updater... ok
+  > the uninstaller... ok
+  > the launcher... ok
+  > the updater command... ok
+  > maha.commute and maha.commute-update... ok
+
+  | day.commute v17
+
+  ▌ DAY COMMUTE  ॐ
+  ▌ installer v17
+
+  DEPENDENCY        WHAT IT IS FOR                STATUS
+  ──────────────────────────────────────────────────────
+  Termux            the shell this installs into  OK
+  python            the server and the timetable  OK
+  ZET reachable     downloading today's schedule  OK
+  termux-open-url   opens the app in the browser  OK
+  am                the fallback browser opener   OK
+  Google Maps key   the live bus map              OK
+  Gemini key        reading the printed ZET PDFs  MISSING (optional)
+  ──────────────────────────────────────────────────────
+  everything required is here, 1 optional missing
+
+  mode: online
+
+  ▸ python runtime... ok
+  ▸ termux-api tools... ok
+  ▸ app folder... ok
+  ▸ api key... ok
+  ▸ installing server... ok
+  ▸ installing updater... ok
+  ▸ installing app... ok
+  ▸ installing day.commute command... ok
+
+  installed  type day.commute to start it, or commute for the family menu
+  serves on port 8082, reachable across your Wi-Fi
+
+
+  | night.commute v13
+
+  ▌ NIGHT.COMMUTE  installer v13 (a)
+  ▌ Moon | the night, the Commute family
+
+  mode: online
+
+  ▸ checking Termux... ok
+  ▸ python runtime... ok
+  ▸ app folder... ok
+  ▸ wiping old night build... ok
+  ▸ google maps key... (from /data/data/com.termux/files/home/storage/downloads/Google-maps-api.txt) ok
+  ▸ api key... ok
+  ▸ installing night data... ok
+  ▸ installing server... ok
+  ▸ installing app... ok
+  ▸ installing night.commute command... ok
+
+  installed  night.commute v13 (a)
+  type night.commute to start it, or commute for the family menu
+  four night trams, 23:50–04:40, served locally
+  if the app looks unchanged: close the old browser tab and open the
+  fresh link, or pull-to-refresh — the old page was cached.
+
+
+  | all.commute v44
+
+  | ALL.COMMUTE  stars v39
+  | Water | show me where I am, and tell me how well you know
+
+  dependencies
+    Termux                    ok
+    python                    ok
+    base64                    ok
+    fuser                     ok
+    station index             missing built on first run
+    google key                missing photos, 360 view, detailed map
+    gemini key                missing reads the printed timetable PDFs
+    Termux:API                missing optional, for notifications
+
+  mode: online
+
+  > stopping the commute server... ok
+  > making room... ok
+  > keeping a copy of the old app... (.prev.bak) ok
+  > installing the server... ok
+  > putting every station on the phone... ok
+  > installing the station indexer... ok
+  > installing the star interface... ok
+  > installing the all.commute command... ok
+  > Termux:Widget desktop shortcut... ok
+  > refreshing the station cache...
+[all.commute] checking https://www.zet.hr/gtfs-scheduled/latest
+[all.commute]   got zip, 12760995 bytes
+[all.commute] 1 service ids run today
+[all.commute] 13532 trips run today
+[all.commute] 3797 stops in the feed
+[all.commute] 228676 departures today
+[all.commute] 2507 stops actually see a departure today
+[all.commute] 2523 stations kept for good, 2507 with a departure today
+[all.commute] 13532 trips indexed
+[all.commute] station index written to /data/data/com.termux/files/home/.all.commute/network.db
+  > refreshing the station cache... ok
+
+  installed the star interface v39  type all.commute to start it
+  open it, let it find you, tap a station
+  in settings: load a Gemini key, then Store the lines around me
+  on the Google key: Street View Static API draws the photograph,
+  Maps JavaScript API draws the 360 view and the detailed map layers
+  to go back: cp ~/.all.commute/NAME.prev.bak ~/.all.commute/NAME
+              for NAME = all.html and all_commute_server.py
+
+
+  ॐ  MAHA COMMUTE  v21
+
+    on   day.commute     v17, port 8082
+    on   night.commute   v13, port 8087
+    on   all.commute     v44, port 8084
+
+    updated: day.commute night.commute all.commute
+
+  type maha.commute for the launcher, maha.commute-update for the newest version
+  or the app name on its own: day.commute, night.commute, all.commute
+
+  the three payloads are kept in /data/data/com.termux/files/home/.maha.commute/payloads
+  so any app can be added or removed later with no download
+
+EXIT=0
+$S/eh   0.07s user 0.01s system 0% cpu 2:49.90 total

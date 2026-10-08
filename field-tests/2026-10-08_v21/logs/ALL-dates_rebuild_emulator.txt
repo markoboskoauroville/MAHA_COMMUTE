@@ -1,0 +1,37 @@
+[SUNDAY] Sun Oct 11 12:00:11 CEST 2026
+[SUNDAY] [all.commute] 1 service ids run today
+[SUNDAY] [all.commute] 7193 trips run today
+[SUNDAY] [all.commute] 124708 departures today
+[SUNDAY] [all.commute] 2336 stops actually see a departure today
+[SUNDAY] [all.commute] 2523 stations kept for good, 2336 with a departure today
+[SUNDAY] peak_rss_kb=50988
+[SUNDAY] stations.json count 2523 2523
+[SUNDAY] {"ok": true, "state": "idle", "state_reason": "", "stations": true, "service_date": "20261011", "built": "1791712822", "stops": "2523", "deps": "124708", "feed_ok": true, "feed_trips": 571}
+SUNDAY wall=14s
+[HOLIDAY_18.11] Wed Nov 18 12:00:00 CET 2026
+[HOLIDAY_18.11] [all.commute] 1 service ids run today
+[HOLIDAY_18.11] [all.commute] 7193 trips run today
+[HOLIDAY_18.11] [all.commute] 124708 departures today
+[HOLIDAY_18.11] [all.commute] 2336 stops actually see a departure today
+[HOLIDAY_18.11] [all.commute] 2523 stations kept for good, 2336 with a departure today
+[HOLIDAY_18.11] stations.json count 2523 2523
+[HOLIDAY_18.11] {"ok": true, "state": "idle", "state_reason": "", "stations": true, "service_date": "20261118", "built": "1794999608", "stops": "2523", "deps": "124708", "feed_ok": true, "feed_trips": 561}
+[HOLIDAY_18.11] stops near Trg bana Jelacica 17
+[AFTER_MIDNIGHT] Fri Oct  9 00:30:00 CEST 2026
+[AFTER_MIDNIGHT] [all.commute] 1 service ids run today
+[AFTER_MIDNIGHT] [all.commute] 13532 trips run today
+[AFTER_MIDNIGHT] [all.commute] 228676 departures today
+[AFTER_MIDNIGHT] [all.commute] 2507 stops actually see a departure today
+[AFTER_MIDNIGHT] [all.commute] 2523 stations kept for good, 2507 with a departure today
+[AFTER_MIDNIGHT] stations.json count 2523 2523
+[AFTER_MIDNIGHT] {"ok": true, "state": "idle", "state_reason": "", "stations": true, "service_date": "20261009", "built": "1791498609", "stops": "2523", "deps": "228676", "feed_ok": true, "feed_trips": 561}
+[AFTER_MIDNIGHT] stops near Trg bana Jelacica 17
+[NORMAL_WEDNESDAY] Wed Nov 11 12:00:00 CET 2026
+[NORMAL_WEDNESDAY] [all.commute] 1 service ids run today
+[NORMAL_WEDNESDAY] [all.commute] 13532 trips run today
+[NORMAL_WEDNESDAY] [all.commute] 228676 departures today
+[NORMAL_WEDNESDAY] [all.commute] 2507 stops actually see a departure today
+[NORMAL_WEDNESDAY] [all.commute] 2523 stations kept for good, 2507 with a departure today
+[NORMAL_WEDNESDAY] stations.json count 2523 2523
+[NORMAL_WEDNESDAY] {"ok": true, "state": "idle", "state_reason": "", "stations": true, "service_date": "20261111", "built": "1794394810", "stops": "2523", "deps": "228676", "feed_ok": true, "feed_trips": 561}
+[NORMAL_WEDNESDAY] stops near Trg bana Jelacica 17

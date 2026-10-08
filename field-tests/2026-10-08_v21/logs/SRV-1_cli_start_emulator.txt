@@ -1,0 +1,27 @@
+== night
+  starting night.commute
+  first start builds the schedule, this can take minutes
+  any key to leave it working and go back
+  2s waiting for port 8087     4s waiting for port 8087     6s waiting for port 8087     8s waiting for port 8087     10s waiting for port 8087     12s waiting for port 8087     14s waiting for port 8087     16s waiting for port 8087     18s waiting for port 8087     20s waiting for port 8087     22s waiting for port 8087     24s waiting for port 8087                                                       up on 8087
+EXIT=0
+$S/eh "timeout 120 maha-commute $a </dev/null; echo EXIT=\$?"  0.04s user 0.00s system 1% cpu 2.540 total
+== day
+  starting day.commute
+  first start builds the schedule, this can take minutes
+  any key to leave it working and go back
+                                                    up on 8082
+EXIT=0
+$S/eh "timeout 120 maha-commute $a </dev/null; echo EXIT=\$?"  0.04s user 0.01s system 0% cpu 9:10.11 total
+== all
+  starting all.commute
+  first start builds the schedule, this can take minutes
+  any key to leave it working and go back
+  2s waiting for port 8084     4s waiting for port 8084     6s waiting for port 8084     8s waiting for port 8084     10s waiting for port 8084     12s waiting for port 8084     14s waiting for port 8084     16s waiting for port 8084     18s waiting for port 8084                                                       up on 8084
+EXIT=0
+$S/eh "timeout 120 maha-commute $a </dev/null; echo EXIT=\$?"  0.04s user 0.00s system 0% cpu 43.918 total
+.commute port=8082 http=200
+.nightcommute port=8087 http=200
+.all.commute port=8084 http=200
+28931 28930 /data/data/com.termux/files/usr/bin/python3 night_server.py
+29294     1 python /data/data/com.termux/files/home/.commute/commute_server.py
+30129     1 python /data/data/com.termux/files/home/.all.commute/all_commute_server.py

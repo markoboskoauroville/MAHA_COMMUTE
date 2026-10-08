@@ -1,0 +1,48 @@
+lan ip=10.0.2.16
+.commute port=8082
+  /  local=200  lan=200  host-evil=200  host-rebind=200
+  /api-keys  local=200  lan=403  host-evil=403  host-rebind=403
+  /gps  local=404  lan=404  host-evil=404  host-rebind=404
+.nightcommute port=8087
+  /  local=200  lan=200  host-evil=200  host-rebind=200
+  /api-keys  local=404  lan=404  host-evil=404  host-rebind=404
+  /gps  local=404  lan=404  host-evil=404  host-rebind=404
+.all.commute port=8084
+  /  local=200  lan=200  host-evil=200  host-rebind=200
+  /api-keys  local=200  lan=403  host-evil=403  host-rebind=403
+  /gps  local=200  lan=403  host-evil=403  host-rebind=403
+--- api-keys body shape (local), key redacted
+{"keys": []}
+--- /status
+{"ok": true, "state": "idle", "state_reason": "", "stations": true, "service_date": "20261008", "built": "1791473001", "stops": "2523", "deps": "228676", "feed_ok": true, "feed_trips": 578}
+--- /stops Glavni
+14 ['109_1', '109_2', '110_61', '110_41', '110_51', '110_21', '110_22', '110_26', '110_32', '110_36', '110_46', '110_42']
+--- /find-stops jelacic
+{"ok": true, "stops": [{"stop_id": "791_23", "name": "Bana Josipa Jelačića", "lat": 45.885881, "lon": 15.85953, "bearing": 75.3, "dist": null}, {"stop_id": "791_24", "name": "Bana Josipa Jelačića", "lat": 45.885925, "lon": 15.859491, "bearing": 223.1, "dist": null}, {"stop_id": "106_1", "name": 
+--- /board 109_1
+{'ok': False, 'reason': 'unknown stop'}
+
+--- /board 109_1
+bash: line 2: /tmp/b.json: Permission denied
+{'ok': True, 'now': 1791473856, 'window': 60, 'back': 15, 'feed_ok': True, 'feed_trips': 580, 'feed_error': '', 'index_stale': False, 'service_date': '20261008', 'printed': 0, 'printed_lines': 0, 'printed_needs_key': 0, 'lines': 5, 'stop': {'stop_id': '109_1', 'name': 'Glavni kolodvor', 'lat': 45.805213, 'lon': 15.979278, 'bearing': 85.81109432257279}, 'departures': 40} deps 40
+[{'route': '6', 'head': 'Sopot', 'trip': '0_30_612_6_12657', 'sched': '17:26', 'sched_at': 1791473218, 'at': 1791472963, 'live_at': 1791472963, 'delay': -255, 'live': True, 'passed': True, 'mins': -15, 'origin': 'Črnomerec'}]
+--- /trip 0_30_612_6_12657
+{"ok": true, "now": 1791473857, "feed_ok": true, "has_live": true, "route": "6", "head": "Sopot", "delay": -255, "trip": "0_30_612_6_12657", "path": [[45.815002, 15.934932], [45.813211, 15.943075], [45.812427, 15.948326], [45.812458, 15.951965], [45.813111, 15.956823], [45.812327, 15.963088], [45.81
+--- /cache/clear (phone-only route, local)
+{"ok": false}
+{"ok": true, "removed": ["network.db"]}
+--- after clear: /status
+{"ok": false, "state": "idle", "state_reason": "", "stations": true, "feed_ok": true, "feed_trips": 580}
+-rw-------.  1 u0_a213 u0_a213   163084 Oct  8 17:23 stations.json
+stops after clear 14 True
+--- CORS headers on /api-keys with a foreign Origin
+port 8082:
+HTTP/1.0 200 OK
+port 8084:
+HTTP/1.0 200 OK
+--- which phone-only routes act on GET
+1744:    def do_GET(self):
+2005:    def do_POST(self):
+1914:            if route == "/rebuild":
+1907:            if route == "/sched-delete":
+1918:            if route == "/gemini-key":

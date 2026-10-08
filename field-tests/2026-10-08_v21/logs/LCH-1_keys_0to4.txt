@@ -1,0 +1,160 @@
+===== keys 0-4 and arrows, all three running: 50x32
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  48m  |  RUNNING 8087  48m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  39m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+----- after key '0' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+----- after key '1' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  48m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  39m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on day.commute:  Enter=open  stop  Restart  log
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the laun
+cher
+  >
+----- after key '2' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  48m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  39m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on night.commute:  Enter=open  stop  Restart  lo
+g
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the laun
+cher
+  >
+----- after key '3' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  49m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  39m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on all.commute:  Enter=open  stop  Restart  log
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the laun
+cher
+  >
+----- after key '4' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  49m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  39m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  quadrant 4 is free. The verbs wait for an app.
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the laun
+cher
+  >
+----- after key '0' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  49m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  39m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on launcher: apps are running, so u needs one li
+t app
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the laun
+cher
+  >
+----- after key '\x1b[B' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  49m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  39m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on day.commute:  Enter=open  stop  Restart  log
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the laun
+cher
+  >
+----- after key '\x1b[C' (chrome starts so far: 0)
+
+  MAHA COMMUTE v21
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  49m  |  RUNNING 8087  49m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  RUNNING 8084  40m  |                     |
+  |  v44                |  room for a fourth  |
+  +---------------------+---------------------+
+  on night.commute:  Enter=open  stop  Restart  lo
+g
+
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
+
+  1-4 light an app (starts it if idle), 0 the laun
+cher
+  >
+launcher alive at end: True

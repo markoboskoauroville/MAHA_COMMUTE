@@ -1,0 +1,4 @@
+{"ok": true, "log": "[all.commute] checking https://www.zet.hr/gtfs-scheduled/latest\n[all.commute]   unchanged on the server, using the local zip\n[all.commute] 1 service ids run today\n[all.commute] 13532 trips run today\n[all.commute] 3797 stops in the feed\n[all.commute] 228676 departures today\n[all.commute] 2507 stops actually see a departure today\n[all.commute] 2523 stations kept for good, 2507 with a departure today\n[all.commute] 13532 trips indexed\n[all.commute] station index written to /data/data/com.termux/files/home/.all.commute/network.db\n"}
+1791473889
+{"ok": true, "state": "idle", "state_reason": "", "stations": true, "service_date": "20261008", "built": "1791473889", "stops": "2523", "deps": "228676", "feed_ok": false, "feed_reason": "URLError(TimeoutError('timed out'))"} 1791473901 rss_kb= 4344
+           TOTAL PSS:    55939            TOTAL RSS:   166908       TOTAL SWAP PSS:      321

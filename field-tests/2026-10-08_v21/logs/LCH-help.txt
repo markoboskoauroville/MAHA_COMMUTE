@@ -1,0 +1,1 @@
+maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]

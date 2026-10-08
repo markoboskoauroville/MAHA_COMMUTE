@@ -1,0 +1,19 @@
+  starting day.commute
+  first start builds the schedule, this can take minutes
+  any key to leave it working and go back
+
+                                                    up on 8082
+real 1471.87
+user 0.06
+sys 0.00
+real 1.08
+user 0.07
+sys 0.00
+  starting all.commute
+  first start builds the schedule, this can take minutes
+  any key to leave it working and go back
+
+  2s waiting for port 8084     4s waiting for port 8084     6s waiting for port 8084                                                       up on 8084
+real 18.13
+user 0.07
+sys 0.00

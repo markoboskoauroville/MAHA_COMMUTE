@@ -1,0 +1,7 @@
+API_KEY length in page: 39
+street view photo: [{'w': 640, 'h': 260, 'ok': True}] pin label: 102_2
+screenshots/ALL-DASH_streetview_key.png
+openPano: function
+pano visible: none 0
+google maps loaded: False
+screenshots/ALL-DASH_360_key.png

@@ -1,0 +1,8 @@
+16854       24:30 S    do_wai /data/data/com.termux/files/usr/bin/bash /data/data/com.termux/files/usr/bin/maha-commute day
+dr-x------. 2 u0_a331 u0_a331  0 Oct  8 17:09 .
+dr-xr-xr-x. 9 u0_a331 u0_a331  0 Oct  8 16:44 ..
+lr-x------. 1 u0_a331 u0_a331 64 Oct  8 17:09 0 -> /dev/null
+l-wx------. 1 u0_a331 u0_a331 64 Oct  8 17:09 1 -> pipe:[452394]
+l-wx------. 1 u0_a331 u0_a331 64 Oct  8 17:09 2 -> /dev/null
+do_wait
+0
