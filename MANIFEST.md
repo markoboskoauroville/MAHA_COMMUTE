@@ -19,6 +19,16 @@
   erased by the next build, so it is not allowed.
 - When the cloud Claude Code starts a session, it checks `field-tests/` for a
   report newer than the last version and reads it before anything else.
+- **THE PROMPT IS ALWAYS WRITTEN, IN A CODE BOX (Marko, 8.10.2026).** Every time
+  the cloud Claude Code finishes a version, or Marko asks for a test, its last
+  message contains the prompt for the local Claude Code, written out in full in
+  a single code box he can copy, naming the exact version, the branch and what
+  changed since the last field test and so deserves the most attention. Never
+  "run the usual prompt", never a link to it, never left for him to ask for.
+- **THE LOCAL CLAUDE CODE READS THIS MANIFEST EVERY TIME.** The first line of
+  every such prompt orders it to read `MANIFEST.md` completely, then
+  `docs/LOCAL_TEST_PROMPT.md`, before it touches the emulator, on every run,
+  even if it did so last time.
 
 ---
 

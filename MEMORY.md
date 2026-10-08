@@ -134,6 +134,11 @@ must end by telling Marko to ask the cloud one to read the report. Its prompt is
 `docs/LOCAL_TEST_PROMPT.md`. At the start of a session here, read the newest
 `field-tests/*/REPORT.md`; its "Requests for the cloud" list is the work.
 
+**Marko, 8.10.2026: the prompt for the local tester is ALWAYS written out in a
+code box at the end of a version or a test request, and it ALWAYS opens by
+ordering the local Claude Code to read MANIFEST.md.** Template in
+`docs/LOCAL_TEST_PROMPT.md`.
+
 ## V17: THE APPS' OWN NAMES OPEN THE LAUNCHER, AND THE WIFI IS TOLD WHAT IT MAY SEE
 
 *4.10.2026.* Brought over from a long chat that had been building the same

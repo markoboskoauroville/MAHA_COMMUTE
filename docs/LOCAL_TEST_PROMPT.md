@@ -219,15 +219,30 @@ pass and do not soften the verdict.
 
 ---
 
-## The short prompt to paste into the local Claude Code
+## The prompt to paste into the local Claude Code
 
-> You are the LOCAL tester for MAHA_COMMUTE. Pull the latest of this repo and
-> read `docs/LOCAL_TEST_PROMPT.md` completely, then `MANIFEST.md` (the
-> two-machine rule) and `docs/NOT_TESTED.md`. Follow the prompt exactly: set up
-> the Android emulator with F-Droid Termux, Termux:API, Termux:Boot and
-> Termux:Styling, install the newest `*-maha_commute_v*.sh` in the repo root,
-> and stress test the whole app with the real ZET feed and my Google Maps key
-> (it is in `~/Downloads/API/`, never print or commit it). You only TEST. Never
-> edit source, tools, tests, docs or version files; write results only inside
-> `field-tests/<date>_v<VERSION>/`, commit and push only that folder. When
-> finished, tell me to ask Cloud Code to fetch the report and make the changes.
+The cloud Claude Code writes this out, in a code box, with the version, branch
+and "what changed since the last field test" filled in, at the end of every
+version and whenever asked (see `MANIFEST.md`). The template:
+
+```
+FIRST, before anything else, read MANIFEST.md completely, then
+docs/LOCAL_TEST_PROMPT.md, then docs/NOT_TESTED.md and the newest
+field-tests/*/REPORT.md. Do this on every run, even if you did it last time.
+
+You are the LOCAL tester for MAHA_COMMUTE. Branch: <BRANCH>. Version to test:
+<VERSION> (the file <VERSION>-maha_commute_v<VERSION>.sh in the repo root).
+Pull the latest of that branch first.
+
+What changed since the last field test, and so deserves the most attention:
+<LIST>
+
+Set up the Android emulator with F-Droid Termux, Termux:API, Termux:Boot and
+Termux:Styling, install that file, and stress test the whole app with the real
+ZET feed and my Google Maps key (in ~/Downloads/API/, never print, log, shoot or
+commit it). You only TEST. Never edit source, tools, tests, docs or version
+files. Write results only inside field-tests/<date>_v<VERSION>/ (REPORT.md,
+results.json, logs, screenshots, soak.csv), commit and push only that folder.
+Report faithfully: not run means BLOCKED, never PASS. When finished, tell me to
+ask Cloud Code to fetch the report and make the changes. Then stop.
+```
