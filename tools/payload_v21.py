@@ -30,9 +30,43 @@ lost. `stops` in the index is filled from the file, so every station is there
 whether or not anything leaves it today, and the server reads the file
 directly when the index is being rebuilt or has been cleared, so the map is
 never without stations. Clearing the index no longer clears the stations.
+
+EVERY STATION IS CARRIED INSIDE THE APP. Marko, 8.10.2026: "hardcode all the
+station positions in this app, so stations are shown immediately, always". The
+installer writes src/payloads/stations_seed.json (2523 platforms, made from the
+real feed by tools/make_stations_seed.py) to ~/.all.commute/stations.json when
+there is none, so the first screen draws every station with no download and no
+network. Rebuilds merge the live feed into that file and never remove from it.
+
+Two stops in ZET's own feed have coordinates in Russia and Belarus (Kvaternikov
+trg, 236_10 at 74.19, 70.74 and 236_13 at 52.91, 29.68). They are dropped when
+the feed is read, because a stop that far away is a typo, and because a
+bearing worked out from one is nonsense for its neighbours.
 """
+import os as _os
+with open(_os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "src", "payloads",
+                        "stations_seed.json"), encoding="utf-8") as _f:
+    _SEED = _f.read().strip()
+if "ALLC_STATIONS_SEED" in _SEED:
+    raise SystemExit("payload_v21: the stations seed contains its own heredoc delimiter")
+
+SEED_STEP = (
+    'step "putting every station on the phone"\n'
+    'if [ ! -s "$APPDIR/stations.json" ]; then\n'
+    "  cat > \"$APPDIR/stations.json.tmp\" << 'ALLC_STATIONS_SEED'\n"
+    + _SEED + "\n"
+    "ALLC_STATIONS_SEED\n"
+    '  mv -f "$APPDIR/stations.json.tmp" "$APPDIR/stations.json"\n'
+    "fi\n"
+    "done_\n\n")
 
 ALL_FIXES = [
+    ('step "installing the station indexer"', SEED_STEP + 'step "installing the station indexer"'),
+    ('            coord[r["stop_id"]] = (float(r["stop_lat"]), float(r["stop_lon"]))\n',
+     '            _la, _lo = float(r["stop_lat"]), float(r["stop_lon"])\n'
+     '            if not (45.3 < _la < 46.3 and 15.3 < _lo < 16.7):\n'
+     '                raise ValueError("outside the Zagreb area")\n'
+     '            coord[r["stop_id"]] = (_la, _lo)\n'),
     ('APP_VERSION = "v43"\nAPP_BUILD = "b43"', 'APP_VERSION = "v44"\nAPP_BUILD = "b44"'),
     ('<div class="kv"><span>Interface</span><b>stations · v43</b></div>',
      '<div class="kv"><span>Interface</span><b>stations · v44</b></div>'),

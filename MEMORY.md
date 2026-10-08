@@ -85,6 +85,20 @@ platforms sit within metres of each other (110_x), so their labels overlap; that
 is the existing design and was not changed. The feed itself is not in git (the
 repository is public, and it is 12 MB).
 
+**EVERY STATION IS CARRIED IN THE APP (8.10.2026).** Marko: hardcode all the
+station positions so stations show immediately, always.
+`src/payloads/stations_seed.json` (2523 platforms, 133 KB) is written to
+`~/.all.commute/stations.json` by the installer when there is none, so a fresh
+install with no feed and no index answers `/stops` at once (checked: 14 stations
+around Glavni kolodvor, no network). Rebuilds merge into it. Regenerate it only
+when ZET adds stops: run update_all.py on a real feed, then
+`tools/make_stations_seed.py <that stations.json>`. ZET's own feed has TWO stops
+with coordinates in Russia and Belarus (Kvaternikov trg 236_10 and 236_13); the
+rebuild drops anything outside 45.3-46.3 N, 15.3-16.7 E, and the seed tool
+refuses a file that contains one. The pre-install `pkill -f` of the all
+installer killed the tool's own shell (exit 144) when the command text held the
+server's name, so fresh-install checks run detached (`setsid nohup`).
+
 **WHAT WENT WRONG ON THE WAY.** `pkill -f` and `pgrep -f` with the server's
 name matched the very shell running them (twice), and the shell died with exit
 144 and no output. A test server started inside `( ... ) &` leaves the python

@@ -1014,6 +1014,13 @@ c.commit()
 PYEOF
 ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "an old index's stops are taken in, not lost" "100 101 200 300 999" "$(ids21)"
+# every station ships inside the app, so the first screen needs no download
+eq "the stations seed carries every platform" "yes" "$(python3 -c "
+import json;d=json.load(open('src/payloads/stations_seed.json'))['stops']
+ok=len(d)>2400 and all(45.3<v[1]<46.3 and 15.3<v[2]<16.7 for v in d.values()) and '236_10' not in d
+print('yes' if ok else 'no')")"
+printf '%s' "$ap" | grep -qF "putting every station on the phone" && ok || bad "all: the installer puts the seed on the phone"
+printf '%s' "$ap" | grep -qF 'raise ValueError("outside the Zagreb area")' && ok || bad "all: a stop with coordinates far from Zagreb is dropped"
 printf '%s' "$ap" | grep -qF 'def stations_ready():' && ok || bad "all: /stops works from the file when the index is gone"
 rm -rf "$T21"
 
