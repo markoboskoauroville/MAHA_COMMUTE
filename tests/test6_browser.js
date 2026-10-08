@@ -49,6 +49,22 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   const d = await page.evaluate(() => ({ on: document.getElementById("dash").classList.contains("show"),
     id: document.getElementById("dId").textContent }));
   check(speed + ": tapping a label opens that station's dashboard", d.on && d.id === "100");
+  await page.click("#dClose"); await page.waitForTimeout(300);
+  // The map does not follow the dot. Pan away and zoom out; the phone moves; a new
+  // burst of fixes arrives. The map must stay exactly where the person left it,
+  // and only the locate button brings it back.
+  await page.evaluate(() => { map.setView([45.8200, 15.9900], 14, { animate: false }); });
+  await page.waitForTimeout(300);
+  await ctx.setGeolocation({ latitude: 45.8049, longitude: 15.9801, accuracy: 5 });
+  await page.evaluate(() => { FIXES = []; autoLocate(true); });
+  await page.waitForTimeout(2500);
+  const away = await page.evaluate(() => ({ lat: map.getCenter().lat, lng: map.getCenter().lng, z: map.getZoom(), me: ME }));
+  check(speed + ": the dot moved with the phone", Math.abs(away.me.lat - 45.8049) < 0.0005);
+  check(speed + ": the map did not follow it, or change zoom", Math.abs(away.lat - 45.82) < 1e-6 && away.z === 14);
+  await page.click("#btnLocate");
+  await page.waitForTimeout(2500);
+  const back = await page.evaluate(() => ({ lat: map.getCenter().lat, z: map.getZoom() }));
+  check(speed + ": the locate button brings the map to the dot", Math.abs(back.lat - 45.8049) < 0.002 && back.z >= 17);
   if (errors.length) console.log("errors: " + errors.join(" | "));
   await b.close();
   process.exit(0);

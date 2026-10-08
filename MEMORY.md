@@ -57,6 +57,21 @@ nothing lit says so. The old update.sh parsed no arguments at all, so `--check`
 and a file path had never worked; it parses them now. The F-key digits are gone
 from the bottom row because 0 and 1 to 4 now mean something else.
 
+**THE MAP DOES NOT FOLLOW THE DOT (later on 8.10.2026).** Marko: the map
+zoomed and jumped by itself; it should move to him only when he presses the
+locate button, so the app can also be used to watch his position on the map
+regardless of the timetable. `applyFix` used to call `setView(ME, max(17, zoom))`
+on the first fix and again whenever the dot was outside the view, and every
+focus, pageshow and 90 second timer starts a new burst, so a zoomed-out map was
+pulled back in. Now only `WANT_CENTRE` (set by the button) or the very first run
+with no saved view moves the map; the dot is redrawn by every fix and nothing
+else. test6 pans away, moves the phone, and asserts the centre and zoom are
+untouched until the button is pressed. **The real GTFS could not be fetched
+here:** zet.hr is denied by this environment's network policy (403 on CONNECT),
+so every server and page test still runs on a four stop feed built by
+`tests/fixtures/mkgtfs.py`. Allow `zet.hr` and `www.zet.hr` under the
+environment's Allowed domains to test against the real feed.
+
 **WHAT WENT WRONG ON THE WAY.** `pkill -f` and `pgrep -f` with the server's
 name matched the very shell running them (twice), and the shell died with exit
 144 and no output. A test server started inside `( ... ) &` leaves the python

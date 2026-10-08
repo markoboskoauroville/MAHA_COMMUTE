@@ -5,11 +5,11 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-08 13:13 UTC
+# built            2026-10-08 13:17 UTC
 # payloads, as carried, key stripped:
 #   day    v17    190668 bytes  sha256 a26d0fc5eacdbcee
 #   night  v13    148860 bytes  sha256 f7f62b158e4ef4ea
-#   all    v44    216696 bytes  sha256 e3e553d68c66db49
+#   all    v44    217125 bytes  sha256 4d3936c18b38cf44
 #
 # The Google Maps key that was inside two of these payloads has
 # been taken out and replaced with a placeholder. The installer
@@ -10972,6 +10972,10 @@ let gmap = null, HtmlMarker = null;              // detailed engine
 let gPins = [], gMe = null, gRing = null;
 let ME = null, meMk = null, meRing = null;
 let CENTRED = false;          // true once the map has really been moved to you
+// The map moves to you ONLY when you press the locate button (WANT_CENTRE), or
+// once on the very first run, before there is any view of yours to keep. The
+// dot moves by itself; the map never follows it and never changes zoom.
+let WANT_CENTRE = false, HAD_VIEW = !!LS.get("view", null);
 let STOPSEQ = 0;              // the newest stations request; an older answer is dropped
 
 let STOPS = [];                       // the stations around you, nearest first
@@ -11380,7 +11384,7 @@ function applyFix(quiet){
   if (!map && !gmap) return;
   drawMe();
   updateAccBox(); paintChip();
-  if (!CENTRED || !inView(ME.lat, ME.lng)) { setView(ME, Math.max(17, curZoom())); CENTRED = true; }
+  if (WANT_CENTRE || (!CENTRED && !HAD_VIEW)) { setView(ME, Math.max(17, curZoom())); CENTRED = true; WANT_CENTRE = false; }
   const need = lastStopFetch
     ? metres(lastStopFetch.lat, lastStopFetch.lng, ME.lat, ME.lng) : 1e9;
   if (need > 35 || !STOPS.length) loadStops();
@@ -12136,7 +12140,8 @@ document.getElementById("btnLocate").addEventListener("click", () => {
     return;
   }
   b.classList.add("busy");
-  if (ME) setView(ME, Math.max(17, curZoom()));
+  WANT_CENTRE = true;          // the button, and only the button, brings the map to you
+  if (ME) { setView(ME, Math.max(17, curZoom())); WANT_CENTRE = false; }
   sharpen();
   setTimeout(() => b.classList.remove("busy"), 30000);
 });
@@ -15205,4 +15210,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v21 9d24d20c427f63b7
+# MAHA_COMMUTE_SENTINEL v21 5a21341f39b4b294

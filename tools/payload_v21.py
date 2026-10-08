@@ -202,6 +202,10 @@ ALL_FIXES = [
     ('let ME = null, meMk = null, meRing = null;',
      'let ME = null, meMk = null, meRing = null;\n'
      'let CENTRED = false;          // true once the map has really been moved to you\n'
+     '// The map moves to you ONLY when you press the locate button (WANT_CENTRE), or\n'
+     '// once on the very first run, before there is any view of yours to keep. The\n'
+     '// dot moves by itself; the map never follows it and never changes zoom.\n'
+     'let WANT_CENTRE = false, HAD_VIEW = !!LS.get("view", null);\n'
      'let STOPSEQ = 0;              // the newest stations request; an older answer is dropped\n'),
     ('  const first = !ME;\n'
      '  const moved = ME ? metres(ME.lat, ME.lng, f.lat, f.lng) : 1e9;\n'
@@ -216,10 +220,12 @@ ALL_FIXES = [
      '  if (!map && !gmap) return;\n'
      '  drawMe();\n'
      '  updateAccBox(); paintChip();\n'
-     '  if (!CENTRED || !inView(ME.lat, ME.lng)) { setView(ME, Math.max(17, curZoom())); CENTRED = true; }\n'),
+     '  if (WANT_CENTRE || (!CENTRED && !HAD_VIEW)) { setView(ME, Math.max(17, curZoom())); CENTRED = true; WANT_CENTRE = false; }\n'),
     ('  initFreeMap();\n  applyLayers();\n',
      '  initFreeMap();\n  applyLayers();\n'
      '  if (FIXES.length) applyFix(true);     // a fix that beat the map here\n'),
+    ('  b.classList.add("busy");\n  if (ME) setView(ME, Math.max(17, curZoom()));\n',
+     '  b.classList.add("busy");\n  WANT_CENTRE = true;          // the button, and only the button, brings the map to you\n  if (ME) { setView(ME, Math.max(17, curZoom())); WANT_CENTRE = false; }\n'),
     # a slow answer must not overwrite a newer one
     ('  lastStopFetch = at;\n  hud("Reading the stations around you…", true);\n',
      '  lastStopFetch = at;\n  const seq = ++STOPSEQ;\n  hud("Reading the stations around you…", true);\n'),
