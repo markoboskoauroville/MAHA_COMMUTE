@@ -125,6 +125,19 @@ none of its rules were read this session. Day and night still rebuild their
 own station lists daily; only all.commute has the permanent file. Nothing has
 been seen on a phone.
 
+## V23: THE WATCH BAR SHOWS THE NEXT THREE (9.10.2026)
+
+Marko: with the dashboard collapsed, the bar at the bottom of the map showed the one
+next departure of the watched station; he wants the next three trams or buses.
+`updateWatchBar()` now takes `comingAt(id).slice(0, 3)`; the bar is two rows (star,
+name and the stop-watching X on top; the three rides, each with its line, its
+minutes and the wifi mark when live, under them), by `flex-wrap` and `order:3` on
+`.weta`. Fewer than three coming shows fewer, none shows a dash, a ride that has
+left is never counted. all.commute v46, umbrella v23, day and night untouched. The
+taller bar is already allowed for by `layoutPins`, which measures the bar's real
+top; test6 checks it (feeds `BOARDS` directly so it does not depend on the hour).
+Not seen on a phone.
+
 ## V22: THE ANSWERS TO THE FIRST FIELD TEST (8.10.2026)
 
 The first report from the LOCAL tester (`field-tests/2026-10-08_v21/REPORT.md`,

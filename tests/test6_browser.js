@@ -118,6 +118,40 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   await page.waitForTimeout(4000);
   const far = await page.evaluate(() => ({ lat: map.getCenter().lat }));
   check(speed + ": the locate button follows up on the new fix (3 km away)", Math.abs(far.lat - 45.83) < 0.002);
+  // v23: the watch bar shows the next THREE departures, not one. Fed directly with a
+  // board, so the check does not depend on what the fixture timetable has at this hour.
+  const wb = await page.evaluate(() => {
+    const feed = (deps) => {
+      WATCH = { stop_id: "100", name: "Glavni kolodvor", lat: 45.805, lon: 15.98 };
+      document.body.classList.add("watching");
+      BOARDS["100"] = { ok: true, departures: deps };
+      updateWatchBar();
+      const el = document.getElementById("wbEta"), bar = document.getElementById("watchbar");
+      return { n: el.querySelectorAll(".rt").length, lines: [...el.querySelectorAll(".rt")].map(e => e.textContent),
+               text: el.textContent, fits: bar.scrollWidth <= bar.clientWidth + 1,
+               inside: bar.getBoundingClientRect().right <= innerWidth && bar.getBoundingClientRect().left >= 0,
+               h: bar.getBoundingClientRect().height };
+    };
+    const d = (route, mins, live) => ({ route, mins, live: !!live, passed: false });
+    return { four: feed([d("6", 2, true), d("4", 5), d("13", 9), d("2", 14)]),
+             two: feed([d("6", 2), d("4", 5)]),
+             none: feed([]),
+             gone: feed([{ route: "9", mins: -3, passed: true }, d("6", 4), d("4", 8), d("13", 12), d("2", 20)]) };
+  });
+  check(speed + ": the watch bar shows three rides when four are coming", wb.four.n === 3 && wb.four.lines.join() === "6,4,13");
+  check(speed + ": the three fit inside the bar and the screen", wb.four.fits && wb.four.inside);
+  check(speed + ": it shows what there is when fewer than three are coming", wb.two.n === 2);
+  check(speed + ": it shows a dash when nothing is coming", wb.none.n === 0 && wb.none.text.trim() === "—");
+  check(speed + ": a ride that has left is not counted among the next three", wb.gone.lines.join() === "6,4,13");
+  // the labels must still stay clear of the taller bar
+  await page.evaluate(() => { map.setView([45.8035, 15.9800], 17, { animate: false }); });
+  await page.waitForTimeout(500);
+  const hiddenBar = await page.evaluate(() => {
+    const r = document.getElementById("watchbar").getBoundingClientRect();
+    return [...document.querySelectorAll(".pin .pinid span")].filter(e => {
+      const l = e.getBoundingClientRect(); return l.left < r.right && r.left < l.right && l.top < r.bottom && r.top < l.bottom; }).length;
+  });
+  check(speed + ": no label sits under the taller watch bar", hiddenBar === 0);
   if (errors.length) console.log("errors: " + errors.join(" | "));
   await b.close();
   process.exit(0);
