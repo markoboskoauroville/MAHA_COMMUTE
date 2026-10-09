@@ -75,7 +75,7 @@ roof, whole and unchanged:
 |---|---|---|---|
 | `day.commute` | the daytime ride, corridors that pick themselves | v18 | 8082 |
 | `night.commute` | the four night trams, and where they are now | v14 | 8087 |
-| `all.commute` | every station around you, in colour | v46 | 8084 |
+| `all.commute` | every station around you, in colour | v47 | 8084 |
 
 ## Installing
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 23-maha_commute_v23.sh
+bash 24-maha_commute_v24.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)

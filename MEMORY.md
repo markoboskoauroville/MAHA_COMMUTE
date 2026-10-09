@@ -125,6 +125,36 @@ none of its rules were read this session. Day and night still rebuild their
 own station lists daily; only all.commute has the permanent file. Nothing has
 been seen on a phone.
 
+## V24: THE STATIONS ARE THE PAGE'S OWN DATA (9.10.2026)
+
+Marko: make the station cache permanent, always compare it with the recent feeds,
+cache what comes in, and have the layout of the stations on BOTH maps before the map
+has loaded, because it is local, not streamed.
+
+Already true on disk: `stations.json` is merged into and never trimmed, and a copy
+ships in the installer. What was not: the PAGE still asked the server for the nearby
+ones every time, so a slow or stopped server meant no labels. Now the page keeps its
+own copy (`localStorage` key `ac2_stations`, about 130 KB), and boot is: init the
+map, load the copy, `loadStops()` from it (`localStops()`, the same radius and
+widening rules as the server's `/stops`), and only then ask for the key and the
+status. Both engines draw through the same `drawStars`. The server publishes the list
+at `/stations.json` (ETag, 304) with `stations_rev`, a hash of the LIST (not of the
+file, whose `updated` changes every day), in `/status`; `watchIndex` fetches it again
+only when the revision differs. The first visit on a browser has no copy and falls
+back to `/stops` as before.
+
+The comparison: every rebuild compares the feed with the cache before merging and
+stores `changes` in `stations.json` (feed platforms, new, moved 5 m or more, renamed,
+and how many cached ones the feed no longer lists, which are kept). It is in the log,
+in `/status` as `stations_changes`, and in Settings as "Last feed". all v47, umbrella
+v24. test6 loads the page a second time with the server refusing everything but the
+page and expects the labels; test7 feeds three variants of the feed (same, one new
+one moved one renamed, one dropped) and checks the counts and that a dropped station
+stays. `tests/fixtures/mkgtfs.py` takes the variant as a third argument.
+
+Not done: day.commute and night.commute still read their own station lists; the
+Google engine path was written to the same code but not exercised (no key here).
+
 ## V23: THE WATCH BAR SHOWS THE NEXT THREE (9.10.2026)
 
 Marko: with the dashboard collapsed, the bar at the bottom of the map showed the one

@@ -149,6 +149,26 @@ for app in day night; do
   case "$app" in day) pf=13-install-day-commute-termux-v13.sh ;; night) pf=9-night_commute_v9.sh ;; esac
   python3 tools/patch_payload.py "src/payloads/$pf" $app | grep -qF 'def _cross_site(self):' && ok || bad "F6: $app refuses cross-site requests"
 done
+# ---- v24: the stations are published with a revision, and compared with the feed ----
+eq "v24: /stations.json is served"            "200" "$(code GET /stations.json)"
+REV=$(curl -s "http://127.0.0.1:$PORT/status" | python3 -c "import json,sys;print(json.load(sys.stdin).get('stations_rev'))")
+[ -n "$REV" ] && [ "$REV" != "None" ] && ok || bad "v24: /status carries stations_rev"
+eq "v24: an unchanged list answers 304"        "304" "$(code GET /stations.json -H "If-None-Match: \"$REV\"")"
+eq "v24: the list holds the four platforms"    "4" "$(curl -s "http://127.0.0.1:$PORT/stations.json" | python3 -c "import json,sys;print(len(json.load(sys.stdin)['stops']))")"
+cmp_run() { # cmp_run VARIANT  -> prints the changes line of the updater
+  python3 tests/fixtures/mkgtfs.py "$SD/zet_gtfs.zip" 1 "$1"
+  ALLC_FORCE=1 ALLC_DIR="$SD" python3 "$SD/update_all.py" 2>&1 | grep "compared with the feed"
+}
+cmp1=$(cmp_run v1)
+case "$cmp1" in *"0 new, 0 moved, 0 renamed"*) ok ;; *) bad "v24: the same feed again changes nothing ($cmp1)" ;; esac
+cmp2=$(cmp_run v2)
+case "$cmp2" in *"1 new, 1 moved, 1 renamed"*) ok ;; *) bad "v24: a new, a moved and a renamed station are found ($cmp2)" ;; esac
+eq "v24: and the rename and the move are kept" "Branimirova ulica 45.80545" "$(python3 -c "
+import json;d=json.load(open('$SD/stations.json'))['stops'];print(d['101'][0], d['100'][1])")"
+cmp3=$(cmp_run v3)
+case "$cmp3" in *"kept that the feed no longer lists"*) ok ;; *) bad "v24: stations the feed dropped are counted ($cmp3)" ;; esac
+eq "v24: a station the feed dropped is still cached" "yes" "$(python3 -c "
+import json;d=json.load(open('$SD/stations.json'));print('yes' if '200' in d['stops'] and d['changes']['not_in_feed']>=1 else 'no')")"
 kill $SRV 2>/dev/null; SRV=""
 
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"

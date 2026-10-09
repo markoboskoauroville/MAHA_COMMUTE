@@ -152,6 +152,26 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
       const l = e.getBoundingClientRect(); return l.left < r.right && r.left < l.right && l.top < r.bottom && r.top < l.bottom; }).length;
   });
   check(speed + ": no label sits under the taller watch bar", hiddenBar === 0);
+  // v24: the page's own copy. A SECOND visit with every request to the server refused
+  // (only the page itself is let through) must still draw the stations, because they
+  // are drawn from the browser's copy before anything is asked.
+  const cached = await page.evaluate(() => { try { return Object.keys(JSON.parse(localStorage.getItem("ac2_stations")).stops).length; } catch (e) { return 0; } });
+  check(speed + ": the page keeps its own copy of the stations (" + cached + ")", cached >= 4);
+  const p2 = await ctx.newPage();
+  const seen = [];
+  await p2.route("**/*", route => {
+    const u = route.request().url();
+    if (u.includes("leaflet@1.9.4/dist/leaflet.css")) return route.fulfill({ path: leaflet + "/leaflet.css", contentType: "text/css" });
+    if (u.includes("leaflet@1.9.4/dist/leaflet.js")) return route.fulfill({ path: leaflet + "/leaflet.js", contentType: "application/javascript" });
+    if (u.endsWith("/all.html") || u.includes("/all.html?")) return route.continue();
+    seen.push(u.replace(base, "")); return route.abort();           // the server answers nothing else
+  });
+  await p2.goto(base + "/all.html");
+  await p2.waitForTimeout(1500);
+  const offline = await p2.evaluate(() => ({ labels: document.querySelectorAll(".pin .pinid span").length,
+                                             stops: typeof STOPS !== "undefined" ? STOPS.length : -1 }));
+  check(speed + ": with the server refusing everything, the stations still draw (" + offline.labels + " labels)", offline.labels >= 3);
+  await p2.close();
   if (errors.length) console.log("errors: " + errors.join(" | "));
   await b.close();
   process.exit(0);
