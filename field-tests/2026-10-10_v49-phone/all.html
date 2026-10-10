@@ -35,6 +35,35 @@
   /* v50: the long press menu on the locate button. It exists because locking
      the map to you is a mode, and a mode that a single tap can turn on is a
      mode you turn on by accident. */
+  #recMenu{position:absolute;top:calc(60px + env(safe-area-inset-top));right:12px;z-index:700;
+    display:none;flex-direction:column;min-width:244px;padding:6px;border-radius:14px;
+    background:rgba(13,17,23,.96);border:1px solid var(--border);
+    box-shadow:0 10px 30px rgba(0,0,0,.6);}
+  #recMenu.show{display:flex;}
+  /* The picker is a list this app draws, not an <input type=file>. On Android
+     that input opens Chrome's chooser, which asks for the camera, swallows the
+     first tap and offers no Files entry at all -- and these files live in a
+     folder we can already read. See the manifest's file-picker module. */
+  #trackPick{position:absolute;left:12px;right:12px;top:calc(60px + env(safe-area-inset-top));
+    bottom:70px;z-index:720;display:none;flex-direction:column;border-radius:16px;
+    background:rgba(13,17,23,.975);border:1px solid var(--border);
+    box-shadow:0 14px 40px rgba(0,0,0,.65);overflow:hidden;}
+  #trackPick.show{display:flex;}
+  .tphead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;
+    border-bottom:1px solid var(--border);}
+  .tphead b{font-size:.98rem;}
+  .tpbody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px;}
+  .tpfoot{padding:8px 14px;border-top:1px solid var(--border);color:var(--muted);
+    font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tpr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;width:100%;
+    background:none;border:0;color:var(--text);text-align:left;padding:11px 10px;
+    border-radius:10px;cursor:pointer;font:inherit;}
+  .tpr:active{background:rgba(255,255,255,.07);}
+  .tpr b{font-size:.9rem;font-weight:620;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .tpr i{grid-column:1;font-style:normal;font-size:.75rem;color:var(--muted);}
+  .tpr .tpd{grid-row:1 / span 2;align-self:center;font-size:.8rem;color:var(--cyan);white-space:nowrap;}
+  .tpr.foreign b::after{content:" \00b7 Mantra Trail";color:var(--muted);font-weight:400;font-size:.74rem;}
+  .tpempty{padding:18px 12px;color:var(--muted);font-size:.84rem;}
   #lockMenu{position:absolute;top:calc(60px + env(safe-area-inset-top));right:12px;z-index:700;
     display:none;flex-direction:column;min-width:232px;padding:6px;border-radius:14px;
     background:rgba(13,17,23,.96);border:1px solid var(--border);
@@ -400,6 +429,21 @@
            fill="currentColor"/></svg></button>
     <button class="tool" id="btnLabels" title="Street names">A</button>
     <button class="tool" id="btnSetup" title="Settings">⚙</button>
+  </div>
+
+  <div id="recMenu">
+    <button class="lmi" id="rmSave"><span class="lmtick">↓</span><b>Save this track</b>
+      <i>a .gpx file in Documents / All Commute / Tracks</i></button>
+    <button class="lmi" id="rmCancel"><span class="lmtick">×</span><b>Cancel recording</b>
+      <i>stop and throw away what is drawn</i></button>
+    <button class="lmi" id="rmOpen"><span class="lmtick">↑</span><b>Open a saved track</b>
+      <i>yours and Mantra Trail's</i></button>
+  </div>
+
+  <div id="trackPick">
+    <div class="tphead"><b>Saved tracks</b><button class="close" id="tpClose">✕</button></div>
+    <div class="tpbody" id="tpBody"></div>
+    <div class="tpfoot" id="tpFoot">·</div>
   </div>
 
   <div id="lockMenu">
@@ -1936,14 +1980,126 @@ function setLock(on){
 /* v49: tap records, a long press throws the line away. The clear is behind a
    hold because a recorded journey is the one thing on this map that cannot be
    fetched again, and a stray thumb on a cradle should not be able to lose it. */
+/* v51: a track that has been opened from a file is drawn beside the one being
+   recorded, never over it. Losing a recording by opening something to look at
+   it would be the same class of mistake as the dropout. */
+let OPENED = null, openedLine = null, gOpenedLine = null;
+function drawOpened(){
+  const pts = (OPENED && OPENED.points) ? OPENED.points : [];
+  if (usingGoogle()) {
+    if (gOpenedLine) { gOpenedLine.setMap(null); gOpenedLine = null; }
+    if (pts.length > 1 && typeof google !== "undefined" && gmap) {
+      gOpenedLine = new google.maps.Polyline({
+        path: pts.map(p => ({ lat: p.lat, lng: p.lng })),
+        strokeColor: "#ffb020", strokeOpacity: .95, strokeWeight: 4 });
+      gOpenedLine.setMap(gmap);
+    }
+    return;
+  }
+  if (!map || typeof L === "undefined") return;
+  if (openedLine) { try { map.removeLayer(openedLine); } catch (e) {} openedLine = null; }
+  if (pts.length > 1) {
+    openedLine = L.polyline(pts.map(p => [p.lat, p.lng]),
+      { color: "#ffb020", weight: 4, opacity: .95, dashArray: "1 7",
+        lineJoin: "round", lineCap: "round" }).addTo(map);
+  }
+}
+function closeRecMenu(){ const m = document.getElementById("recMenu"); if (m) m.classList.remove("show"); }
+function closePicker(){ const m = document.getElementById("trackPick"); if (m) m.classList.remove("show"); }
+
+function fmtM(m){ return m >= 1000 ? (m / 1000).toFixed(2) + " km" : Math.round(m) + " m"; }
+function fmtWhen(sec){
+  if (!sec) return "";
+  const d = new Date(sec * 1000), n = new Date();
+  const same = d.toDateString() === n.toDateString();
+  const hh = String(d.getHours()).padStart(2, "0"), mm = String(d.getMinutes()).padStart(2, "0");
+  return same ? ("today " + hh + ":" + mm)
+              : (d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
+                 String(d.getDate()).padStart(2, "0") + " " + hh + ":" + mm);
+}
+
+async function saveTrack(){
+  if (TRACE.length < 2) { hud("Nothing recorded yet."); return; }
+  const suggested = "";          // the server builds the default: date, time, the two stations
+  const name = prompt("Name for this track\n\nLeave it empty and it is named by date, time and the stations at each end.", suggested);
+  if (name === null) return;     // cancelled, and nothing is thrown away
+  hud("Saving…", true);
+  try {
+    const r = await fetch("track/save", { method: "POST", cache: "no-store",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: name, points: TRACE }) }).then(x => x.json());
+    if (!r.ok) { hud("Not saved: " + esc(r.reason || "unknown")); return; }
+    hud("Saved <b>" + esc(r.file) + "</b> \u00b7 " + fmtM(r.metres) + ". Rename it in your file browser if you like.");
+  } catch (e) { hud("Not saved: the app did not answer."); }
+}
+function cancelRecording(){
+  if (!RECORDING && TRACE.length < 2) { hud("Nothing to cancel."); return; }
+  if (TRACE.length > 1 && !confirm("Throw away the recording? It has not been saved."))
+    return;
+  setRecording(false);
+  clearTrace();
+}
+async function openPicker(){
+  const panel = document.getElementById("trackPick");
+  const body = document.getElementById("tpBody");
+  const foot = document.getElementById("tpFoot");
+  panel.classList.add("show");
+  body.innerHTML = '<div class="tpempty">Reading the folder\u2026</div>';
+  let r;
+  try {
+    r = await fetch("tracks", { cache: "no-store" }).then(x => x.json());
+  } catch (e) {
+    body.innerHTML = '<div class="tpempty">The app did not answer.</div>'; return;
+  }
+  foot.textContent = (r.dirs || [r.dir]).join("  \u00b7  ");
+  const ts = r.tracks || [];
+  if (!ts.length) {
+    body.innerHTML = '<div class="tpempty">No tracks yet. Record one and save it, ' +
+      'or drop a .gpx into that folder.</div>';
+    return;
+  }
+  body.innerHTML = "";
+  ts.forEach(t => {
+    const b = document.createElement("button");
+    b.className = "tpr" + (t.ours ? "" : " foreign");
+    b.innerHTML = '<b>' + esc(t.name) + '</b>' +
+      '<i>' + esc(fmtWhen(t.modified)) + " \u00b7 " + t.points + ' points</i>' +
+      '<span class="tpd">' + esc(fmtM(t.metres)) + '</span>';
+    b.addEventListener("click", () => loadTrack(t.file));
+    body.appendChild(b);
+  });
+}
+async function loadTrack(file){
+  closePicker();
+  hud("Opening\u2026", true);
+  try {
+    const r = await fetch("track?f=" + encodeURIComponent(file), { cache: "no-store" })
+      .then(x => x.json());
+    if (!r.ok) { hud("Could not open it: " + esc(r.reason || "unknown")); return; }
+    OPENED = r;
+    drawOpened();
+    /* Opening a track is the user asking to see it, so the map goes to it --
+       at the zoom they already chose, never a zoom of ours. */
+    if (r.points && r.points.length) setView({ lat: r.points[0].lat, lng: r.points[0].lng }, curZoom());
+    hud("<b>" + esc(r.name) + "</b> \u00b7 " + fmtM(r.metres) + " \u00b7 " +
+        r.points.length + " points. Long press \u25cf to close it.");
+  } catch (e) { hud("Could not open it: the app did not answer."); }
+}
+function closeOpened(){
+  OPENED = null; drawOpened(); hud("Closed the opened track.");
+}
+
 (function(){
   const b = document.getElementById("btnRec");
-  if (!b) return;
+  const m = document.getElementById("recMenu");
+  if (!b || !m) return;
   let held = false, t = null;
   const start = () => { held = false; t = setTimeout(() => {
     held = true;
-    if (TRACE.length > 1 && confirm("Clear the recorded trace?")) clearTrace();
-    else if (TRACE.length <= 1) hud("Nothing recorded yet.");
+    const o = document.getElementById("rmOpen");
+    o.querySelector("b").textContent = OPENED ? "Close the opened track" : "Open a saved track";
+    o.querySelector("i").textContent = OPENED ? OPENED.name : "yours and Mantra Trail's";
+    m.classList.add("show");
   }, 650); };
   const end = () => { if (t) { clearTimeout(t); t = null; } };
   b.addEventListener("touchstart", start, { passive: true });
@@ -1952,7 +2108,22 @@ function setLock(on){
   b.addEventListener("mousedown", start);
   b.addEventListener("mouseup", end);
   b.addEventListener("mouseleave", end);
-  b.addEventListener("click", () => { if (held) { held = false; return; } setRecording(!RECORDING); });
+  b.addEventListener("click", (e) => {
+    if (held) { held = false; e.stopPropagation(); e.preventDefault(); return; }
+    setRecording(!RECORDING);
+  });
+  document.getElementById("rmSave").addEventListener("click", () => { closeRecMenu(); saveTrack(); });
+  document.getElementById("rmCancel").addEventListener("click", () => { closeRecMenu(); cancelRecording(); });
+  document.getElementById("rmOpen").addEventListener("click", () => {
+    closeRecMenu();
+    if (OPENED) closeOpened(); else openPicker();
+  });
+  document.getElementById("tpClose").addEventListener("click", closePicker);
+  document.addEventListener("click", (e) => {
+    if (!m.classList.contains("show")) return;
+    if (m.contains(e.target) || b.contains(e.target)) return;
+    closeRecMenu();
+  }, true);
 })();
 document.getElementById("btnSetup").addEventListener("click", () => {
   document.getElementById("setup").classList.add("show");

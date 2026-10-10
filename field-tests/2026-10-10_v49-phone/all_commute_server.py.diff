@@ -1,0 +1,330 @@
+--- /tmp/claude-0/-storage-emulated-0-Download/e531429a-5478-4791-bfc4-0694822fc9f5/scratchpad/server.before_tracks	2026-10-10 06:41:55.911040831 +0000
++++ field-tests/2026-10-10_v49-phone/all_commute_server.py	2026-10-10 06:53:11.811040871 +0000
+@@ -22,6 +22,7 @@
+ import math
+ import sqlite3
+ import datetime
++import calendar
+ import subprocess
+ import threading
+ import socket
+@@ -1689,6 +1690,280 @@
+                                "outside Java can read it, so we do not pretend to."}
+ 
+ 
++# ---------------------------------------------------------------------------
++# TRACKS  (v51)
++# A recorded journey is written as GPX, into Documents, where a file browser
++# can see it and rename it. GPX rather than our own JSON because the point of
++# putting it in Documents is that it is not ours alone: it opens in any map
++# app, and renaming it in a file browser is then a rename that means something.
++# The page never touches the filesystem -- it cannot -- so every one of these
++# is a round trip to here.
++# ---------------------------------------------------------------------------
++TRACK_DIR = os.environ.get(
++    "ALLC_TRACKS", "/storage/emulated/0/Documents/All Commute/Tracks")
++# Read as well as write. Documents/Track_Records is where Mantra Trail has been
++# putting its GPX since September, and those journeys are as much a track as
++# ours: the picker lists them, and opening one draws it on this map. Only the
++# first directory is written to.
++TRACK_DIRS = [TRACK_DIR, "/storage/emulated/0/Documents/Track_Records"]
++
++
++def _track_dir():
++    try:
++        os.makedirs(TRACK_DIR, exist_ok=True)
++    except Exception:
++        pass
++    return TRACK_DIR
++
++
++def _safe_track_name(name):
++    """A file name the user typed, reduced to one that cannot leave the folder."""
++    name = (name or "").strip()
++    # Not basename(): a name the user typed with a slash in it is a name, not a
++    # path, and basename threw away everything before it -- "test drive / probe"
++    # was saved as "probe". Separators become a dash, so the whole name lives.
++    for sep in ("/", "\\"):
++        name = name.replace(sep, "-")
++    if name.lower().endswith(".gpx"):
++        name = name[:-4]
++    out = []
++    for ch in name:
++        out.append(ch if (ch.isalnum() or ch in " -_.,()") else "-")
++    name = "".join(out).strip(" .-")
++    return (name or time.strftime("%Y-%m-%d %H-%M Track"))[:80]
++
++
++def _iso(ms):
++    try:
++        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(float(ms) / 1000.0))
++    except Exception:
++        return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
++
++
++def _xml_escape(t):
++    return (str(t).replace("&", "&amp;").replace("<", "&lt;")
++            .replace(">", "&gt;").replace('"', "&quot;"))
++
++
++def _nearest_station(lat, lon, within_m=400.0):
++    """The station you were next to, or None. 'Close by' has to mean close:
++    past four hundred metres the nearest station is not where you were, it is
++    just the least far away, and a name built from it would mislead."""
++    best, bd = None, within_m
++    for r in station_rows():
++        try:
++            d = _metres(lat, lon, r["lat"], r["lon"])
++        except Exception:
++            continue
++        if d < bd:
++            best, bd = r, d
++    return best["stop_id"] if best else None
++
++
++def _default_track_name(pts):
++    """Date, time, then where it started and where it ended.
++
++    Marko's rule: the date and time first, because that is what sorts a folder
++    into an order you can read, then the two station numbers, and if there is
++    no station near either end that part is simply left out rather than filled
++    with a placeholder.
++    """
++    try:
++        t0 = float(pts[0][2]) / 1000.0
++    except Exception:
++        t0 = time.time()
++    stamp = time.strftime("%Y-%m-%d %H-%M", time.localtime(t0))
++    a = _nearest_station(pts[0][0], pts[0][1])
++    b = _nearest_station(pts[-1][0], pts[-1][1]) if len(pts) > 1 else None
++    if a and b and a != b:
++        return "%s %s %s" % (stamp, a, b)
++    if a or b:
++        return "%s %s" % (stamp, a or b)
++    return "%s Track" % stamp
++
++
++def track_save(name, points):
++    pts = []
++    for p in (points or []):
++        try:
++            la, lo = float(p.get("lat")), float(p.get("lng"))
++        except Exception:
++            continue
++        if not (-90 <= la <= 90 and -180 <= lo <= 180):
++            continue
++        try:
++            ele = float(p.get("ele")) if p.get("ele") is not None else None
++        except Exception:
++            ele = None
++        pts.append((la, lo, p.get("t"), ele))
++    if not pts:
++        return {"ok": False, "reason": "nothing recorded"}
++    base = _safe_track_name(name) if (name or "").strip() else _safe_track_name(_default_track_name(pts))
++    d = _track_dir()
++    fn = base + ".gpx"
++    n = 2
++    while os.path.exists(os.path.join(d, fn)):
++        fn = "%s (%d).gpx" % (base, n)
++        n += 1
++        if n > 999:
++            return {"ok": False, "reason": "too many files of that name"}
++    # Mantra Trail's dialect, element for element, so that every map app on
++    # this phone reads our files and we read theirs.
++    t0 = _iso(pts[0][2] or time.time() * 1000)
++    body = ['<?xml version="1.0" encoding="UTF-8"?>',
++            '<gpx version="1.1" creator="all.commute"',
++            '     xmlns="http://www.topografix.com/GPX/1/1"',
++            '     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
++            '     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 '
++            'http://www.topografix.com/GPX/1/1/gpx.xsd">',
++            "  <metadata>",
++            "    <name>%s</name>" % _xml_escape(base),
++            "    <time>%s</time>" % t0,
++            "  </metadata>",
++            "  <trk>",
++            "    <name>%s</name>" % _xml_escape(base),
++            "    <trkseg>"]
++    for la, lo, t, ele in pts:
++        body.append('      <trkpt lat="%.6f" lon="%.6f">' % (la, lo))
++        if ele is not None:
++            body.append("        <ele>%.1f</ele>" % ele)
++        if t:
++            body.append("        <time>%s</time>" % _iso(t))
++        body.append("      </trkpt>")
++    # <sat> and <hdop> are Mantra Trail's and stay its own: this app cannot
++    # read a satellite count, and turning the browser's accuracy in metres into
++    # a dimensionless hdop would be inventing a number.
++    body.append("    </trkseg>")
++    body.append("  </trk>")
++    body.append("</gpx>")
++    path = os.path.join(d, fn)
++    tmp = path + ".part"
++    try:
++        with open(tmp, "w", encoding="utf-8") as f:
++            f.write("\n".join(body) + "\n")
++        os.replace(tmp, path)
++    except Exception as e:
++        try:
++            os.remove(tmp)
++        except Exception:
++            pass
++        return {"ok": False, "reason": repr(e)}
++    return {"ok": True, "file": fn, "points": len(pts),
++            "metres": int(round(_track_metres(pts))), "dir": d}
++
++
++def _track_metres(pts):
++    d = 0.0
++    for i in range(1, len(pts)):
++        d += _metres(pts[i-1][0], pts[i-1][1], pts[i][0], pts[i][1])
++    return d
++
++
++def _read_gpx(path):
++    """Every trkpt in the file, in order. Namespace-agnostic: GPX in the wild
++    is written by everything and half of it disagrees about the namespace."""
++    import xml.etree.ElementTree as ET
++    pts = []
++    try:
++        root = ET.parse(path).getroot()
++    except Exception:
++        return pts
++    for el in root.iter():
++        tag = el.tag.rsplit("}", 1)[-1]
++        if tag != "trkpt" and tag != "wpt":
++            continue
++        try:
++            la = float(el.get("lat")); lo = float(el.get("lon"))
++        except Exception:
++            continue
++        t, ele = None, None
++        for ch in el:
++            tg = ch.tag.rsplit("}", 1)[-1]
++            if tg == "time" and ch.text:
++                try:
++                    t = int(calendar.timegm(time.strptime(
++                        ch.text.strip()[:19], "%Y-%m-%dT%H:%M:%S")) * 1000)
++                except Exception:
++                    t = None
++            elif tg == "ele" and ch.text:
++                try:
++                    ele = float(ch.text.strip())
++                except Exception:
++                    ele = None
++        pts.append((la, lo, t, ele))
++    return pts
++
++
++def _find_track(fn):
++    """A file name, resolved across the folders we read. Nothing outside them."""
++    name = os.path.basename(fn or "")
++    if not name.lower().endswith(".gpx"):
++        return None, None
++    for d in TRACK_DIRS:
++        path = os.path.join(d, name)
++        if os.path.isfile(path):
++            return path, d
++    return None, None
++
++
++def track_list():
++    _track_dir()
++    out = []
++    seen = set()
++    for d in TRACK_DIRS:
++        try:
++            names = sorted(os.listdir(d))
++        except Exception:
++            continue
++        for fn in names:
++            if not fn.lower().endswith(".gpx") or fn in seen:
++                continue
++            path = os.path.join(d, fn)
++            try:
++                st = os.stat(path)
++            except Exception:
++                continue
++            seen.add(fn)
++            pts = _read_gpx(path)
++            out.append({"file": fn, "name": fn[:-4], "bytes": st.st_size,
++                        "modified": int(st.st_mtime), "points": len(pts),
++                        "metres": int(round(_track_metres(pts))) if pts else 0,
++                        "folder": os.path.basename(d.rstrip("/")),
++                        "ours": d == TRACK_DIR})
++    out.sort(key=lambda r: r["modified"], reverse=True)
++    return {"ok": True, "dir": TRACK_DIR, "dirs": TRACK_DIRS, "tracks": out}
++
++
++def track_get(fn):
++    path, d = _find_track(fn)
++    if not path:
++        return {"ok": False, "reason": "no such track"}
++    name = os.path.basename(path)
++    pts = _read_gpx(path)
++    if not pts:
++        return {"ok": False, "reason": "no points in that file"}
++    return {"ok": True, "file": name, "name": name[:-4],
++            "points": [{"lat": a, "lng": b, "t": c, "ele": e} for a, b, c, e in pts],
++            "metres": int(round(_track_metres(pts)))}
++
++
++def track_delete(fn):
++    path, d = _find_track(fn)
++    if not path:
++        return {"ok": False, "reason": "no such track"}
++    name = os.path.basename(path)
++    if d != TRACK_DIR:
++        # Mantra Trail's folder is read, never written. Deleting another app's
++        # journey from inside this one is not ours to do.
++        return {"ok": False, "reason": "that track belongs to %s, delete it there"
++                                       % os.path.basename(d.rstrip("/"))}
++    try:
++        os.remove(path)
++    except Exception as e:
++        return {"ok": False, "reason": repr(e)}
++    return {"ok": True, "file": name}
++
++
+ def _metres(aLat, aLon, bLat, bLon):
+     R, p = 6371000.0, math.pi / 180
+     dla, dlo = (bLat - aLat) * p, (bLon - aLon) * p
+@@ -1816,10 +2091,10 @@
+ 
+     # Credentials, spend and housekeeping answer the phone and nobody else
+     # on the wifi. The page and the timetable stay open to the room.
+-    _PHONE_ONLY = ("/api-keys", "/gemini-key", "/gemini-test", "/key-test", "/gemini-model", "/gemini-models", "/gemini-models-old", "/rebuild", "/cache/clear", "/sched-delete", "/gps")
++    _PHONE_ONLY = ("/api-keys", "/gemini-key", "/gemini-test", "/key-test", "/gemini-model", "/gemini-models", "/gemini-models-old", "/rebuild", "/cache/clear", "/sched-delete", "/gps", "/tracks", "/track", "/track/save", "/track/delete")
+     # v22: a request that a web page on another site made on the phone's behalf
+     # is refused, for every POST and for every GET that changes something.
+-    _STATE_CHANGING = ("/rebuild", "/cache/clear", "/sched-delete")
++    _STATE_CHANGING = ("/rebuild", "/cache/clear", "/sched-delete", "/track/save", "/track/delete")
+     def _cross_site(self):
+         sf = (self.headers.get("Sec-Fetch-Site") or "").lower()
+         if sf in ("cross-site", "same-site"):
+@@ -2017,6 +2292,10 @@
+                 return self._json({"ok": False, "reason": "use POST"}, 405)
+             if route == "/api-keys":
+                 return self._json({"keys": read_keys()})
++            if route == "/tracks":
++                return self._json(track_list())
++            if route == "/track":
++                return self._json(track_get(q.get("f", [""])[0]))
+             if route == "/status":
+                 return self._json(index_status())
+             if route == "/gemini-key":
+@@ -2119,6 +2398,14 @@
+             if u.path == "/cache/clear":
+                 return self._json(clear_index())
+             return self._json(sched_delete(q.get("route", [""])[0], q.get("all", ["0"])[0] == "1"))
++        if u.path in ("/track/save", "/track/delete"):
++            try:
++                data = json.loads(body or "{}")
++            except Exception:
++                data = {}
++            if u.path == "/track/save":
++                return self._json(track_save(data.get("name"), data.get("points")))
++            return self._json(track_delete(data.get("file")))
+         if u.path == "/api-keys":
+             keys = [ln.strip() for ln in body.splitlines() if ln.strip()]
+             if not keys:
