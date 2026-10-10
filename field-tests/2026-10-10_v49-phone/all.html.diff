@@ -1,0 +1,430 @@
+--- /tmp/claude-0/-storage-emulated-0-Download/e531429a-5478-4791-bfc4-0694822fc9f5/scratchpad/all.html.before_follow	2026-10-10 06:13:55.711040731 +0000
++++ field-tests/2026-10-10_v49-phone/all.html	2026-10-10 06:24:32.759040769 +0000
+@@ -32,6 +32,12 @@
+     border:1px solid var(--border);color:var(--text);font-size:1.1rem;cursor:pointer;
+     display:flex;align-items:center;justify-content:center;}
+   .tool.on{border-color:var(--cyan);color:var(--cyan);}
++  /* v49: recording. Red, because it is the one control that is writing
++     something down, and it pulses so a glance at the cradle answers "is it
++     still running" without reading anything. */
++  .tool.rec{color:var(--muted);}
++  .tool.rec.on{border-color:#ff4d5e;color:#ff4d5e;animation:recpulse 1.6s ease-in-out infinite;}
++  @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.45}}
+   /* one or the other: our stars, or Google's own transit icons */
+   .viewseg{display:flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;
+     background:rgba(13,17,23,.35);}
+@@ -98,7 +104,20 @@
+      with a margin of extra reach around it for a thumb */
+   .pin{position:absolute;left:50%;top:50%;
+     transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,0px)));
+-    cursor:pointer;touch-action:manipulation;}
++    cursor:pointer;touch-action:manipulation;
++    /* v49: Android's text-scaling slider was inflating these labels to several
++       hundred pixels, which no amount of clever placement can fit on a phone.
++       A map label is sized by the map, not by the system font setting. */
++    -webkit-text-size-adjust:100%;text-size-adjust:100%;}
++  /* v49: the station itself. It is always drawn, whether or not the label
++     beside it survived the fight for space, so zooming out leaves a readable
++     map of dots rather than nothing. It counter-translates the parent's
++     offset, which is what keeps it on the station while the label moves. */
++  .pindot{position:absolute;left:50%;top:50%;width:13px;height:13px;border-radius:50%;
++    background:var(--c,#fff);border:2px solid rgba(0,0,0,.8);
++    box-shadow:0 0 0 1px rgba(255,255,255,.35);pointer-events:none;z-index:0;
++    transform:translate(-50%,-50%)
++      translate(calc(-1 * var(--dx,0px)),calc(-1 * var(--dy,0px)));}
+   .pin::before{content:"";position:absolute;inset:-12px -10px;}
+   .pinchip{position:absolute;left:37px;top:50%;transform:translateY(-50%);
+     pointer-events:none;}
+@@ -109,7 +128,7 @@
+     margin-top:-4px;border-radius:50%;background:currentColor;
+     box-shadow:0 0 0 1.5px rgba(0,0,0,.7);}
+   .pinid span{display:inline-block;padding:7px 9px;border-radius:7px;
+-    font:800 .71rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
++    font:800 var(--pinfs,11px)/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+     color:var(--c,#fff);background:rgba(13,17,23,.72);
+     border:1px solid var(--c,#30363d);white-space:nowrap;text-shadow:0 1px 2px #000;}
+   .pinchip span{display:inline-block;font:700 .74rem/1 system-ui,sans-serif;color:#fff;
+@@ -360,6 +379,9 @@
+         <circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="8" opacity=".45"/>
+         <path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3" stroke-linecap="round"/>
+       </svg></button>
++    <button class="tool rec" id="btnRec" title="Record the way you go">
++      <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="7"
++           fill="currentColor"/></svg></button>
+     <button class="tool" id="btnLabels" title="Street names">A</button>
+     <button class="tool" id="btnSetup" title="Settings">⚙</button>
+   </div>
+@@ -673,6 +695,14 @@
+ // once on the very first run, before there is any view of yours to keep. The
+ // dot moves by itself; the map never follows it and never changes zoom.
+ let WANT_CENTRE = false, HAD_VIEW = !!LS.get("view", null);
++/* v49: following the car. The map used to move to you only on the locate
++   button, for 35 s. At 50 km/h that is off the screen before the second
++   fix. Now it keeps you centred while FOLLOW is on -- but a pan by hand
++   wins for PAN_GRACE, because fighting the driver's own finger is worse
++   than not following at all. */
++let USER_PANNED = 0;
++const PAN_GRACE = 12000;
++let lastStopsT = 0;
+ let STOPSEQ = 0;              // the newest stations request; an older answer is dropped
+ /* THE STATIONS ARE THE PAGE'S OWN DATA (v24). Every station is kept in the browser,
+    drawn before anything is asked of the server, and refreshed only when the
+@@ -753,6 +783,7 @@
+   map.getPane("names").style.pointerEvents = "none";
+   names = L.layerGroup();
+   map.on("moveend", saveView);
++  map.on("dragstart", () => { USER_PANNED = Date.now(); });
+   map.on("zoomend", layoutPins);
+   map.on("moveend", layoutPins);
+   map.on("click", (e) => { if (PINMODE) pinAt(e.latlng.lat, e.latlng.lng); });
+@@ -879,6 +910,7 @@
+   });
+   makeMarkerClass(g);
+   gmap.addListener("idle", saveView);
++  gmap.addListener("dragstart", () => { USER_PANNED = Date.now(); });
+   gmap.addListener("idle", layoutPins);
+   gmap.addListener("click", onMapClick);
+ }
+@@ -1047,28 +1079,115 @@
+   const m = MARKS[s.stop_id], e = m && m.getElement ? m.getElement() : null;
+   return e ? e.querySelector(".pin") : null;
+ }
++/* =========================================================================
++   THE TRACE  (v49)
++   A record button that leaves the way you went on the map. It is deliberately
++   dumb: every fix that is more than eight metres from the last one recorded is
++   appended, and the line is redrawn. Eight metres because GPS noise standing
++   still is a few metres and a trace that grows while the car is parked is a
++   scribble, not a record.
++
++   It is kept in localStorage under ac2_trace, which the new-run reset does not
++   clear -- a journey you recorded is work, and the reset exists to throw away
++   what you PICKED, not what you made.
++   ========================================================================= */
++let TRACE = LS.get("trace", []) || [];
++let RECORDING = !!LS.get("rec", false);
++let traceLine = null, gTraceLine = null;
++const TRACE_MIN_M = 8;
++
++function drawTrace(){
++  const pts = TRACE.map(p => [p.lat, p.lng]);
++  if (usingGoogle()) {
++    if (gTraceLine) { gTraceLine.setMap(null); gTraceLine = null; }
++    if (pts.length > 1 && typeof google !== "undefined" && gmap) {
++      gTraceLine = new google.maps.Polyline({
++        path: TRACE.map(p => ({ lat: p.lat, lng: p.lng })),
++        strokeColor: "#ff4d5e", strokeOpacity: .9, strokeWeight: 4 });
++      gTraceLine.setMap(gmap);
++    }
++    return;
++  }
++  if (!map || typeof L === "undefined") return;
++  if (traceLine) { try { map.removeLayer(traceLine); } catch (e) {} traceLine = null; }
++  if (pts.length > 1) {
++    traceLine = L.polyline(pts, { color: "#ff4d5e", weight: 4, opacity: .9,
++                                  lineJoin: "round", lineCap: "round" }).addTo(map);
++  }
++}
++function traceAdd(lat, lng){
++  if (!RECORDING) return;
++  const last = TRACE.length ? TRACE[TRACE.length - 1] : null;
++  if (last && metres(last.lat, last.lng, lat, lng) < TRACE_MIN_M) return;
++  TRACE.push({ lat: lat, lng: lng, t: Date.now() });
++  if (TRACE.length > 5000) TRACE.shift();
++  LS.set("trace", TRACE);
++  drawTrace();
++}
++function traceLengthM(){
++  let d = 0;
++  for (let i = 1; i < TRACE.length; i++)
++    d += metres(TRACE[i-1].lat, TRACE[i-1].lng, TRACE[i].lat, TRACE[i].lng);
++  return d;
++}
++function paintRec(){
++  const b = document.getElementById("btnRec");
++  if (!b) return;
++  b.classList.toggle("on", RECORDING);
++  const m = Math.round(traceLengthM());
++  b.title = RECORDING
++    ? "Recording — " + (m >= 1000 ? (m/1000).toFixed(2) + " km" : m + " m") + ". Tap to stop."
++    : (TRACE.length > 1
++        ? "Tap to record. Hold to clear the " + (m >= 1000 ? (m/1000).toFixed(2) + " km" : m + " m") + " already drawn."
++        : "Record the way you go");
++}
++function setRecording(on){
++  RECORDING = !!on;
++  LS.set("rec", RECORDING);
++  if (RECORDING && ME && !ME.pinned) traceAdd(ME.lat, ME.lng);
++  paintRec();
++  hud(RECORDING ? "Recording the way you go." :
++      (TRACE.length > 1 ? "Stopped. The line stays on the map." : "Not recording."));
++}
++function clearTrace(){
++  TRACE = []; LS.set("trace", TRACE); drawTrace(); paintRec();
++  hud("Trace cleared.");
++}
++function pinFontPx(){
++  /* v49: the label is sized by the zoom, not by one fixed number. Zoomed out
++     the whole city is on the screen and a big label is a wall; zoomed in there
++     is one street and the label has to be readable from a car cradle. */
++  const z = curZoom();
++  return Math.round(Math.max(9, Math.min(17, 9 + (z - 13) * 1.5)));
++}
+ function layoutPins(){
++  /* v49: labels are PLACED, not pushed apart.
++     The old version gave every station a label and then shoved the labels off
++     each other until they stopped overlapping, which moved them far from the
++     stations they named and still collided once they were bigger than the gaps.
++     Now each station is offered a series of positions, nearest first, and takes
++     the first one that is free and on the screen. A station that cannot have a
++     label without covering another keeps its dot and loses its label, so the
++     map thins out as you zoom out instead of turning into a pile of text. */
++  const sz = !usingGoogle() && map ? map.getSize() : null;
++  const host = usingGoogle() ? document.getElementById("gmap")
++                             : (map && map.getContainer());
++  if (host) host.style.setProperty("--pinfs", pinFontPx() + "px");
++
+   const it = [];
+   STOPS.forEach(s => {
+     const el = pinEl(s), p = pxOf(s);
+     if (!el || !p) return;
++    const lab = el.querySelector(".pinid");
++    if (lab) lab.style.display = "";          // measure it as it will be drawn
+     const sp = el.querySelector(".pinid span");
+     const r = sp ? sp.getBoundingClientRect() : { width: 60, height: 27 };
+-    const w = (r.width || 60) + 6, h = (r.height || 27) + 6;
+-    let dx = 0, dy = 0;
+-    if (s.bearing != null) {
+-      const b = s.bearing * Math.PI / 180;
+-      const rx = Math.cos(b), ry = Math.sin(b);          // right of the way it leaves
+-      const d = Math.abs(rx) * w / 2 + Math.abs(ry) * h / 2 + 18;
+-      dx = rx * d; dy = ry * d;
+-    }
+-    it.push({ s, el, p, w, h, dx, dy });
++    it.push({ s, el, lab, p, w: (r.width || 60) + 6, h: (r.height || 27) + 6,
++              dx: 0, dy: 0, show: false });
+   });
+-  // a label must stay on the screen: keep its centre inside the map, with a margin
+-  // (the Leaflet map only; the Google pixels have no fixed origin to clamp against)
+-  const sz = !usingGoogle() && map ? map.getSize() : null;
+-  // What is drawn over the map, measured now and not guessed: the status line,
+-  // the buttons and the GPS chip on top; the watch bar at the bottom.
++  if (!it.length) return;
++
++  // what is drawn over the map, measured rather than guessed
+   const lim = { top: 8, bottom: sz ? sz.y - 4 : 0 };
+   if (sz) {
+     const mr = map.getContainer().getBoundingClientRect();
+@@ -1083,42 +1202,69 @@
+       if (r.height > 0) lim.bottom = Math.min(lim.bottom, r.top - mr.top - 6);
+     }
+   }
+-  const clampAll = () => {
+-    if (!sz) return false;
+-    let c = false;
+-    it.forEach(o => {
+-      const nx = Math.min(Math.max(o.p.x + o.dx, o.w / 2 + 4), sz.x - o.w / 2 - 4) - o.p.x;
+-      const lo = lim.top + o.h / 2, hi = lim.bottom - o.h / 2;
+-      const ny = (hi > lo ? Math.min(Math.max(o.p.y + o.dy, lo), hi) : o.p.y + o.dy) - o.p.y;
+-      if (Math.abs(nx - o.dx) > .5 || Math.abs(ny - o.dy) > .5) c = true;
+-      o.dx = nx; o.dy = ny;
+-    });
+-    return c;
++
++  /* Who gets a label when they cannot all have one: the station you are
++     watching or have just tapped always, then the ones nearest the middle of
++     the screen, which is where you are looking and, while following, where
++     you are. */
++  const cx = sz ? sz.x / 2 : 0, cy = sz ? sz.y / 2 : 0;
++  it.forEach(o => {
++    const key = (SEL && SEL.stop_id === o.s.stop_id) || isWatched(o.s.stop_id);
++    o.pri = key ? -1e9 : Math.hypot(o.p.x - cx, o.p.y - cy);
++  });
++  it.sort((a, b) => a.pri - b.pri);
++
++  const placed = [];
++  const free = (o, dx, dy) => {
++    const x = o.p.x + dx, y = o.p.y + dy;
++    if (sz) {
++      if (x - o.w / 2 < 4 || x + o.w / 2 > sz.x - 4) return false;
++      if (y - o.h / 2 < lim.top || y + o.h / 2 > lim.bottom) return false;
++    }
++    for (let i = 0; i < placed.length; i++) {
++      const q = placed[i], qx = q.p.x + q.dx, qy = q.p.y + q.dy;
++      if (Math.abs(x - qx) < (o.w + q.w) / 2 + 2 &&
++          Math.abs(y - qy) < (o.h + q.h) / 2 + 2) return false;
++    }
++    // nor may a label sit on top of another station's dot
++    for (let i = 0; i < it.length; i++) {
++      const q = it[i]; if (q === o) continue;
++      if (Math.abs(x - q.p.x) < o.w / 2 + 8 && Math.abs(y - q.p.y) < o.h / 2 + 8) return false;
++    }
++    return true;
++  };
++  const spots = (o) => {
++    const ax = o.w / 2 + 11, ay = o.h / 2 + 11;
++    const ring = [[0, -ay], [0, ay], [ax, 0], [-ax, 0],
++                  [ax, -ay], [-ax, -ay], [ax, ay], [-ax, ay]];
++    const out = ring.slice();
++    for (let k = 0; k < ring.length; k++) out.push([ring[k][0] * 1.9, ring[k][1] * 1.9]);
++    for (let k = 0; k < ring.length; k++) out.push([ring[k][0] * 2.9, ring[k][1] * 2.9]);
++    return out;
+   };
+-  for (let k = 0; k < 80; k++) {
+-    let moved = false;
+-    for (let i = 0; i < it.length; i++) for (let j = i + 1; j < it.length; j++) {
+-      const a = it[i], b = it[j];
+-      const cx = (b.p.x + b.dx) - (a.p.x + a.dx), cy = (b.p.y + b.dy) - (a.p.y + a.dy);
+-      const ox = (a.w + b.w) / 2 - Math.abs(cx), oy = (a.h + b.h) / 2 - Math.abs(cy);
+-      if (ox <= 0 || oy <= 0) continue;
+-      moved = true;
+-      if (ox < oy) { const sg = cx === 0 ? (i < j ? 1 : -1) : Math.sign(cx); a.dx -= sg * ox / 2; b.dx += sg * ox / 2; }
+-      else { const sg = cy === 0 ? (i < j ? 1 : -1) : Math.sign(cy); a.dy -= sg * oy / 2; b.dy += sg * oy / 2; }
++  it.forEach(o => {
++    const cand = spots(o);
++    for (let k = 0; k < cand.length; k++) {
++      if (free(o, cand[k][0], cand[k][1])) {
++        o.dx = cand[k][0]; o.dy = cand[k][1]; o.show = true; placed.push(o); break;
++      }
+     }
+-    if (clampAll()) moved = true;
+-    if (!moved) break;
+-  }
++  });
++
+   it.forEach(o => {
+-    const L = Math.hypot(o.dx, o.dy);
+-    o.el.style.setProperty("--dx", o.dx.toFixed(1) + "px");
+-    o.el.style.setProperty("--dy", o.dy.toFixed(1) + "px");
++    const c = COLOUR[o.s.stop_id] || "#fff";
++    if (o.lab) o.lab.style.display = o.show ? "" : "none";
++    o.el.style.setProperty("--dx", (o.show ? o.dx : 0).toFixed(1) + "px");
++    o.el.style.setProperty("--dy", (o.show ? o.dy : 0).toFixed(1) + "px");
++    o.el.style.setProperty("--c", c);
++    let dot = o.el.querySelector(".pindot");
++    if (!dot) { dot = document.createElement("i"); dot.className = "pindot"; o.el.appendChild(dot); }
+     let ld = o.el.querySelector(".pinlead");
+     if (!ld) { ld = document.createElement("i"); ld.className = "pinlead"; o.el.insertBefore(ld, o.el.firstChild); }
+-    ld.style.display = L < 6 ? "none" : "block";
++    const L = o.show ? Math.hypot(o.dx, o.dy) : 0;
++    ld.style.display = (o.show && L > o.h / 2 + 6) ? "block" : "none";
+     ld.style.width = L.toFixed(1) + "px";
+-    ld.style.background = COLOUR[o.s.stop_id] || "#fff";
+-    ld.style.color = COLOUR[o.s.stop_id] || "#fff";
++    ld.style.background = c; ld.style.color = c;
+     ld.style.transform = "rotate(" + (Math.atan2(-o.dy, -o.dx) * 180 / Math.PI).toFixed(1) + "deg)";
+   });
+ }
+@@ -1197,6 +1343,14 @@
+    ========================================================================= */
+ let FIXES = [];            // recent accepted fixes
+ let watchId = null, burstEnd = 0, burstTick = null;
++/* v49: FOLLOW keeps the watch open instead of sampling in bursts.
++   The bursts were the reason the map followed you for a few seconds and
++   then stopped: 18 s of listening every 90 s, cut short to about 6 s the
++   moment a fix looked good. Walking, that is one position per 90 s and a
++   dot that sits still while you do not. The GNSS is still released the
++   instant the page is hidden, which is what visibilitychange does below,
++   so a phone in a pocket is not tracking. */
++let FOLLOW = true;
+ const FIX_TTL = 90000;     // a fix older than this is stale
+ 
+ function fuse(){
+@@ -1205,8 +1359,17 @@
+   const now = Date.now();
+   const live = FIXES.filter(f => now - f.t < FIX_TTL);
+   if (!live.length) return null;
+-  const best = Math.min.apply(null, live.map(f => f.acc));
+-  const use = live.filter(f => f.acc <= Math.max(best * 2.5, best + 8));
++  /* v49: averaging ninety seconds of fixes is right when you are standing and
++     wrong the moment you walk, because half the samples are from where you
++     were. So the average is taken only over fixes near the newest one: stand
++     still and they are all near it, and the full average is kept; walk, and
++     the ones you have left behind drop out on their own. */
++  const newest = live[live.length - 1];
++  const span = Math.max(25, newest.acc || 25);
++  const near = live.filter(f => metres(newest.lat, newest.lng, f.lat, f.lng) <= span);
++  const pool = near.length ? near : [newest];
++  const best = Math.min.apply(null, pool.map(f => f.acc));
++  const use = pool.filter(f => f.acc <= Math.max(best * 2.5, best + 8));
+   let wsum = 0, la = 0, lo = 0;
+   use.forEach(f => { const w = 1 / (f.acc * f.acc); wsum += w; la += f.lat * w; lo += f.lng * w; });
+   if (!wsum) return null;
+@@ -1228,10 +1391,21 @@
+   if (!map && !gmap) return;
+   drawMe();
+   updateAccBox(); paintChip();
+-  if (WANT_CENTRE || (!CENTRED && !HAD_VIEW)) { setView(ME, Math.max(17, curZoom())); CENTRED = true; WANT_CENTRE = false; }
++  traceAdd(ME.lat, ME.lng);
++  const holding = Date.now() - USER_PANNED < PAN_GRACE;
++  const followNow = FOLLOW && !holding;
++  if (WANT_CENTRE || followNow || (!CENTRED && !HAD_VIEW)) {
++    setView(ME, Math.max(17, curZoom())); CENTRED = true; WANT_CENTRE = false;
++  }
+   const need = lastStopFetch
+     ? metres(lastStopFetch.lat, lastStopFetch.lng, ME.lat, ME.lng) : 1e9;
+-  if (need > 35 || !STOPS.length) loadStops();
++  /* 35 m is two and a half seconds in a car, and refetching the stations that
++     often buries the page in its own requests. Distance OR time, whichever is
++     the longer wait. */
++  if ((need > 35 && Date.now() - lastStopsT > 8000) || !STOPS.length) {
++    lastStopsT = Date.now();
++    loadStops();
++  }
+   else if (!quiet) hud(stopsLine());
+ }
+ function curZoom(){ const v = currentView(); return v && v.zoom ? v.zoom : 17; }
+@@ -1252,7 +1426,7 @@
+       (STOPS.length ? " · " + STOPS.length + " stations near you" : "") +
+       ". Tap a station.");
+     /* good enough, and settled: stop burning the GNSS chip */
+-    if (f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();
++    if (!FOLLOW && f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();
+   }, err => {
+     stopBurst();
+     if (err && err.code === 1)
+@@ -1281,7 +1455,7 @@
+   const now = Date.now();
+   if (!force && now - lastFix < 8000) return;
+   lastFix = now;
+-  startBurst(force ? 30000 : 18000);
++  startBurst(force ? 30000 : (FOLLOW ? 3600000 : 18000));
+ }
+ function sharpen(){
+   if (ME && ME.pinned) { hud("You are pinned by hand. Unpin in ⚙ first."); return; }
+@@ -1683,6 +1857,27 @@
+ document.getElementById("engFree").addEventListener("click", () => setEngine("free"));
+ document.getElementById("engDetail").addEventListener("click", () => setEngine("detail"));
+ 
++/* v49: tap records, a long press throws the line away. The clear is behind a
++   hold because a recorded journey is the one thing on this map that cannot be
++   fetched again, and a stray thumb on a cradle should not be able to lose it. */
++(function(){
++  const b = document.getElementById("btnRec");
++  if (!b) return;
++  let held = false, t = null;
++  const start = () => { held = false; t = setTimeout(() => {
++    held = true;
++    if (TRACE.length > 1 && confirm("Clear the recorded trace?")) clearTrace();
++    else if (TRACE.length <= 1) hud("Nothing recorded yet.");
++  }, 650); };
++  const end = () => { if (t) { clearTimeout(t); t = null; } };
++  b.addEventListener("touchstart", start, { passive: true });
++  b.addEventListener("touchend", end);
++  b.addEventListener("touchcancel", end);
++  b.addEventListener("mousedown", start);
++  b.addEventListener("mouseup", end);
++  b.addEventListener("mouseleave", end);
++  b.addEventListener("click", () => { if (held) { held = false; return; } setRecording(!RECORDING); });
++})();
+ document.getElementById("btnSetup").addEventListener("click", () => {
+   document.getElementById("setup").classList.add("show");
+   document.getElementById("rLbl").textContent = fmtDist(RADIUS);
+@@ -2287,6 +2482,7 @@
+   } else { ENGINE = "free"; MODE = "stars"; }
+   paintMode();
+   await watchIndex();
++  drawTrace(); paintRec();
+   autoLocate(true);
+   loadGps(false);
+   if (!gpsPoll) gpsPoll = setInterval(() => { if (!document.hidden) paintChip(); }, 3000);
