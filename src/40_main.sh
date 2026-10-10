@@ -255,9 +255,33 @@ rm -f "$PAYDIR"/*.new 2>/dev/null || true
   printf 'KEYDIR="$APPHOME/keys"\n'
   printf 'KEYFILE="$KEYDIR/google-api.txt"\n'
   printf 'STAMPDIR="$APPHOME/installed"\n'
+  printf 'COMMONDIR="$APPHOME/common"\n'
   printf 'MAHA_APPS="%s"\n' "$MAHA_APPS"
 } > "$APPHOME/env.sh.new"
 mv -f "$APPHOME/env.sh.new" "$APPHOME/env.sh"
+done_
+
+# ---------------------------------------------------------------
+# the common folder (v25): one copy of what the three apps share. The ZET timetable
+# used to be downloaded and kept three times, once by each app; they now read and
+# write ONE file here, and the stations are one list. What an older install already
+# has beside an app is moved in rather than fetched again, newest first, and only
+# if it still looks like a zip.
+# ---------------------------------------------------------------
+step "the common folder"
+COMMON="$APPHOME/common"; mkdir -p "$COMMON"
+looks_like_zip() { [ -s "$1" ] && [ "$(head -c 2 "$1" 2>/dev/null)" = "PK" ]; }
+for d in "$HOME/.all.commute" "$HOME/.commute" "$HOME/.nightcommute" "$HOME/storage/downloads/webserver"; do
+  looks_like_zip "$d/zet_gtfs.zip" || continue
+  if ! looks_like_zip "$COMMON/zet_gtfs.zip" || [ "$d/zet_gtfs.zip" -nt "$COMMON/zet_gtfs.zip" ]; then
+    cp -pf "$d/zet_gtfs.zip" "$COMMON/zet_gtfs.zip.new" && mv -f "$COMMON/zet_gtfs.zip.new" "$COMMON/zet_gtfs.zip"
+    [ -s "$d/zet_gtfs.zip.meta.json" ] && cp -pf "$d/zet_gtfs.zip.meta.json" "$COMMON/zet_gtfs.zip.meta.json"
+  fi
+done
+if [ ! -s "$COMMON/stations.json" ] && [ -s "$HOME/.all.commute/stations.json" ]; then
+  mv -f "$HOME/.all.commute/stations.json" "$COMMON/stations.json"
+fi
+chmod 700 "$COMMON" 2>/dev/null || true
 done_
 
 step "payloads, all three"

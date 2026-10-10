@@ -19,8 +19,11 @@ for c in "$NM" "$ROOT/node_modules" "$HOME/node_modules" "$ROOT/tests/node_modul
 done
 [ -d "${NM:-/nonexistent}/playwright-core" ] || { printf '  skipped: no playwright-core + leaflet@1.9.4 (npm i playwright-core leaflet@1.9.4, or set NODE_MODULES)\n'; exit 0; }
 
-T=$(mktemp -d); PORT=18190; echo $T > /tmp/t6dir
-trap 'kill $SRV 2>/dev/null; [ -n "${KEEP:-}" ] || rm -rf "$T"' EXIT
+T=$(mktemp -d); PORT=18190
+trap 'kill $SRV $MOCK 2>/dev/null; [ -n "${KEEP:-}" ] || rm -rf "$T"' EXIT
+# a stand-in for Overpass, so scrolling beyond ZET's network can be tested without the network
+MPORT=18194; : > "$T/mock.count"
+python3 tests/fixtures/mock_overpass.py $MPORT "$T/mock.count" & MOCK=$!
 python3 - "$ART" "$T" <<'PYEOF'
 import re, sys
 s = open(sys.argv[1], encoding="utf-8", errors="surrogateescape").read()
@@ -30,8 +33,8 @@ for name, tag in (("all_commute_server.py", "ALLC_SERVER_PY"), ("update_all.py",
     open(sys.argv[2] + "/" + name, "w").write(m.group(1) + "\n")
 PYEOF
 python3 tests/fixtures/mkgtfs.py "$T/zet_gtfs.zip" 1
-ALLC_DIR="$T" python3 "$T/update_all.py" >/dev/null 2>&1
-( cd "$T" && ALLC_DIR="$T" ALLC_PORT=$PORT ALLC_NO_OPEN=1 ALLC_TAKEOVER=1 exec python3 all_commute_server.py >/dev/null 2>&1 ) &
+MAHA_COMMON="$T" ALLC_DIR="$T" python3 "$T/update_all.py" >/dev/null 2>&1
+( cd "$T" && MAHA_COMMON="$T" MAHA_OVERPASS_URL="http://127.0.0.1:$MPORT/api" MAHA_OVERPASS_GAP=0 ALLC_DIR="$T" ALLC_PORT=$PORT ALLC_NO_OPEN=1 ALLC_TAKEOVER=1 exec python3 all_commute_server.py >/dev/null 2>&1 ) &
 SRV=$!
 # the server walks forward when its port is busy, and writes the one it got
 for i in $(seq 1 40); do
@@ -39,7 +42,7 @@ for i in $(seq 1 40); do
   sleep 0.3
 done
 for speed in fast slow; do
-  out=$(NODE_PATH="$NM" node tests/test6_browser.js "http://127.0.0.1:$PORT" "$NM/leaflet/dist" "$speed" "$CHROME" 2>&1)
+  out=$(NODE_PATH="$NM" node tests/test6_browser.js "http://127.0.0.1:$PORT" "$NM/leaflet/dist" "$speed" "$CHROME" "$T/mock.count" 2>&1)
   printf '%s\n' "$out" | grep -v '^PASS'
   pass=$((pass + $(printf '%s\n' "$out" | grep -c '^PASS')))
   fail=$((fail + $(printf '%s\n' "$out" | grep -c '^FAIL')))

@@ -15,7 +15,9 @@
  * Prints PASS or FAIL per check.
  */
 const { chromium } = require("playwright-core");
-const [base, leaflet, speed = "fast", exe] = process.argv.slice(2);
+const [base, leaflet, speed = "fast", exe, mockCount] = process.argv.slice(2);
+const fs = require("fs");
+const mockCalls = () => { try { return fs.readFileSync(mockCount, "utf8").split("\n").filter(Boolean).length; } catch (e) { return 0; } };
 const fails = [];
 const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fails.push(n); };
 (async () => {
@@ -43,7 +45,7 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
     texts: [...document.querySelectorAll(".pin .pinid span")].map(e => e.textContent.trim().split(" ")[0]).sort() }));
   check(speed + ": no script error on the way in", errors.length === 0);
   check(speed + ": the map was moved to the person", Math.abs(st.center.lat - 45.8052) < 0.001);
-  check(speed + ": every station in range has a label on screen (" + st.texts.join(",") + ")", st.visible === 3 && st.texts.join() === "100,101,200");
+  check(speed + ": every station in range has a label on screen (" + st.texts.join(",") + ")", st.visible === 4 && st.texts.join() === "100,101,200,300");
   await page.locator(".pin .pinid span", { hasText: "100" }).first().click();
   await page.waitForTimeout(1200);
   const d = await page.evaluate(() => ({ on: document.getElementById("dash").classList.contains("show"),
@@ -61,7 +63,7 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
     const a = rects[i], b = rects[j];
     if (a.l < b.r && b.l < a.r && a.t < b.b && b.t < a.b) overlap++;
   }
-  check(speed + ": zoomed out, no two labels overlap (" + rects.length + " labels)", rects.length === 3 && overlap === 0);
+  check(speed + ": zoomed out, no two labels overlap (" + rects.length + " labels)", rects.length === 4 && overlap === 0);
   // v22 (field test F1): no label may sit under the status line, the buttons, the GPS
   // chip or the watch bar, or the tap lands on THEM. Several views, so a station is
   // sometimes near the top edge and sometimes near the bottom one.
@@ -85,14 +87,14 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   await page.evaluate(() => { map.setView([45.8055, 15.9800], 15, { animate: false }); });
   await page.waitForTimeout(500);
   let rightOnes = 0;
-  for (const id of ["100", "101", "200"]) {
+  for (const id of ["100", "101", "200", "300"]) {
     await page.locator(".pin .pinid span", { hasText: id }).first().click();
     await page.waitForTimeout(700);
     const got = await page.evaluate(() => document.getElementById("dId").textContent);
     if (got === id) rightOnes++;
     await page.click("#dClose"); await page.waitForTimeout(300);
   }
-  check(speed + ": each separated label opens its own station", rightOnes === 3);
+  check(speed + ": each separated label opens its own station", rightOnes === 4);
   await page.evaluate(() => { map.setView([45.8052, 15.9805], 17, { animate: false }); });
   await page.waitForTimeout(300);
   // The map does not follow the dot. Pan away and zoom out; the phone moves; a new
@@ -172,6 +174,43 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
                                              stops: typeof STOPS !== "undefined" ? STOPS.length : -1 }));
   check(speed + ": with the server refusing everything, the stations still draw (" + offline.labels + " labels)", offline.labels >= 3);
   await p2.close();
+  // v25: the stations follow the map, not the dot, and beyond ZET's network the server
+  // discovers stops tile by tile as you scroll and the page keeps them for good.
+  const labelsNow = () => page.evaluate(() => [...document.querySelectorAll(".pin .pinid span")].map(e => e.textContent.trim().split(" ")[0]));
+  const labelsAt = async (c, z) => {
+    await page.evaluate(([la, lo, zz]) => { map.setView([la, lo], zz, { animate: false }); }, [c[0], c[1], z]);
+    await page.waitForTimeout(800);
+    return labelsNow();
+  };
+  let L = await labelsAt([45.8070, 15.9820], 17);
+  check(speed + ": scrolled to another corner, the stations there are drawn (" + L.join(",") + ")", L.includes("300"));
+  L = await labelsAt([45.8055, 15.9800], 13);
+  check(speed + ": zoomed out to 13 there are no labels, too many to read", L.length === 0);
+  const before = mockCalls();
+  L = await labelsAt([45.9030, 16.1040], 16);
+  for (let w = 0; w < 30 && !L.some(t => t.startsWith("Testna")); w++) { await page.waitForTimeout(500); L = await labelsNow(); }
+  check(speed + ": beyond ZET's network, stops found by scrolling are drawn (" + L.join(",") + ")", L.some(t => t.startsWith("Testna")));
+  const afterFirst = mockCalls();
+  check(speed + ": that took one request per tile in view (" + (afterFirst - before) + ")", afterFirst > before && afterFirst - before <= 4);
+  await labelsAt([45.8055, 15.9800], 17);
+  L = await labelsAt([45.9030, 16.1040], 16);
+  await page.waitForTimeout(1500);
+  check(speed + ": coming back asks nothing again, the stops are there at once", mockCalls() === afterFirst && L.some(t => t.startsWith("Testna")));
+  // a second visit with the server refusing everything but the page: the same view, from the browser's copy
+  const p3 = await ctx.newPage();
+  const asked = [];
+  await p3.route("**/*", route => {
+    const u = route.request().url();
+    if (u.includes("leaflet@1.9.4/dist/leaflet.css")) return route.fulfill({ path: leaflet + "/leaflet.css", contentType: "text/css" });
+    if (u.includes("leaflet@1.9.4/dist/leaflet.js")) return route.fulfill({ path: leaflet + "/leaflet.js", contentType: "application/javascript" });
+    if (u.endsWith("/all.html") || u.includes("/all.html?")) return route.continue();
+    asked.push(u); return route.abort();
+  });
+  await p3.goto(base + "/all.html");
+  await p3.waitForTimeout(1500);
+  const offlineX = await p3.evaluate(() => [...document.querySelectorAll(".pin .pinid span")].map(e => e.textContent.trim().split(" ")[0]));
+  check(speed + ": a later visit, with no server, draws the discovered stops from the browser's copy", offlineX.some(t => t.startsWith("Testna")));
+  await p3.close();
   if (errors.length) console.log("errors: " + errors.join(" | "));
   await b.close();
   process.exit(0);

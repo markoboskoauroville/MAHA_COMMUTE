@@ -113,7 +113,7 @@ for name, tag in (("all_commute_server.py", "ALLC_SERVER_PY"), ("update_all.py",
 PYEOF
 SD="$T/srv"; mkdir -p "$SD"; cp "$T/all_commute_server.py" "$T/update_all.py" "$T/all.html" "$SD/"
 # F7: no feed and no network: the index waits, and builds when the feed arrives
-( cd "$SD" && ALLC_DIR="$SD" ALLC_PORT=18191 ALLC_RETRY_FIRST=2 ALLC_NO_OPEN=1 ALLC_TAKEOVER=1 exec python3 all_commute_server.py >/dev/null 2>&1 ) &
+( cd "$SD" && MAHA_COMMON="$SD" ALLC_DIR="$SD" ALLC_PORT=18191 ALLC_RETRY_FIRST=2 ALLC_NO_OPEN=1 ALLC_TAKEOVER=1 exec python3 all_commute_server.py >/dev/null 2>&1 ) &
 SRV=$!
 for i in $(seq 1 40); do [ -s "$SD/port" ] && curl -s "http://127.0.0.1:$(tr -d ' \n' < "$SD/port")/status" >/dev/null 2>&1 && break; sleep 0.3; done
 PORT=$(tr -d ' \n' < "$SD/port" 2>/dev/null)
@@ -157,7 +157,7 @@ eq "v24: an unchanged list answers 304"        "304" "$(code GET /stations.json 
 eq "v24: the list holds the four platforms"    "4" "$(curl -s "http://127.0.0.1:$PORT/stations.json" | python3 -c "import json,sys;print(len(json.load(sys.stdin)['stops']))")"
 cmp_run() { # cmp_run VARIANT  -> prints the changes line of the updater
   python3 tests/fixtures/mkgtfs.py "$SD/zet_gtfs.zip" 1 "$1"
-  ALLC_FORCE=1 ALLC_DIR="$SD" python3 "$SD/update_all.py" 2>&1 | grep "compared with the feed"
+  ALLC_FORCE=1 MAHA_COMMON="$SD" ALLC_DIR="$SD" python3 "$SD/update_all.py" 2>&1 | grep "compared with the feed"
 }
 cmp1=$(cmp_run v1)
 case "$cmp1" in *"0 new, 0 moved, 0 renamed"*) ok ;; *) bad "v24: the same feed again changes nothing ($cmp1)" ;; esac

@@ -597,6 +597,13 @@ screen_info() {
       printf "    ${DIM}port     %s quiet${OFF}\n" "$port"
     fi
   done
+  printf "\n  ${SAND}shared by the three apps${OFF}\n"
+  printf "    ${DIM}folder   %s${OFF}\n" "$APPHOME/common"
+  for f in zet_gtfs.zip stations.json osm_stops.json; do
+    if [ -s "$APPHOME/common/$f" ]; then
+      printf "    ${DIM}%-9s ${OFF}${OK}%s${OFF}\n" "${f%%.*}" "$(du -h "$APPHOME/common/$f" 2>/dev/null | cut -f1)"
+    fi
+  done
   printf "\n  ${SAND}the umbrella${OFF}\n"
   printf "    ${DIM}payloads %s${OFF}\n" "$PAYDIR"
   if command -v sha256sum >/dev/null 2>&1 && [ -f "$PAYDIR/SHA256SUMS" ]; then

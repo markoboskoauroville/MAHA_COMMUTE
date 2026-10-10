@@ -230,7 +230,7 @@ awk '
   grab && $0 == "ALLC_SERVER_PY" { grab=0; next }
   grab { print }
 ' "$ART" > "$ALLC_SRC"
-board_out=$(ALLC_DIR="$ALLC_DIR_T" python3 - "$ALLC_SRC" <<'ALLC_BOARD_PY'
+board_out=$(MAHA_COMMON="$ALLC_DIR_T" ALLC_DIR="$ALLC_DIR_T" python3 - "$ALLC_SRC" <<'ALLC_BOARD_PY'
 import datetime, os, sqlite3, sys, time
 
 SRC = sys.argv[1]
@@ -916,7 +916,7 @@ printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that 
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
 printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
-printf '%s' "$ap" | grep -qF 'APP_VERSION = "v47"' && ok || bad "all: answers v47"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v48"' && ok || bad "all: answers v48"
 printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
 # the dashboard renders the station that was opened, and only that one
 if command -v node >/dev/null 2>&1; then
@@ -948,7 +948,7 @@ printf '%s' "$dp" | grep -qF 'pkill -f commute_server.py' && bad "day.commute st
 printf '%s' "$dp" | grep -qF 'if pgrep -f "$SERVER" >/dev/null 2>&1; then' && ok || bad "day.commute status asks about its own server"
 printf '%s' "$dp" | grep -qF 'already running${OFF}' && ok || bad "a second day.commute opens the first instead of doubling it"
 printf '%s' "$dp" | grep -qF '_mine = _pf.read().strip() == str(port)' && ok || bad "a day server only deletes its own port file"
-printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v18"' && ok || bad "day answers v18"
+printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v19"' && ok || bad "day answers v19"
 # the menu: up is the process AND the port it wrote down
 (
   T=$(mktemp -d); HOME="$T"; mkdir -p "$T/.commute"
@@ -997,10 +997,10 @@ with zipfile.ZipFile(path, "w") as z:
 PYEOF
 ids21() { python3 -c "import sqlite3,sys;print(' '.join(sorted(r[0] for r in sqlite3.connect(sys.argv[1]).execute('select stop_id from stops'))))" "$T21/network.db"; }
 python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 1
-ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+ALLC_FORCE=1 MAHA_COMMON="$T21" ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "a day with the special service: all four stations" "100 101 200 300" "$(ids21)"
 python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 0
-ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+ALLC_FORCE=1 MAHA_COMMON="$T21" ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "a day without it: the same four, none dropped"     "100 101 200 300" "$(ids21)"
 eq "a parent station (location_type 1) is not a station you stand at" "no" "$(ids21 | grep -qw 900 && echo yes || echo no)"
 eq "the permanent file holds them too" "4" "$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['stops']))" "$T21/stations.json")"
@@ -1017,7 +1017,7 @@ c.execute("create table dep(stop_id text, t int, trip_id text, route text, head 
 c.execute("insert into stops values('999','Old and gone',45.0,15.0,90.0)")
 c.commit()
 PYEOF
-ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+ALLC_FORCE=1 MAHA_COMMON="$T21" ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "an old index's stops are taken in, not lost" "100 101 200 300 999" "$(ids21)"
 # every station ships inside the app, so the first screen needs no download
 eq "the stations seed carries every platform" "yes" "$(python3 -c "
