@@ -51,11 +51,24 @@ Three things that were decided and should not be re-decided:
 - **A failed download falls back to the stale cache**, never to nothing: an old timetable is
   wrong by a few minutes, no timetable is wrong by all of them.
 
-### What is left
+### What is left — the page is DONE (v52, 10.10.2026, session_01JAfSZxyJwht7RKoayNHybe)
 
-**The page.** There is no city switch in the UI yet — every fetch in `all.html` is still
-implicitly Zagreb. That is the next piece of work, and Marko has NOT yet said whether Rijeka
-should be a second city beside Zagreb or a separate mode. **Ask him.**
+**Decided: one map, both cities, no mode.** The page keeps both station copies
+(`ac2_stations` for ZET, `ac2_stations_rj` for Autotrolej); the stations around you are
+whichever city you stand in. A station's coordinates decide which city its board is asked of
+(`stopCity()` → `cityAt()`, nearest of the two centres; the id shape is only a fallback).
+`⚙ → City` has Zagreb / Rijeka buttons that pin you at that city's centre, to look from afar.
+Rijeka `/status` now carries `stations_rev` (`rj-<day>-<count>`) so the copy refreshes daily.
+"Store the lines around me" (ZET PDFs) says Autotrolej has none, in Rijeka.
+
+**Tested:** `tests/test8_rijeka.js`, 17/17 against the phone's live server and real Autotrolej
+data — Korzo shows Rijeka stops, tapping 2641 Trg RH opens a board with lines 1, 1A, 2, 5, 6,
+7, 7A; the copy draws with the server refused; Zagreb boards carry no city; the City buttons
+work both ways. Test 6 on the patched page: everything passes except two checks that fail
+identically on the page from before this change (the locate-zoom-to-17 the phone page removed
+on purpose, and `#posFollow`, which is v25-cloud only).
+
+**Still not ported into the payload chain** (`tools/payload_v26.py`), like the rest of this branch.
 
 Live vehicles carry no route number: `/autobusi` gives `gbr`, `lat`, `lon`, `voznjaId`, and
 there is no published join from `voznjaId` to a line. Zagreb's vehicle layer shows a route; the

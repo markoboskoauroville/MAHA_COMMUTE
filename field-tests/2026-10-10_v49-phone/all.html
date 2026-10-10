@@ -787,15 +787,19 @@ let STOPSEQ = 0;              // the newest stations request; an older answer is
 /* v52: TWO CITIES, ONE MAP. Zagreb (ZET) and Rijeka (Autotrolej) are kept side
    by side, each its own copy with its own revision. There is no mode to pick:
    the stations around you are whichever city you are standing in. A ZET stop id
-   always carries an underscore and an Autotrolej one is only digits, so a
-   station says by itself which city to ask for its board. */
+   always carries an underscore and an Autotrolej one is only digits, but it is
+   where a station stands that says which city to ask for its board. */
 const CITIES = {
   zagreb: { name: "Zagreb", op: "ZET",        lat: 45.8131, lng: 15.9775, key: "ac2_stations",    q: "" },
   rijeka: { name: "Rijeka", op: "Autotrolej", lat: 45.3271, lng: 14.4422, key: "ac2_stations_rj", q: "city=rijeka" },
 };
 let STATION_DB = [], STATION_REV = "";
 const STATION_SET = { zagreb: { rev: "", list: [] }, rijeka: { rev: "", list: [] } };
-function stopCity(s){ return /^\d+$/.test(String(s && s.stop_id)) ? "rijeka" : "zagreb"; }
+function stopCity(s){
+  // where the station stands decides; the id's shape only when it carries no position
+  if (s && s.lat != null && s.lon != null) return cityAt(+s.lat, +s.lon);
+  return /^\d+$/.test(String(s && s.stop_id)) ? "rijeka" : "zagreb";
+}
 function cityAt(lat, lng){
   // the nearer of the two centres. The networks are 100 km apart, so there is no tie to break.
   const z = CITIES.zagreb, r = CITIES.rijeka;
