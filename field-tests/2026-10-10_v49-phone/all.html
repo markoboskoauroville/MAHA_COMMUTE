@@ -1497,7 +1497,10 @@ function startBurst(ms){
   }, err => {
     stopBurst();
     if (err && err.code === 1)
-      hud("Location refused. Pan the map to where you are, or pin yourself in ⚙.");
+      /* v52: code 1 is the BROWSER refusing, not the phone failing to find a
+         fix, and the cure is three taps in Chrome rather than anything this
+         app can do. The old wording sent him looking for a fault here. */
+      hud("Chrome is blocking location for this page. Tap the <b>crossed-out location icon</b> left of the address bar → Permissions → Location → Allow, then reload. Or pin yourself by hand in ⚙.");
     else hud("No position yet. ⚙ → Position has ways to help.");
     if (!STOPS.length) loadStops();
   }, { enableHighAccuracy: true, maximumAge: 0, timeout: ms });

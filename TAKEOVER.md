@@ -9,7 +9,65 @@ The other session's branch: **`ccr-9334170f-y5rjg5`** (cloud, owns the real sour
 
 ---
 
-## 0 · The one thing to finish: Rijeka
+## 0 · Rijeka — the data layer is BUILT and answering
+
+**Status changed 10.10.2026, later the same day: the server side is done and verified against
+the live feeds. What is left is the page.**
+
+### The blocker is resolved
+
+`polasciStanica` returns the same 55 departures stamped with four different dates
+(2026-09-28 to 10-01) and the timetables for all four are **identical**. So the date is a
+placeholder and only the time of day means anything. That endpoint is therefore NOT the board.
+
+**The board is built from `ATvoznired.json`** — the *dnevni* file, regenerated daily, 20 788
+departures over 936 stops, with `Polazak` as a **time of day and no date at all**. Nothing to
+misread.
+
+### What is implemented, in all_commute_server.py
+
+One query parameter switches city and Zagreb stays the default, so every existing caller is
+untouched:
+
+    /status?city=rijeka          936 stops, 20 788 departures, source named
+    /stations.json?city=rijeka   the same shape Zagreb returns
+    /stops?city=rijeka&lat=&lon=&r=
+    /board?city=rijeka&stop=1734&mins=90
+    /vehicles?city=rijeka&lat=&lon=&r=
+
+Functions: `_rj_load`, `rj_stations`, `rj_stations_json`, `rj_stops_near`, `rj_board`,
+`rj_vehicles`, with `_rj_cached` and `_bearing_deg`.
+
+**Verified live:** 936 stops; board for stop 1734 returned line 5 at 09:03 / 09:38 / 10:13;
+15 stops within 400 m of Korzo; **19 live buses**.
+
+Three things that were decided and should not be re-decided:
+
+- **Bearings are computed, not published.** Autotrolej gives none, and without one two stops
+  facing each other across a road are one place with two numbers. `_rj_load` derives a bearing
+  per stop from where its line goes next, averaged over the variants.
+- **The stop table is built from the timetable itself**, because every departure record carries
+  its stop's name and position. `ATstanice.json` is not needed for this.
+- **A failed download falls back to the stale cache**, never to nothing: an old timetable is
+  wrong by a few minutes, no timetable is wrong by all of them.
+
+### What is left
+
+**The page.** There is no city switch in the UI yet — every fetch in `all.html` is still
+implicitly Zagreb. That is the next piece of work, and Marko has NOT yet said whether Rijeka
+should be a second city beside Zagreb or a separate mode. **Ask him.**
+
+Live vehicles carry no route number: `/autobusi` gives `gbr`, `lat`, `lon`, `voznjaId`, and
+there is no published join from `voznjaId` to a line. Zagreb's vehicle layer shows a route; the
+Rijeka one cannot, yet.
+
+Weekend service is unchecked. `ATvoznired.json` is today's file, so a Saturday will presumably
+bring Saturday's departures, but that has not been seen happen. `-subota` and `-nedjelja`
+variants exist if it turns out not to.
+
+---
+
+## 0b · The research behind it
 
 **This is the unfinished work and the reason this file exists.** Marko asked for Autotrolej
 (Rijeka) schedules in all.commute. The research is done and verified against live endpoints on

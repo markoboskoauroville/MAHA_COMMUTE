@@ -1691,6 +1691,247 @@ def gps_state(fresh=False):
 
 
 # ---------------------------------------------------------------------------
+# RIJEKA  (v52)
+#
+# Autotrolej publishes no GTFS and no GTFS-Realtime, so none of the ZET
+# machinery applies. What it publishes instead suits this app better:
+#
+#   ATvoznired.json   today's whole timetable, 20 788 departures over 936
+#                     stops, as TIMES OF DAY with no date in them at all.
+#                     That is the board.
+#   ATstanice.json    the stops, with GpsX = LONGITUDE and GpsY = LATITUDE.
+#                     Swapping those puts Rijeka in the sea off Pula and
+#                     nothing in the data will tell you.
+#   api.autotrolej.hr /voznired/autobusi   live buses, no token needed.
+#
+# The API also has polasciStanica, which looks like the obvious board and is
+# not: it returns the same 55 departures stamped with four different dates
+# (2026-09-28 to 10-01, identical timetables), so the date is a placeholder
+# and only the time means anything. ATvoznired.json is the daily file and has
+# no date to misread, so the board is built from that.
+# ---------------------------------------------------------------------------
+RJ_BASE = "http://e-usluge2.rijeka.hr/OpenData"
+RJ_API = "https://api.autotrolej.hr/api/open/v1"
+RJ_CACHE = os.path.join(APPDIR, "rijeka_voznired.json")
+RJ_STOPS_CACHE = os.path.join(APPDIR, "rijeka_stanice.json")
+_rj_mem = {"day": None, "rows": None, "stops": None, "bearings": None}
+_rj_lock = threading.Lock()
+
+
+def _rj_fetch(url, timeout=60):
+    req = urllib.request.Request(url, headers={"User-Agent": "all.commute"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        return json.loads(r.read().decode("utf-8", "replace"))
+
+
+def _rj_cached(path, url, max_age_s):
+    """The file if it is young enough, otherwise a fresh one. A download that
+    fails falls back to the stale copy rather than to nothing: an old timetable
+    is wrong by a few minutes, no timetable is wrong by all of them."""
+    try:
+        age = time.time() - os.path.getmtime(path)
+    except OSError:
+        age = None
+    if age is not None and age < max_age_s:
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f), "cache"
+        except Exception:
+            pass
+    try:
+        data = _rj_fetch(url)
+        tmp = path + ".part"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(data, f)
+        os.replace(tmp, path)
+        return data, "fresh"
+    except Exception:
+        try:
+            with open(path, encoding="utf-8") as f:
+                return json.load(f), "stale"
+        except Exception:
+            return None, "none"
+
+
+def _rj_load():
+    """Today's timetable and the stop table, built once per service day."""
+    today = time.strftime("%Y-%m-%d")
+    with _rj_lock:
+        if _rj_mem["day"] == today and _rj_mem["rows"] is not None:
+            return _rj_mem
+        rows, _src = _rj_cached(RJ_CACHE, RJ_BASE + "/ATvoznired.json", 6 * 3600)
+        if rows is None:
+            return _rj_mem
+        stops = {}
+        # the stop table comes out of the timetable itself: every departure
+        # carries its stop's name and position, so there is nothing to join
+        for r in rows:
+            sid = str(r.get("StanicaId"))
+            if sid not in stops:
+                stops[sid] = {"stop_id": sid, "name": r.get("Naziv") or sid,
+                              "lat": r.get("GpsY"), "lon": r.get("GpsX"),
+                              "bearing": None}
+        # a bearing per stop, from where its line goes next. Rijeka does not
+        # publish one, and without it two stops facing each other across a road
+        # are one place with two numbers.
+        seq = {}
+        for r in rows:
+            key = r.get("LinVarId")
+            if key is None:
+                continue
+            seq.setdefault(key, {})[r.get("RedniBrojStanice")] = r
+        bearings = {}
+        for key, byn in seq.items():
+            ns = sorted(x for x in byn if isinstance(x, int))
+            for i in range(len(ns) - 1):
+                a, b = byn[ns[i]], byn[ns[i + 1]]
+                try:
+                    brg = _bearing_deg(a["GpsY"], a["GpsX"], b["GpsY"], b["GpsX"])
+                except Exception:
+                    continue
+                bearings.setdefault(str(a["StanicaId"]), []).append(brg)
+        for sid, lst in bearings.items():
+            if sid in stops and lst:
+                stops[sid]["bearing"] = round(sum(lst) / float(len(lst)), 2)
+        _rj_mem.update(day=today, rows=rows, stops=stops)
+        return _rj_mem
+
+
+def _bearing_deg(aLat, aLon, bLat, bLon):
+    p = math.pi / 180
+    y = math.sin((bLon - aLon) * p) * math.cos(bLat * p)
+    x = (math.cos(aLat * p) * math.sin(bLat * p) -
+         math.sin(aLat * p) * math.cos(bLat * p) * math.cos((bLon - aLon) * p))
+    return (math.atan2(y, x) / p + 360.0) % 360.0
+
+
+def rj_ready():
+    m = _rj_load()
+    return bool(m.get("rows"))
+
+
+def rj_stations():
+    m = _rj_load()
+    return list((m.get("stops") or {}).values())
+
+
+def rj_stations_json():
+    m = _rj_load()
+    stops = m.get("stops") or {}
+    if not stops:
+        return {"ok": False, "reason": "Rijeka timetable not loaded yet"}
+    return {"updated": int(time.time()), "count": len(stops),
+            "stops": {k: [v["name"], v["lat"], v["lon"], v["bearing"]]
+                      for k, v in stops.items()},
+            "changes": {"at": int(time.time()), "feed": len(stops),
+                        "n_added": 0, "added": [], "renamed": 0, "moved": 0,
+                        "not_in_feed": 0}}
+
+
+def rj_stops_near(lat, lon, radius_m, want_min=6):
+    rows = rj_stations()
+    used = float(radius_m)
+    for r in (radius_m, radius_m * 2, radius_m * 4, 1500.0, 3000.0, 6000.0):
+        out = []
+        for st in rows:
+            try:
+                d = _metres(lat, lon, st["lat"], st["lon"])
+            except Exception:
+                continue
+            if d <= r:
+                o = dict(st)
+                o["dist"] = int(round(d))
+                out.append(o)
+        used = float(r)
+        if len(out) >= want_min or not want_min:
+            break
+    out.sort(key=lambda x: x["dist"])
+    return out[:60], used
+
+
+def _rj_secs(t):
+    """'20:00:00.0000000' -> seconds since midnight."""
+    try:
+        h, m, rest = str(t).split(":")[:3]
+        return int(h) * 3600 + int(m) * 60 + int(float(rest))
+    except Exception:
+        return None
+
+
+def rj_board(sid, mins=30, back=15):
+    m = _rj_load()
+    rows = m.get("rows")
+    if not rows:
+        return {"ok": False, "reason": "Rijeka timetable not loaded yet"}
+    sid = str(sid)
+    stop = (m.get("stops") or {}).get(sid)
+    if not stop:
+        return {"ok": False, "reason": "no such stop"}
+    now = time.localtime()
+    now_s = now.tm_hour * 3600 + now.tm_min * 60 + now.tm_sec
+    midnight = time.time() - now_s
+    deps = []
+    for r in rows:
+        if str(r.get("StanicaId")) != sid:
+            continue
+        sec = _rj_secs(r.get("Polazak"))
+        if sec is None:
+            continue
+        delta = (sec - now_s) / 60.0
+        # a departure just after midnight belongs to the night ahead, not the
+        # one that has gone
+        if delta < -back and sec < 4 * 3600:
+            delta += 1440.0
+            sec += 86400
+        if delta < -back or delta > mins:
+            continue
+        deps.append({
+            "route": str(r.get("BrojLinije") or ""),
+            "head": r.get("NazivVarijanteLinije") or "",
+            "trip": str(r.get("PolazakId") or ""),
+            "sched": time.strftime("%H:%M", time.localtime(midnight + (sec % 86400))),
+            "sched_at": int(midnight + sec),
+            "at": int(midnight + sec),
+            "live_at": None, "delay": None, "live": False,
+            "passed": delta < 0, "mins": int(round(delta)),
+            "dir": r.get("Smjer") or "",
+        })
+    deps.sort(key=lambda x: x["sched_at"])
+    lines = sorted({d["route"] for d in deps}, key=lambda x: (len(x), x))
+    return {"ok": True, "now": int(time.time()), "window": mins, "back": back,
+            "feed_ok": True, "feed_trips": 0, "feed_error": "",
+            "index_stale": False, "service_date": time.strftime("%Y%m%d"),
+            "printed": 0, "printed_lines": [], "printed_needs_key": [],
+            "lines": lines, "stop": stop, "departures": deps, "city": "rijeka"}
+
+
+def rj_vehicles(lat=None, lon=None, radius_m=3000):
+    """Live buses. No token: every endpoint declares one and none enforces it."""
+    try:
+        d = _rj_fetch(RJ_API + "/voznired/autobusi", timeout=20)
+    except Exception as e:
+        return {"ok": False, "reason": repr(e), "vehicles": []}
+    res = d.get("res") if isinstance(d, dict) else d
+    items = res if isinstance(res, list) else list((res or {}).values())
+    out = []
+    for v in items:
+        try:
+            la, lo = float(v.get("lat")), float(v.get("lon"))
+        except Exception:
+            continue
+        o = {"id": str(v.get("gbr") or ""), "lat": la, "lon": lo,
+             "trip": str(v.get("voznjaId") or ""), "src": "gps", "route": ""}
+        if lat is not None and lon is not None:
+            o["dist"] = int(round(_metres(lat, lon, la, lo)))
+            if o["dist"] > radius_m:
+                continue
+        out.append(o)
+    out.sort(key=lambda x: x.get("dist", 0))
+    return {"ok": True, "count": len(out), "gps": len(out), "calc": 0,
+            "radius": int(radius_m), "vehicles": out, "city": "rijeka"}
+
+
+# ---------------------------------------------------------------------------
 # TRACKS  (v51)
 # A recorded journey is written as GPX, into Documents, where a file browser
 # can see it and rename it. GPX rather than our own JSON because the point of
@@ -2122,6 +2363,43 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if self._phone_only(route):
             return self._json({"ok": False, "reason": "this answers on the phone only, from its own pages"}, 403)
         try:
+            # v52: one query parameter switches city. Zagreb stays the
+            # default, so every existing caller is untouched.
+            city = (q.get("city", ["zagreb"])[0] or "zagreb").lower()
+            if city in ("rj", "rijeka"):
+                if route == "/stations.json":
+                    return self._json(rj_stations_json())
+                if route == "/board":
+                    return self._json(rj_board(
+                        q.get("stop", [""])[0],
+                        max(5, min(int(q.get("mins", ["30"])[0]), 1440)),
+                        max(0, min(int(q.get("back", ["15"])[0]), 120))))
+                if route == "/stops":
+                    found, used = rj_stops_near(
+                        float(q.get("lat", ["0"])[0]), float(q.get("lon", ["0"])[0]),
+                        min(float(q.get("r", ["350"])[0]), 8000.0),
+                        want_min=(6 if q.get("widen", ["1"])[0] != "0" else 0))
+                    return self._json({"ok": True, "radius": used,
+                                       "asked": int(float(q.get("r", ["350"])[0])),
+                                       "widened": used > float(q.get("r", ["350"])[0]),
+                                       "stops": found, "city": "rijeka"})
+                if route == "/vehicles":
+                    return self._json(rj_vehicles(
+                        float(q.get("lat", ["0"])[0]) or None,
+                        float(q.get("lon", ["0"])[0]) or None,
+                        min(float(q.get("r", ["3000"])[0]), 20000.0)))
+                if route == "/status":
+                    m = _rj_load()
+                    st = m.get("stops") or {}
+                    return self._json({"ok": bool(st), "state": "idle",
+                                       "city": "rijeka", "stations": bool(st),
+                                       "stations_count": len(st),
+                                       "service_date": time.strftime("%Y%m%d"),
+                                       "stops": str(len(st)),
+                                       "deps": str(len(m.get("rows") or [])),
+                                       "feed_ok": True,
+                                       "source": "Autotrolej open data"})
+
             if route == "/stations.json":
                 meta = stations_meta()
                 if not meta:

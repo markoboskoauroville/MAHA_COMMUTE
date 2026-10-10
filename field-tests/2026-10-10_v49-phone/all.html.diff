@@ -1,5 +1,5 @@
 --- /tmp/claude-0/-storage-emulated-0-Download/e531429a-5478-4791-bfc4-0694822fc9f5/scratchpad/all.html.before_follow	2026-10-10 06:13:55.711040731 +0000
-+++ field-tests/2026-10-10_v49-phone/all.html	2026-10-10 06:53:11.743040871 +0000
++++ field-tests/2026-10-10_v49-phone/all.html	2026-10-10 07:01:46.827040902 +0000
 @@ -32,6 +32,57 @@
      border:1px solid var(--border);color:var(--text);font-size:1.1rem;cursor:pointer;
      display:flex;align-items:center;justify-content:center;}
@@ -431,7 +431,7 @@
    else if (!quiet) hud(stopsLine());
  }
  function curZoom(){ const v = currentView(); return v && v.zoom ? v.zoom : 17; }
-@@ -1252,7 +1493,7 @@
+@@ -1252,11 +1493,14 @@
        (STOPS.length ? " · " + STOPS.length + " stations near you" : "") +
        ". Tap a station.");
      /* good enough, and settled: stop burning the GNSS chip */
@@ -440,7 +440,15 @@
    }, err => {
      stopBurst();
      if (err && err.code === 1)
-@@ -1281,7 +1522,7 @@
+-      hud("Location refused. Pan the map to where you are, or pin yourself in ⚙.");
++      /* v52: code 1 is the BROWSER refusing, not the phone failing to find a
++         fix, and the cure is three taps in Chrome rather than anything this
++         app can do. The old wording sent him looking for a fault here. */
++      hud("Chrome is blocking location for this page. Tap the <b>crossed-out location icon</b> left of the address bar → Permissions → Location → Allow, then reload. Or pin yourself by hand in ⚙.");
+     else hud("No position yet. ⚙ → Position has ways to help.");
+     if (!STOPS.length) loadStops();
+   }, { enableHighAccuracy: true, maximumAge: 0, timeout: ms });
+@@ -1281,7 +1525,7 @@
    const now = Date.now();
    if (!force && now - lastFix < 8000) return;
    lastFix = now;
@@ -449,7 +457,7 @@
  }
  function sharpen(){
    if (ME && ME.pinned) { hud("You are pinned by hand. Unpin in ⚙ first."); return; }
-@@ -1683,6 +1924,207 @@
+@@ -1683,6 +1927,207 @@
  document.getElementById("engFree").addEventListener("click", () => setEngine("free"));
  document.getElementById("engDetail").addEventListener("click", () => setEngine("detail"));
  
@@ -657,7 +665,7 @@
  document.getElementById("btnSetup").addEventListener("click", () => {
    document.getElementById("setup").classList.add("show");
    document.getElementById("rLbl").textContent = fmtDist(RADIUS);
-@@ -2016,7 +2458,7 @@
+@@ -2016,7 +2461,7 @@
  document.getElementById("btnLocate").addEventListener("click", () => {
    const b = document.getElementById("btnLocate");
    if (ME && ME.pinned) {
@@ -666,7 +674,7 @@
      hud("You are pinned by hand. Unpin in ⚙ to use the satellites again.");
      return;
    }
-@@ -2025,7 +2467,7 @@
+@@ -2025,7 +2470,7 @@
    // position, and again to the first fix of the new burst, which is where you
    // are. The flag lapses after the burst so a later automatic fix cannot use it.
    WANT_CENTRE = true;
@@ -675,7 +683,7 @@
    clearTimeout(window.__wantT); window.__wantT = setTimeout(() => { WANT_CENTRE = false; }, 35000);
    sharpen();
    setTimeout(() => b.classList.remove("busy"), 30000);
-@@ -2287,6 +2729,7 @@
+@@ -2287,6 +2732,7 @@
    } else { ENGINE = "free"; MODE = "stars"; }
    paintMode();
    await watchIndex();
