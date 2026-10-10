@@ -379,6 +379,7 @@ if command -v node >/dev/null 2>&1; then
     printf 'const STAR_PTS="0,0"; const COLOUR={A:"#d4a017",B:"#39d0d8"};\n'
     printf 'let WATCHED="A";\n'
     printf 'const esc = t => String(t); const dirAbbr = () => "N";\n'
+    printf 'const pinText = s => s.stop_id; const isOsm = () => false;\n'
     printf 'const isWatched = id => id === WATCHED;\n'
     sed -n "/^function starHTML/,/^}/p" "$ART"
     sed -n "/^function pinHTML/,/^}/p" "$ART"
@@ -926,6 +927,7 @@ if command -v node >/dev/null 2>&1; then
     printf 'global.document={getElementById:el,querySelectorAll:()=>[]};global.window={addEventListener(){}};\n'
     printf 'let SEL=null,WATCH=null,ME=null,API_KEY="",STOPS=[{stop_id:"A",name:"Alpha",dist:50},{stop_id:"B",name:"Beta",dist:90}];\n'
     printf 'const BOARDS={},SV_CACHE={};function esc(x){return String(x)}function fmtDist(m){return m+" m"}function dirAbbr(){return null}\n'
+    printf 'function pinText(s){return s.stop_id}function isOsm(){return false}\n'
     printf 'function stationColour(){return "#fff"}function starHTML(){return ""}function isWatched(){return false}function arrivalRow(x){return "<row "+x.route+">"}function metres(){return 0}\n'
     printf 'const PALETTE=["#fff"];\n'
     sed -n '/^function subLine(s, b){/,/^}/p' <<<"$ap"
