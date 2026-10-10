@@ -10,6 +10,18 @@ page froze while every status said it was fine.
 
 Now a reading counts only if it carries a latitude and a longitude; API_ERROR, or
 any answer without both, is ok false with the reason Android gave.
+
+AND THE LAST GOOD READING IS KEPT. A failed reading carries the last good one from
+the same provider as "last", with "last_age_s" (seconds since it was taken: the
+time since it was banked plus the age Android gave it, elapsedMs, which the phone
+showed is the fix's age and not the call's duration). The page says "last known
+fix, N min ago" and shows its accuracy and age under the failure, instead of "no
+provider answered", and the fresh-fix button no longer says "Android answered."
+when it did not.
+
+A 500 IS WRITTEN DOWN. The route dispatch turned every exception into a 500 whose
+reason went only into the response body, so the /gps 500 seen in the phone's
+server.log at 07:39:35 left nothing to read. The traceback now goes to the log.
 """
 
 ALL_FIXES = [
@@ -17,6 +29,61 @@ ALL_FIXES = [
     ('<div class="kv"><span>Interface</span><b>stations · v47</b></div>',
      '<div class="kv"><span>Interface</span><b>stations · v48</b></div>'),
     ('ALLC_UI_VERSION="v47"', 'ALLC_UI_VERSION="v48"'),
+    ('\n\ndef gps_state(fresh=False):\n',
+     '\n\n_LAST_FIX = {}\n'
+     '_LAST_FIX_LOCK = threading.Lock()\n'
+     '_termux_fix_once = termux_fix\n'
+     '\n\n'
+     'def termux_fix(provider="gps", request="last", timeout=14):\n'
+     '    """The reading, and on a failure the last good one from the same provider."""\n'
+     '    r = _termux_fix_once(provider, request, timeout)\n'
+     '    now = time.time()\n'
+     '    with _LAST_FIX_LOCK:\n'
+     '        if r.get("ok"):\n'
+     '            _LAST_FIX[provider] = (now, dict(r))\n'
+     '        elif provider in _LAST_FIX:\n'
+     '            at, last = _LAST_FIX[provider]\n'
+     '            r["last"] = last\n'
+     '            r["last_age_s"] = int(now - at + (last.get("elapsedMs") or 0) / 1000)\n'
+     '    return r\n'
+     '\n\ndef gps_state(fresh=False):\n'),
+    ('        except Exception as e:\n'
+     '            return self._json({"ok": False, "reason": repr(e)}, 500)\n',
+     '        except Exception as e:\n'
+     '            import traceback\n'
+     '            sys.stderr.write("500 on %s\\n%s" % (route, traceback.format_exc()))\n'
+     '            sys.stderr.flush()\n'
+     '            return self._json({"ok": False, "reason": repr(e)}, 500)\n'),
+    ('  document.getElementById("posMsg").textContent = GPSINFO && GPSINFO.termux\n'
+     '    ? "Android answered." : "Termux:API is not installed.";\n',
+     '  document.getElementById("posMsg").textContent = !GPSINFO\n'
+     '    ? "The app did not answer." : (!GPSINFO.termux ? "Termux:API is not installed."\n'
+     '    : (GPSINFO.better ? "Android answered." : "Android could not get a fix just now."));\n'),
+    ('  if (GPSINFO.better === "network") return "wifi / cell";\n'
+     '  return "no provider answered";\n',
+     '  if (GPSINFO.better === "network") return "wifi / cell";\n'
+     '  const lastAge = gpsLastAge();\n'
+     '  if (lastAge != null) return "last known fix, " + fmtSecsAgo(lastAge);\n'
+     '  return "no provider answered";\n'
+     '}\n'
+     'function fmtSecsAgo(s){\n'
+     '  if (s < 90) return Math.max(0, Math.round(s)) + " s ago";\n'
+     '  if (s < 5400) return Math.round(s / 60) + " min ago";\n'
+     '  return Math.round(s / 3600) + " h ago";\n'
+     '}\n'
+     'function gpsLastAge(){\n'
+     '  if (!GPSINFO) return null;\n'
+     '  const ages = [GPSINFO.gps, GPSINFO.network]\n'
+     '    .filter(o => o && !o.ok && o.last && o.last_age_s != null).map(o => o.last_age_s);\n'
+     '  return ages.length ? Math.min.apply(null, ages) : null;\n'),
+    ('    if (!o || !o.ok) return \'<div class="kv"><span>\' + name + \'</span><b>\' +\n'
+     '      esc((o && o.reason) || "no fix") + \'</b></div>\';\n',
+     '    if (!o || !o.ok) return \'<div class="kv"><span>\' + name + \'</span><b>\' +\n'
+     '      esc((o && o.reason) || "no fix") + \'</b></div>\' +\n'
+     '      (o && o.last && o.last_age_s != null\n'
+     '        ? \'<div class="kv"><span>last known</span><b>±\' +\n'
+     '          (o.last.accuracy == null ? "?" : Math.round(o.last.accuracy)) + " m · " +\n'
+     '          esc(fmtSecsAgo(o.last_age_s)) + \'</b></div>\' : "");\n'),
     ('    out = {"ok": True, "provider": d.get("provider", provider)}\n',
      '    if not isinstance(d, dict) or d.get("API_ERROR") or \\\n'
      '            d.get("latitude") is None or d.get("longitude") is None:\n'

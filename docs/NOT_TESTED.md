@@ -109,8 +109,8 @@ Not yet seen on any phone or emulator:
 - **F1, labels clear of the controls,** and **v23's three-row watch bar.** Test 6 proves
   them in Chromium on Linux; nobody has tapped a label near the GPS chip with a thumb.
 - **F4, an app whose folder was deleted is reinstalled.** Not repeated on the phone.
-- **F5 and F10, `maha-commute day` returning to a script, and the first-start wait
-  pacing with sleep.** Not run: the phone session was stopped before step 6.
+- **F10, the first-start wait pacing with sleep.** F5 passed on the phone (day returned
+  in 15 s); a slow first start without a terminal has not been seen.
 - **F7, the index build retrying after an offline start.** Needs airplane mode.
 - **F8, the locate button following up on the new fix.** Needs the phone to move.
 - **F11, `update --check <file>` and a missing file.**
@@ -119,4 +119,7 @@ Not yet seen on any phone or emulator:
   closed Chrome on the phone, or drawn before the server answered on a slow start.
 - **v25's location fix.** Proven with a stand-in termux-location that prints
   `API_ERROR` and exits 0, which is what the phone printed. Not yet installed there.
-- **The `/gps` 500 seen in the phone's server.log at 07:39:35.** Cause not found.
+- **The `/gps` 500 seen in the phone's server.log at 07:39:35.** Cause not found; from
+  v25 the next one leaves a traceback in server.log.
+- **v25's last known fix in the page.** The label and the row under a failed provider
+  are proven in test 7 on the server side only; nobody has seen them drawn.

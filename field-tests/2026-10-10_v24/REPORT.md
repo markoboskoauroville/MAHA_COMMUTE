@@ -2,7 +2,8 @@
 
 **Partial.** Read-only checks against the v24 install on Marko's phone, run by a Claude
 Code session on the phone (Remote Control) and directed from the cloud session.
-Steps 6 to 8 (the CLI returning, port bumping, narrow launcher) were not reported.
+Step 6 (the CLI returning) passed; steps 7 and 8 were cancelled by Marko: "Work only
+with All Commute app. Cancel all other tests."
 
 ## Environment
 
@@ -28,9 +29,11 @@ Steps 6 to 8 (the CLI returning, port bumping, narrow launcher) were not reporte
 | GPS-1 | a failed reading is reported as failed | **termux-location prints `{"API_ERROR": "Failed to get location"}` and exits 0; termux_fix answered `{"ok": true, "provider": "gps"}` with no coordinates**. The page's position froze while status said fine. One `/gps` 500 also seen in server.log at 07:39:35 | **FAIL, fixed in v25** |
 | GPS-2 | cold `termux-location -p network -r once` within 25 s | first call timed out at 25 s, the retry answered at once | note: the app uses `-r last` with 8-14 s |
 | TEST-3 on phone | ugly cases | 71 passed, 0 failed (run from the old v16 checkout, so it is v16's test 3) | not v24 evidence |
-| CLI-1 (F5, F10) | `maha-commute day </dev/null \| cat` returns | not reported | **NOT RUN** |
-| PORT-1 | night bumps off a busy port | not reported | **NOT RUN** |
-| LCH-W (F12, F13) | launcher at 40 and 60 columns | not reported | **NOT RUN** |
+| CLI-1 (F5, F10) | `maha-commute day </dev/null \| cat` returns | rc 0 in 15 s, day answered 200 afterwards; `running/day.port` is not written (the 8082 fallback answered) | **PASS** |
+| GPS-3 | elapsedMs is the fix's age | 92 744 ms on a fix 92 s old, 397 533 ms on one 6.6 min old, 14 ms on fresh calls: it is the age | **PASS** |
+| GPS-4 | the /gps 500 at 07:39:35 can be diagnosed | no traceback anywhere: the route dispatch returned `repr(e)` only in the body. A 200 and a 500 for /gps in the same second, on a threading server, each shelling out to termux-location. Not reproduced | **FAIL, logged from v25** |
+| PORT-1 | night bumps off a busy port | cancelled by Marko | **NOT RUN** |
+| LCH-W (F12, F13) | launcher at 40 and 60 columns | cancelled by Marko | **NOT RUN** |
 
 ## Cautions for the next field test
 
@@ -40,5 +43,10 @@ Steps 6 to 8 (the CLI returning, port bumping, narrow launcher) were not reporte
 ## For the cloud
 
 1. **Done in v25:** a location answer counts only if it carries latitude and longitude; `API_ERROR` is `ok: false` with Android's reason (`tools/payload_v25.py`, three checks in test 7).
-2. Find the `/gps` 500 at 07:39:35 in server.log (traceback not yet collected).
-3. Run CLI-1, PORT-1 and LCH-W from the Termux shell, not from proot.
+2. **Done in v25:** a failed reading carries the last good one and its age; the page says
+   "last known fix, N min ago" instead of "no provider answered", and the fresh-fix button
+   no longer says "Android answered." when it did not. A 500 writes its traceback to the log.
+3. Open: gps_state asks the two providers one after the other (8 s + 6 s at worst) while
+   the page repaints the chip every 3 s; `-r once` hung past 30 s on this phone.
+4. The phone runs a hand-patched all.commute (pid 13406) with the same location fix, made
+   by the phone session; installing v25 replaces it.

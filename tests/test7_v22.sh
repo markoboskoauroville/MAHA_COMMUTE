@@ -174,10 +174,10 @@ FAKEBIN=$(mktemp -d)
 gps_case() { # gps_case JSON -> what termux_fix answers when termux-location prints JSON and exits 0
   printf '#!/bin/sh\nprintf %%s %s\n' "'$1'" > "$FAKEBIN/termux-location"; chmod +x "$FAKEBIN/termux-location"
   PATH="$FAKEBIN:$PATH" python3 - "$SD/all_commute_server.py" <<'PY'
-import json, re, subprocess, sys
+import json, re, subprocess, sys, threading, time
 src = open(sys.argv[1], encoding="utf-8").read()
-m = re.search(r"^def termux_fix\(.*?(?=^def )", src, re.S | re.M)
-ns = {"json": json, "subprocess": subprocess}
+m = re.search(r"^def termux_fix\(.*?(?=^def gps_state)", src, re.S | re.M)
+ns = {"json": json, "subprocess": subprocess, "time": time, "threading": threading}
 exec(m.group(0), ns)
 r = ns["termux_fix"]("gps", "last", 5)
 print(r["ok"], r.get("reason", r.get("latitude")))
@@ -186,6 +186,20 @@ PY
 eq "v25: API_ERROR with exit 0 is not a fix"   "False Failed to get location" "$(gps_case '{"API_ERROR": "Failed to get location"}')"
 eq "v25: an answer with no position is not a fix" "False no position in the answer" "$(gps_case '{"provider": "gps"}')"
 eq "v25: a real reading is still a fix"         "True 45.804" "$(gps_case '{"latitude": 45.804, "longitude": 15.99, "accuracy": 5, "provider": "gps"}')"
+# the last good reading is carried by the next failure, with its age
+printf '#!/bin/sh\nn=$(cat "%s/n" 2>/dev/null || echo 0); echo $((n+1)) > "%s/n"\nif [ "$n" = 0 ]; then echo '"'"'{"latitude": 45.8, "longitude": 15.9, "accuracy": 7, "elapsedMs": 3000}'"'"'; else echo '"'"'{"API_ERROR": "Failed to get location"}'"'"'; fi\n' "$FAKEBIN" "$FAKEBIN" > "$FAKEBIN/termux-location"; chmod +x "$FAKEBIN/termux-location"
+eq "v25: a failure carries the last good fix and its age" "False 7 3" "$(PATH="$FAKEBIN:$PATH" python3 - "$SD/all_commute_server.py" <<'PY'
+import json, re, subprocess, sys, threading, time
+src = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r"^def termux_fix\(.*?(?=^def gps_state)", src, re.S | re.M)
+ns = {"json": json, "subprocess": subprocess, "time": time, "threading": threading}
+exec(m.group(0), ns)
+ns["termux_fix"]("gps", "last", 5)
+r = ns["termux_fix"]("gps", "last", 5)
+print(r["ok"], r["last"]["accuracy"], r["last_age_s"])
+PY
+)"
+grep -qF 'traceback.format_exc()' "$SD/all_commute_server.py" && ok || bad "v25: a 500 writes its traceback to the log"
 rm -rf "$FAKEBIN"
 kill $SRV 2>/dev/null; SRV=""
 

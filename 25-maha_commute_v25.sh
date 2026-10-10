@@ -5,11 +5,11 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-10 05:55 UTC
+# built            2026-10-10 06:07 UTC
 # payloads, as carried, key stripped:
 #   day    v18    191418 bytes  sha256 c06bd32336b7e0cb
 #   night  v14    149613 bytes  sha256 d74deef8be41cbd8
-#   all    v48    365453 bytes  sha256 bd267eeae190f245
+#   all    v48    367073 bytes  sha256 c0c3fe962c6c8083
 #
 # The Google Maps key that was inside two of these payloads has
 # been taken out and replaced with a placeholder. The installer
@@ -9391,6 +9391,25 @@ def termux_fix(provider="gps", request="last", timeout=14):
     return out
 
 
+_LAST_FIX = {}
+_LAST_FIX_LOCK = threading.Lock()
+_termux_fix_once = termux_fix
+
+
+def termux_fix(provider="gps", request="last", timeout=14):
+    """The reading, and on a failure the last good one from the same provider."""
+    r = _termux_fix_once(provider, request, timeout)
+    now = time.time()
+    with _LAST_FIX_LOCK:
+        if r.get("ok"):
+            _LAST_FIX[provider] = (now, dict(r))
+        elif provider in _LAST_FIX:
+            at, last = _LAST_FIX[provider]
+            r["last"] = last
+            r["last_age_s"] = int(now - at + (last.get("elapsedMs") or 0) / 1000)
+    return r
+
+
 def gps_state(fresh=False):
     """Both providers side by side, so the interface can stop guessing."""
     if not _have_termux_location():
@@ -9822,6 +9841,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
             if route == "/version":
                 return self._json({"version": APP_VERSION, "build": APP_BUILD})
         except Exception as e:
+            import traceback
+            sys.stderr.write("500 on %s\n%s" % (route, traceback.format_exc()))
+            sys.stderr.flush()
             return self._json({"ok": False, "reason": repr(e)}, 500)
 
         name = os.path.basename(route)
@@ -12420,8 +12442,9 @@ function updateAccBox(){
 document.getElementById("posProv").addEventListener("click", async () => {
   document.getElementById("posMsg").textContent = "Asking Android for a fresh fix from each provider…";
   await loadGps(true);
-  document.getElementById("posMsg").textContent = GPSINFO && GPSINFO.termux
-    ? "Android answered." : "Termux:API is not installed.";
+  document.getElementById("posMsg").textContent = !GPSINFO
+    ? "The app did not answer." : (!GPSINFO.termux ? "Termux:API is not installed."
+    : (GPSINFO.better ? "Android answered." : "Android could not get a fix just now."));
 });
 document.getElementById("posSharpen").addEventListener("click", () => {
   document.getElementById("setup").classList.remove("show");
@@ -12473,7 +12496,20 @@ function srcLabel(){
   }
   if (GPSINFO.better === "gps") return "satellites";
   if (GPSINFO.better === "network") return "wifi / cell";
+  const lastAge = gpsLastAge();
+  if (lastAge != null) return "last known fix, " + fmtSecsAgo(lastAge);
   return "no provider answered";
+}
+function fmtSecsAgo(s){
+  if (s < 90) return Math.max(0, Math.round(s)) + " s ago";
+  if (s < 5400) return Math.round(s / 60) + " min ago";
+  return Math.round(s / 3600) + " h ago";
+}
+function gpsLastAge(){
+  if (!GPSINFO) return null;
+  const ages = [GPSINFO.gps, GPSINFO.network]
+    .filter(o => o && !o.ok && o.last && o.last_age_s != null).map(o => o.last_age_s);
+  return ages.length ? Math.min.apply(null, ages) : null;
 }
 function paintChip(){
   const chip = document.getElementById("gpsChip");
@@ -12523,7 +12559,11 @@ function providerRows(){
     'of a guess from the accuracy figure.</span>';
   const one = (o, name) => {
     if (!o || !o.ok) return '<div class="kv"><span>' + name + '</span><b>' +
-      esc((o && o.reason) || "no fix") + '</b></div>';
+      esc((o && o.reason) || "no fix") + '</b></div>' +
+      (o && o.last && o.last_age_s != null
+        ? '<div class="kv"><span>last known</span><b>±' +
+          (o.last.accuracy == null ? "?" : Math.round(o.last.accuracy)) + " m · " +
+          esc(fmtSecsAgo(o.last_age_s)) + '</b></div>' : "");
     const age = o.elapsedMs != null ? " · " + Math.round(o.elapsedMs / 1000) + " s old" : "";
     return '<div class="kv"><span>' + name + '</span><b>±' +
       (o.accuracy == null ? "?" : Math.round(o.accuracy)) + " m" + esc(age) + '</b></div>';
@@ -15686,4 +15726,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v25 bdfac868b15fe5c0
+# MAHA_COMMUTE_SENTINEL v25 4e7ac269b01f1535
