@@ -42,3 +42,36 @@ picked.
 Untested in the running app at the time of writing — committed first, on
 Marko's instruction, so that testing cannot lose it. `all.html.diff` is the
 change against the file as it was before this session touched it.
+
+---
+
+## v50 — the map belongs to the user
+
+Marko, on the road: *"remove any automatic zooming or changing locations.
+Everything is done by user."*
+
+**6 · Nothing changes the zoom, ever.** Three call sites passed
+`Math.max(17, curZoom())`, which silently zoomed the map in to 17 whenever it
+centred — on the locate button, on a pinned position, and on every automatic
+centring. All three now pass `curZoom()`. The zoom the user left is the zoom
+that stays.
+
+**7 · Nothing moves the map on its own.** The v49 follow-the-car centring is
+gone, along with `USER_PANNED`/`PAN_GRACE`, which only existed to referee a
+fight between the app and the user's own finger — a fight the app should not
+have been in. What remains, and all of it is user-triggered: the saved view at
+startup, the saved view when the engine is switched, a tap on the locate
+button, the two items in the new menu, and one cold-start centring on a first
+run that has no saved view to honour.
+
+**8 · The lock, on a long press.** 550 ms on the locate button opens
+`#lockMenu` with two items: *Lock to my position*, which keeps the middle of
+the screen on you until it is turned off, and *Centre on me once*. The locate
+button itself turns cyan while locked, and the state lives in `ac2_lock`.
+Locking is a mode, and a mode a single tap can set is a mode set by accident,
+so it is behind the press. Unlocked, the dot drifts off the screen and that is
+correct, not a fault.
+
+The continuous GPS watch from v49 (`FOLLOW`) stays: it is what keeps the DOT
+current. It never had anything to do with moving the map, which is the
+distinction the v49 version got wrong.

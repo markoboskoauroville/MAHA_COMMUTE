@@ -32,6 +32,22 @@
     border:1px solid var(--border);color:var(--text);font-size:1.1rem;cursor:pointer;
     display:flex;align-items:center;justify-content:center;}
   .tool.on{border-color:var(--cyan);color:var(--cyan);}
+  /* v50: the long press menu on the locate button. It exists because locking
+     the map to you is a mode, and a mode that a single tap can turn on is a
+     mode you turn on by accident. */
+  #lockMenu{position:absolute;top:calc(60px + env(safe-area-inset-top));right:12px;z-index:700;
+    display:none;flex-direction:column;min-width:232px;padding:6px;border-radius:14px;
+    background:rgba(13,17,23,.96);border:1px solid var(--border);
+    box-shadow:0 10px 30px rgba(0,0,0,.6);}
+  #lockMenu.show{display:flex;}
+  .lmi{display:grid;grid-template-columns:22px 1fr;gap:2px 6px;align-items:baseline;
+    background:none;border:0;color:var(--text);text-align:left;padding:9px 8px;
+    border-radius:10px;cursor:pointer;font:inherit;}
+  .lmi:active{background:rgba(255,255,255,.07);}
+  .lmi b{font-size:.9rem;font-weight:650;}
+  .lmi i{grid-column:2;font-style:normal;font-size:.76rem;color:var(--muted);}
+  .lmtick{grid-row:1 / span 2;color:var(--cyan);font-size:1rem;line-height:1.1;}
+  .tool.locate.locked{border-color:var(--cyan);color:var(--cyan);}
   /* v49: recording. Red, because it is the one control that is writing
      something down, and it pulses so a glance at the cradle answers "is it
      still running" without reading anything. */
@@ -386,6 +402,13 @@
     <button class="tool" id="btnSetup" title="Settings">⚙</button>
   </div>
 
+  <div id="lockMenu">
+    <button class="lmi" id="lmLock"><span class="lmtick">·</span><b>Lock to my position</b>
+      <i>the middle of the screen stays on you</i></button>
+    <button class="lmi" id="lmCentre"><span class="lmtick">·</span><b>Centre on me once</b>
+      <i>and leave the map where you put it after</i></button>
+  </div>
+
   <div id="gpsChip" title="Tap for the whole picture">
     <span class="gdot"></span><b id="gpsAcc">—</b><span id="gpsSrc">looking…</span>
   </div>
@@ -695,13 +718,12 @@ let CENTRED = false;          // true once the map has really been moved to you
 // once on the very first run, before there is any view of yours to keep. The
 // dot moves by itself; the map never follows it and never changes zoom.
 let WANT_CENTRE = false, HAD_VIEW = !!LS.get("view", null);
-/* v49: following the car. The map used to move to you only on the locate
-   button, for 35 s. At 50 km/h that is off the screen before the second
-   fix. Now it keeps you centred while FOLLOW is on -- but a pan by hand
-   wins for PAN_GRACE, because fighting the driver's own finger is worse
-   than not following at all. */
-let USER_PANNED = 0;
-const PAN_GRACE = 12000;
+/* v50: the map is the user's. Nothing here moves it or changes its zoom on
+   its own. The locate button centres once, and LOCK -- set from the long
+   press on that button -- is the only thing that keeps centring afterwards.
+   Unlocked, the dot is free to drift off the screen, which is the correct
+   behaviour and not a fault. */
+let LOCK = !!LS.get("lock", false);
 let lastStopsT = 0;
 let STOPSEQ = 0;              // the newest stations request; an older answer is dropped
 /* THE STATIONS ARE THE PAGE'S OWN DATA (v24). Every station is kept in the browser,
@@ -783,7 +805,6 @@ function initFreeMap(){
   map.getPane("names").style.pointerEvents = "none";
   names = L.layerGroup();
   map.on("moveend", saveView);
-  map.on("dragstart", () => { USER_PANNED = Date.now(); });
   map.on("zoomend", layoutPins);
   map.on("moveend", layoutPins);
   map.on("click", (e) => { if (PINMODE) pinAt(e.latlng.lat, e.latlng.lng); });
@@ -910,7 +931,6 @@ function buildGoogleMap(g){
   });
   makeMarkerClass(g);
   gmap.addListener("idle", saveView);
-  gmap.addListener("dragstart", () => { USER_PANNED = Date.now(); });
   gmap.addListener("idle", layoutPins);
   gmap.addListener("click", onMapClick);
 }
@@ -1392,10 +1412,13 @@ function applyFix(quiet){
   drawMe();
   updateAccBox(); paintChip();
   traceAdd(ME.lat, ME.lng);
-  const holding = Date.now() - USER_PANNED < PAN_GRACE;
-  const followNow = FOLLOW && !holding;
-  if (WANT_CENTRE || followNow || (!CENTRED && !HAD_VIEW)) {
-    setView(ME, Math.max(17, curZoom())); CENTRED = true; WANT_CENTRE = false;
+  /* WANT_CENTRE is the single shot from a tap on the locate button and is
+     spent here. LOCK keeps the middle of the screen on you until it is turned
+     off. The last clause is the cold start only: a first run with no saved
+     view has to put the map somewhere. The zoom is whatever the user left it
+     at, in every one of those cases. */
+  if (WANT_CENTRE || LOCK || (!CENTRED && !HAD_VIEW)) {
+    setView(ME, curZoom()); CENTRED = true; WANT_CENTRE = false;
   }
   const need = lastStopFetch
     ? metres(lastStopFetch.lat, lastStopFetch.lng, ME.lat, ME.lng) : 1e9;
@@ -1857,6 +1880,59 @@ document.getElementById("layerBox").addEventListener("click", (e) => {
 document.getElementById("engFree").addEventListener("click", () => setEngine("free"));
 document.getElementById("engDetail").addEventListener("click", () => setEngine("detail"));
 
+/* v50: the locate button. A tap centres once. A long press opens the menu,
+   because locking is a mode and a tap is too cheap a gesture to set one. */
+function paintLock(){
+  const b = document.getElementById("btnLocate");
+  if (b) b.classList.toggle("locked", LOCK);
+  const t = document.querySelector("#lmLock .lmtick");
+  if (t) t.textContent = LOCK ? "\u2713" : "\u00b7";
+}
+function closeLockMenu(){
+  const m = document.getElementById("lockMenu");
+  if (m) m.classList.remove("show");
+}
+function setLock(on){
+  LOCK = !!on;
+  LS.set("lock", LOCK);
+  paintLock();
+  if (LOCK && ME) setView(ME, curZoom());
+  hud(LOCK ? "Locked. The middle of the screen stays on you."
+           : "Unlocked. The map stays where you put it.");
+}
+(function(){
+  const b = document.getElementById("btnLocate");
+  const m = document.getElementById("lockMenu");
+  if (!b || !m) return;
+  let held = false, t = null;
+  const start = () => { held = false; t = setTimeout(() => {
+    held = true; paintLock(); m.classList.add("show");
+  }, 550); };
+  const end = () => { if (t) { clearTimeout(t); t = null; } };
+  b.addEventListener("touchstart", start, { passive: true });
+  b.addEventListener("touchend", end);
+  b.addEventListener("touchcancel", end);
+  b.addEventListener("mousedown", start);
+  b.addEventListener("mouseup", end);
+  b.addEventListener("mouseleave", end);
+  // the capture phase, so the long press never also fires the tap below it
+  b.addEventListener("click", (e) => {
+    if (held) { held = false; e.stopPropagation(); e.preventDefault(); }
+  }, true);
+  document.getElementById("lmLock").addEventListener("click", () => {
+    setLock(!LOCK); closeLockMenu();
+  });
+  document.getElementById("lmCentre").addEventListener("click", () => {
+    closeLockMenu();
+    if (ME) { setView(ME, curZoom()); hud("Centred."); }
+    else { WANT_CENTRE = true; hud("No position yet. It will centre on the first fix."); }
+  });
+  document.addEventListener("click", (e) => {
+    if (!m.classList.contains("show")) return;
+    if (m.contains(e.target) || b.contains(e.target)) return;
+    closeLockMenu();
+  }, true);
+})();
 /* v49: tap records, a long press throws the line away. The clear is behind a
    hold because a recorded journey is the one thing on this map that cannot be
    fetched again, and a stray thumb on a cradle should not be able to lose it. */
@@ -2211,7 +2287,7 @@ document.getElementById("gpsChip").addEventListener("click", () => {
 document.getElementById("btnLocate").addEventListener("click", () => {
   const b = document.getElementById("btnLocate");
   if (ME && ME.pinned) {
-    setView(ME, Math.max(17, curZoom()));
+    setView(ME, curZoom());
     hud("You are pinned by hand. Unpin in ⚙ to use the satellites again.");
     return;
   }
@@ -2220,7 +2296,7 @@ document.getElementById("btnLocate").addEventListener("click", () => {
   // position, and again to the first fix of the new burst, which is where you
   // are. The flag lapses after the burst so a later automatic fix cannot use it.
   WANT_CENTRE = true;
-  if (ME) setView(ME, Math.max(17, curZoom()));
+  if (ME) setView(ME, curZoom());
   clearTimeout(window.__wantT); window.__wantT = setTimeout(() => { WANT_CENTRE = false; }, 35000);
   sharpen();
   setTimeout(() => b.classList.remove("busy"), 30000);
@@ -2482,7 +2558,7 @@ async function watchIndex(){
   } else { ENGINE = "free"; MODE = "stars"; }
   paintMode();
   await watchIndex();
-  drawTrace(); paintRec();
+  drawTrace(); paintRec(); paintLock();
   autoLocate(true);
   loadGps(false);
   if (!gpsPoll) gpsPoll = setInterval(() => { if (!document.hidden) paintChip(); }, 3000);
