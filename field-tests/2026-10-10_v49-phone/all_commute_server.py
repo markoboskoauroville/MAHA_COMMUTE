@@ -2394,6 +2394,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     return self._json({"ok": bool(st), "state": "idle",
                                        "city": "rijeka", "stations": bool(st),
                                        "stations_count": len(st),
+                                       # the page refetches its copy when this moves
+                                       "stations_rev": ("rj-%s-%d" % (m.get("day") or "", len(st))) if st else "",
                                        "service_date": time.strftime("%Y%m%d"),
                                        "stops": str(len(st)),
                                        "deps": str(len(m.get("rows") or [])),

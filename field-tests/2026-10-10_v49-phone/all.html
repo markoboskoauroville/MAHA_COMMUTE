@@ -512,6 +512,17 @@
 
 
     <div class="box">
+      <h3>City</h3>
+      <div class="btnrow">
+        <button class="btn" id="cityZg">Zagreb</button>
+        <button class="btn" id="cityRj">Rijeka</button>
+      </div>
+      <span class="note">Both cities are always on. Wherever you are standing, you see that
+        city's stations: ZET in Zagreb, Autotrolej in Rijeka. These two buttons are for
+        looking at the other city from afar — they pin you at its centre.</span>
+    </div>
+
+    <div class="box">
       <h3>Map layers</h3>
       <div class="eng">
         <button id="engFree">Free map<i>roads and names</i></button>
@@ -580,7 +591,7 @@
       <div id="statBox"><span class="note">Loading…</span></div>
       <div style="margin-top:11px"><button class="btn" id="cacheBtn">Cache all stations</button></div>
       <div class="msg" id="cacheMsg"></div>
-      <span class="note">Every stop in the ZET network, kept on the phone. Built once a day.</span>
+      <span class="note">Every stop in the ZET network and in Autotrolej's, kept on the phone. Built once a day.</span>
     </div>
 
     <div class="box">
@@ -773,24 +784,46 @@ let STOPSEQ = 0;              // the newest stations request; an older answer is
 /* THE STATIONS ARE THE PAGE'S OWN DATA (v24). Every station is kept in the browser,
    drawn before anything is asked of the server, and refreshed only when the
    server says the list has changed. */
+/* v52: TWO CITIES, ONE MAP. Zagreb (ZET) and Rijeka (Autotrolej) are kept side
+   by side, each its own copy with its own revision. There is no mode to pick:
+   the stations around you are whichever city you are standing in. A ZET stop id
+   always carries an underscore and an Autotrolej one is only digits, so a
+   station says by itself which city to ask for its board. */
+const CITIES = {
+  zagreb: { name: "Zagreb", op: "ZET",        lat: 45.8131, lng: 15.9775, key: "ac2_stations",    q: "" },
+  rijeka: { name: "Rijeka", op: "Autotrolej", lat: 45.3271, lng: 14.4422, key: "ac2_stations_rj", q: "city=rijeka" },
+};
 let STATION_DB = [], STATION_REV = "";
-function setStationDB(d){
+const STATION_SET = { zagreb: { rev: "", list: [] }, rijeka: { rev: "", list: [] } };
+function stopCity(s){ return /^\d+$/.test(String(s && s.stop_id)) ? "rijeka" : "zagreb"; }
+function cityAt(lat, lng){
+  // the nearer of the two centres. The networks are 100 km apart, so there is no tie to break.
+  const z = CITIES.zagreb, r = CITIES.rijeka;
+  return metres(lat, lng, r.lat, r.lng) < metres(lat, lng, z.lat, z.lng) ? "rijeka" : "zagreb";
+}
+function cq(city, first){ const q = CITIES[city].q; return q ? (first ? "?" : "&") + q : ""; }
+function setStationDB(d, city){
+  city = city || "zagreb";
   const st = (d && d.stops) || {};
-  STATION_DB = Object.keys(st).map(id => { const v = st[id];
-    return { stop_id: id, name: v[0], lat: v[1], lon: v[2], bearing: v[3] }; });
-  STATION_REV = (d && d.rev) || "";
+  STATION_SET[city] = { rev: (d && d.rev) || "", list: Object.keys(st).map(id => { const v = st[id];
+    return { stop_id: id, name: v[0], lat: v[1], lon: v[2], bearing: v[3] }; }) };
+  STATION_DB = STATION_SET.zagreb.list.concat(STATION_SET.rijeka.list);
+  STATION_REV = STATION_SET.zagreb.rev;
 }
 function loadStationCache(){
-  try { const raw = localStorage.getItem("ac2_stations"); if (raw) setStationDB(JSON.parse(raw)); }
-  catch (e) { STATION_DB = []; }
+  for (const c of Object.keys(CITIES)) {
+    try { const raw = localStorage.getItem(CITIES[c].key); if (raw) setStationDB(JSON.parse(raw), c); }
+    catch (e) { /* that city's copy is simply not there yet */ }
+  }
 }
-async function refreshStationCache(rev){
+async function refreshStationCache(rev, city){
+  city = city || "zagreb";
   try {
-    const d = await fetch("stations.json", { cache: "no-cache" }).then(r => r.json());
+    const d = await fetch("stations.json" + cq(city, true), { cache: "no-cache" }).then(r => r.json());
     if (!d || !d.stops) return;
     d.rev = rev || "";
-    setStationDB(d);
-    try { localStorage.setItem("ac2_stations", JSON.stringify({ rev: d.rev, stops: d.stops })); } catch (e) {}
+    setStationDB(d, city);
+    try { localStorage.setItem(CITIES[city].key, JSON.stringify({ rev: d.rev, stops: d.stops })); } catch (e) {}
     loadStops();
   } catch (e) { /* the copy already held stays */ }
 }
@@ -1577,10 +1610,11 @@ async function loadStops(){
       d = localStops(at, RADIUS, 0);
       if (!d.stops.length) { d = localStops(at, RADIUS, 6); widened = true; }
     } else {
-      d = await fetch("stops?lat=" + at.lat + "&lon=" + at.lng + "&r=" + RADIUS + "&widen=0",
+      const cty = cq(cityAt(at.lat, at.lng));
+      d = await fetch("stops?lat=" + at.lat + "&lon=" + at.lng + "&r=" + RADIUS + "&widen=0" + cty,
         { cache: "no-store" }).then(r => r.json());
       if (d.ok && !(d.stops || []).length) {
-        d = await fetch("stops?lat=" + at.lat + "&lon=" + at.lng + "&r=" + RADIUS + "&widen=1",
+        d = await fetch("stops?lat=" + at.lat + "&lon=" + at.lng + "&r=" + RADIUS + "&widen=1" + cty,
           { cache: "no-store" }).then(r => r.json());
         widened = true;
       }
@@ -1605,7 +1639,7 @@ function isWatched(id){ return !!(WATCH && WATCH.stop_id === id); }
 async function fetchBoard(s){
   try {
     const d = await fetch("board?stop=" + encodeURIComponent(s.stop_id) +
-      "&mins=60&back=10", { cache: "no-store" }).then(r => r.json());
+      "&mins=60&back=10" + cq(stopCity(s)), { cache: "no-store" }).then(r => r.json());
     if (d.ok) BOARDS[s.stop_id] = d;
   } catch (e) { /* keep whatever we had */ }
 }
@@ -2178,7 +2212,10 @@ async function loadStatus(){
       '<div class="kv"><span>Schedule day</span><b>' + (d.service_date || "—") + '</b></div>' +
       '<div class="kv"><span>Stops</span><b>' + (d.stops || "—") + '</b></div>' +
       '<div class="kv"><span>Live feed</span><b>' +
-        (d.feed_ok ? d.feed_trips + " vehicles" : "unreachable") + '</b></div>';
+        (d.feed_ok ? d.feed_trips + " vehicles" : "unreachable") + '</b></div>' +
+      '<div class="kv"><span>Rijeka</span><b>' + (STATION_SET.rijeka.list.length
+        ? STATION_SET.rijeka.list.length + " stops" + (RJ_STATUS && RJ_STATUS.deps ? ", " + RJ_STATUS.deps + " departures today" : "")
+        : "not cached yet") + '</b></div>';
   } catch (e) {
     document.getElementById("statBox").innerHTML =
       '<span class="note">Could not read the status.</span>';
@@ -2254,10 +2291,11 @@ async function onMapClick(e){
   const r = onIcon ? 120 : 40;
   const gen = ++SELGEN;
   try {
-    const d = await fetch("stops?lat=" + lat + "&lon=" + lng + "&r=" + r + "&widen=0",
+    const city = cityAt(lat, lng);
+    const d = await fetch("stops?lat=" + lat + "&lon=" + lng + "&r=" + r + "&widen=0" + cq(city),
       { cache: "no-store" }).then(x => x.json());
     const st = (d.stops || [])[0];
-    if (!st) { if (onIcon) hud("No ZET stop registered at that icon."); return; }
+    if (!st) { if (onIcon) hud("No " + CITIES[city].op + " stop registered at that icon."); return; }
     openPop(st, gen);
   } catch (err) { hud("Could not reach the server: " + esc(err.message || err)); }
 }
@@ -2290,7 +2328,7 @@ async function refreshPop(){
   let b = null;
   try {
     b = await fetch("board?stop=" + encodeURIComponent(s.stop_id) +
-      "&mins=60&back=10", { cache: "no-store" }).then(r => r.json());
+      "&mins=60&back=10" + cq(stopCity(s)), { cache: "no-store" }).then(r => r.json());
   } catch (e) { return; }
   if (!b || !b.ok) return;
   BOARDS[s.stop_id] = b;
@@ -2564,6 +2602,11 @@ document.getElementById("schedAll").addEventListener("click", async () => {
 document.getElementById("schedNear").addEventListener("click", async () => {
   const msg = document.getElementById("schedMsg");
   const at = anchor();
+  if (cityAt(at.lat, at.lng) === "rijeka") {
+    msg.textContent = "Autotrolej publishes no PDF timetables, and none are needed: " +
+      "the Rijeka board is read from its whole daily timetable, kept on the phone.";
+    return;
+  }
   msg.textContent = "Reading the official timetables from ZET. One PDF per line, " +
     "then each one is thrown away…";
   try {
@@ -2698,6 +2741,7 @@ async function watchIndex(){
     // even while the schedule is being rebuilt behind them.
     // the copy follows the stream: fetched again only when the server's list has changed
     if (d.stations_rev && d.stations_rev !== STATION_REV) refreshStationCache(d.stations_rev);
+    watchRijeka();
     if (d.ok || d.stations) { INDEX_OK = true; if (!STOPS.length) loadStops(); }
     if (d.ok) {
       if (indexTimer) { clearInterval(indexTimer); indexTimer = null; }
@@ -2707,6 +2751,28 @@ async function watchIndex(){
     if (!indexTimer) indexTimer = setInterval(watchIndex, 4000);
   } catch (e) { /* leave the status line alone */ }
 }
+
+/* Rijeka's copy, refreshed when the server's revision moves (once a service day).
+   It never blocks Zagreb: a failure here leaves whatever copy is already held. */
+let RJ_ASKED = 0;
+async function watchRijeka(){
+  if (Date.now() - RJ_ASKED < 60000) return;
+  RJ_ASKED = Date.now();
+  try {
+    const d = await fetch("status?city=rijeka", { cache: "no-store" }).then(r => r.json());
+    RJ_STATUS = d;
+    if (d.stations_rev && d.stations_rev !== STATION_SET.rijeka.rev) refreshStationCache(d.stations_rev, "rijeka");
+  } catch (e) { /* keep the copy */ }
+}
+let RJ_STATUS = null;
+function jumpCity(c){
+  const C = CITIES[c];
+  setView({ lat: C.lat, lng: C.lng }, curZoom());
+  pinAt(C.lat, C.lng);
+  hud("<b>" + C.name + "</b> · pinned at the centre. Tap <b>Pin by tapping the map</b> again in ⚙ to go back to the satellites.");
+}
+document.getElementById("cityZg").addEventListener("click", () => jumpCity("zagreb"));
+document.getElementById("cityRj").addEventListener("click", () => jumpCity("rijeka"));
 
 /* ---------------- boot ---------------- */
 (async function(){
