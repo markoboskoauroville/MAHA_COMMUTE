@@ -96,3 +96,27 @@ nothing about Android.
 - The Detailed map for a second device. The key stays on the phone, so a laptop
   on the wifi sees the free map; that is the intended behaviour and was not
   seen in a browser.
+
+## v22 to v25, 10.10.2026: what the phone has and has not shown
+
+Read against the v24 install on Marko's phone (field-tests/2026-10-10_v24). Shown there:
+the key reaches all.commute (F2, F3), the stations come with a revision and a change
+report (v24), a cross-site POST is refused (F6), termux-api is installed (F9), and the
+board answers from today's index.
+
+Not yet seen on any phone or emulator:
+
+- **F1, labels clear of the controls,** and **v23's three-row watch bar.** Test 6 proves
+  them in Chromium on Linux; nobody has tapped a label near the GPS chip with a thumb.
+- **F4, an app whose folder was deleted is reinstalled.** Not repeated on the phone.
+- **F5 and F10, `maha-commute day` returning to a script, and the first-start wait
+  pacing with sleep.** Not run: the phone session was stopped before step 6.
+- **F7, the index build retrying after an offline start.** Needs airplane mode.
+- **F8, the locate button following up on the new fix.** Needs the phone to move.
+- **F11, `update --check <file>` and a missing file.**
+- **F12 and F13, the launcher below 47 columns and the help text.** Not run.
+- **v24's page copy in the browser's storage.** Shown in Test 6; never seen surviving a
+  closed Chrome on the phone, or drawn before the server answered on a slow start.
+- **v25's location fix.** Proven with a stand-in termux-location that prints
+  `API_ERROR` and exits 0, which is what the phone printed. Not yet installed there.
+- **The `/gps` 500 seen in the phone's server.log at 07:39:35.** Cause not found.
