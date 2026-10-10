@@ -125,6 +125,56 @@ none of its rules were read this session. Day and night still rebuild their
 own station lists daily; only all.commute has the permanent file. Nothing has
 been seen on a phone.
 
+## V25: A COMMON LAYER, AND A STATION SERVER THAT FOLLOWS THE MAP (10.10.2026)
+
+Marko: everything that can be common between the three apps should be common, the
+station list included, and "build a server inside the app with the station list which
+progressively updates as I am scrolling through the map and keeps it cached forever".
+
+**WHAT IS COMMON NOW**, in `~/.maha.commute/common/` (made by the umbrella, the folder
+the three apps share; `MAHA_COMMON` moves it for a test): `zet_gtfs.zip` and its meta
+(day, night and all each downloaded and kept their own 12 MB copy; they now read and
+write one, as a temporary file renamed over it so two apps rebuilding together cannot
+leave half a file), `stations.json` (all.commute's, shared rather than its own), and
+`osm_stops.json` (below). The Google key was already one store (v22). The installer
+moves an older install's timetable (newest first, and only a file that begins `PK`)
+and stations into it, keeping the file times (`cp -p`; without it the newest file
+looked older than the copy just made). `maha-commute info` lists the folder. Day v19,
+night v15, all v48, umbrella v25.
+
+**THE STATION SERVER.** The page draws the stations in whatever the map is LOOKING AT,
+not the ones round the GPS dot: from the page's own copy, no request, recomputed 250 ms
+after the map stops moving (`scheduleView`). Zoom 15 labels the 12 nearest the centre,
+16 the 20, 17 the 28, 18 and in 36; at 14 and out it says to zoom in. Beyond ZET's
+network (a village, another city) the page asks the server `/stations/view?s&w&n&e&zoom`
+and the SERVER asks OpenStreetMap's Overpass for the bus and tram stops of each 14-zoom
+tile in view that has no ZET station and was never asked, one tile per 5 s, and keeps
+the answer, the empty ones too, in `osm_stops.json` for good. The page keeps what it is
+told (localStorage `ac2_stations_x`) and which tiles are done (`ac2_tiles`), so a
+second visit draws them with no server. Their label is the stop's NAME, their
+dashboard says OSM, and they have no timetable (`isOsm`, `fetchBoard` skips them).
+Boards are fetched for the nearest 8 and for the watched station wherever the map is.
+**PRIVACY, in one place:** this is the only thing in the app that sends a map position
+anywhere (an area about 2 km across, to overpass-api.de, from zoom 15 in, only where
+ZET has no station). `MAHA_OVERPASS_URL=off` turns it off. `/stations/view` is in the
+cross-site guard, so no other web page can make the server do it. Tests use
+`tests/fixtures/mock_overpass.py`, a stand-in that answers with a 6 by 6 grid of stops;
+nothing leaves the machine.
+
+**WHAT THE TESTS TAUGHT.** A mock that put one stop at the middle of each tile gave
+"no stops" for a view that did not contain a tile middle: a grid. The test6 fast and
+slow runs share one server, so the slow run finds the fast run's tiles already kept (0
+requests is right there), and neighbouring tiles of the fixture's four stations are
+empty of ZET stations, so they get discovered too (12 labels at zoom 15 is right).
+Every test that runs the updater or the server sets `MAHA_COMMON`, or it would write the
+real `~/.maha.commute/common`.
+
+**NOT DONE.** day and night still use their own station and stop lists (they read the
+shared timetable only); the shared key sync is v22's. Nothing has been seen on a phone;
+the Google engine path uses the same code but was not exercised. A phone session
+reported it runs INSIDE proot-distro as root: `$HOME` is `/root` there and the Termux
+home elsewhere, the same directory, so everything here is `$HOME`-relative.
+
 ## V24: THE STATIONS ARE THE PAGE'S OWN DATA (9.10.2026)
 
 Marko: make the station cache permanent, always compare it with the recent feeds,
