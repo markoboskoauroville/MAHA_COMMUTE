@@ -5,11 +5,11 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-10 06:07 UTC
+# built            2026-10-10 06:16 UTC
 # payloads, as carried, key stripped:
 #   day    v18    191418 bytes  sha256 c06bd32336b7e0cb
 #   night  v14    149613 bytes  sha256 d74deef8be41cbd8
-#   all    v48    367073 bytes  sha256 c0c3fe962c6c8083
+#   all    v48    368148 bytes  sha256 4d90d3c4aba253d9
 #
 # The Google Maps key that was inside two of these payloads has
 # been taken out and replaced with a placeholder. The installer
@@ -10958,6 +10958,7 @@ cat > "$APPDIR/all.html" << 'ALLC_STAR_HTML'
       <div id="posBox"><span class="note">Waiting for a fix…</span></div>
       <div class="btnrow" style="margin-top:11px">
         <button class="btn" id="posSharpen">Sharpen — hold still</button>
+        <button class="btn ghost" id="posFollow">Follow me: on</button>
         <button class="btn ghost" id="posPin">Pin by tapping the map</button>
         <button class="btn ghost" id="posProv">Ask Android now</button>
       </div>
@@ -11718,14 +11719,20 @@ function redrawAll(){ drawMe(); drawStars(); }
    ========================================================================= */
 let FIXES = [];            // recent accepted fixes
 let watchId = null, burstEnd = 0, burstTick = null;
+let FOLLOW = LS.get("follow", true);   // keep listening while the page is visible
 const FIX_TTL = 90000;     // a fix older than this is stale
 
 function fuse(){
   /* inverse-variance weighting: a fix claiming 5 m counts for far more than
      one claiming 40 m, which is exactly how you should treat them */
   const now = Date.now();
-  const live = FIXES.filter(f => now - f.t < FIX_TTL);
-  if (!live.length) return null;
+  const fresh = FIXES.filter(f => now - f.t < FIX_TTL);
+  if (!fresh.length) return null;
+  /* only the fixes near the newest one: standing still that is all of them, and
+     walking, the ones left behind drop out instead of dragging the dot back */
+  const newest = fresh[fresh.length - 1];
+  const span = Math.max(25, newest.acc || 25);
+  const live = fresh.filter(f => metres(newest.lat, newest.lng, f.lat, f.lng) <= span);
   const best = Math.min.apply(null, live.map(f => f.acc));
   const use = live.filter(f => f.acc <= Math.max(best * 2.5, best + 8));
   let wsum = 0, la = 0, lo = 0;
@@ -11773,7 +11780,7 @@ function startBurst(ms){
       (STOPS.length ? " · " + STOPS.length + " stations near you" : "") +
       ". Tap a station.");
     /* good enough, and settled: stop burning the GNSS chip */
-    if (f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();
+    if (!FOLLOW && f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();
   }, err => {
     stopBurst();
     if (err && err.code === 1)
@@ -11802,7 +11809,7 @@ function autoLocate(force){
   const now = Date.now();
   if (!force && now - lastFix < 8000) return;
   lastFix = now;
-  startBurst(force ? 30000 : 18000);
+  startBurst(FOLLOW ? 3600000 : (force ? 30000 : 18000));
 }
 function sharpen(){
   if (ME && ME.pinned) { hud("You are pinned by hand. Unpin in ⚙ first."); return; }
@@ -12445,6 +12452,19 @@ document.getElementById("posProv").addEventListener("click", async () => {
   document.getElementById("posMsg").textContent = !GPSINFO
     ? "The app did not answer." : (!GPSINFO.termux ? "Termux:API is not installed."
     : (GPSINFO.better ? "Android answered." : "Android could not get a fix just now."));
+});
+function paintFollow(){
+  const b = document.getElementById("posFollow");
+  if (b) b.textContent = "Follow me: " + (FOLLOW ? "on" : "off");
+}
+paintFollow();
+document.getElementById("posFollow").addEventListener("click", () => {
+  FOLLOW = !FOLLOW; LS.set("follow", FOLLOW); paintFollow();
+  document.getElementById("posMsg").textContent = FOLLOW
+    ? "The dot follows you while this page is open. Uses more battery."
+    : "Listening in short bursts again, every 90 seconds.";
+  if (!FOLLOW) { stopBurst(); burstEnd = 0; }
+  autoLocate(true);
 });
 document.getElementById("posSharpen").addEventListener("click", () => {
   document.getElementById("setup").classList.remove("show");
@@ -15726,4 +15746,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v25 4e7ac269b01f1535
+# MAHA_COMMUTE_SENTINEL v25 97743b9ebb7b07d1

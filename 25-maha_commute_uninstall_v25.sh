@@ -11,7 +11,7 @@
 # everything, or nothing. The full wipe asks for a typed word.
 #
 # Generated from src/70_uninstall.sh by tools/build_uninstaller.sh.
-# built 2026-10-10 06:07 UTC
+# built 2026-10-10 06:16 UTC
 # uninstall.sh, written by the MAHA COMMUTE installer.
 #
 #   maha-commute uninstall        the panel, decide item by item

@@ -22,6 +22,21 @@ when it did not.
 A 500 IS WRITTEN DOWN. The route dispatch turned every exception into a 500 whose
 reason went only into the response body, so the /gps 500 seen in the phone's
 server.log at 07:39:35 left nothing to read. The traceback now goes to the log.
+
+THE DOT FOLLOWS YOU. Marko, 10.10.2026: "All commute it followed me for some time,
+then it stops." The position comes from the browser's watchPosition, opened in
+bursts of 18 s and closed early once four fixes agreed within 8 m, then reopened
+only by the 90 second tick: in good conditions about six seconds of listening every
+ninety, so a walker's dot jumped once and sat still. And fuse() averaged every fix
+of the last 90 s, so even while listening the dot trailed behind (68 m behind on a
+135 m walk, measured by the phone session).
+
+Now, while "follow me" is on (the default, a switch in Settings, Position), the watch
+stays open as long as the page is visible: the 90 second tick keeps extending it and
+nothing hangs up early. Hiding the page still releases the GNSS at once, which is the
+battery bound. fuse() averages only the fixes near the newest one, so standing still
+keeps the full average and walking drops the ones left behind. Off, it is the old
+burst. Found and first patched on the phone by the phone session.
 """
 
 ALL_FIXES = [
@@ -29,6 +44,38 @@ ALL_FIXES = [
     ('<div class="kv"><span>Interface</span><b>stations · v47</b></div>',
      '<div class="kv"><span>Interface</span><b>stations · v48</b></div>'),
     ('ALLC_UI_VERSION="v47"', 'ALLC_UI_VERSION="v48"'),
+    ('let watchId = null, burstEnd = 0, burstTick = null;\n',
+     'let watchId = null, burstEnd = 0, burstTick = null;\n'
+     'let FOLLOW = LS.get("follow", true);   // keep listening while the page is visible\n'),
+    ('  const live = FIXES.filter(f => now - f.t < FIX_TTL);\n  if (!live.length) return null;\n',
+     '  const fresh = FIXES.filter(f => now - f.t < FIX_TTL);\n  if (!fresh.length) return null;\n'
+     '  /* only the fixes near the newest one: standing still that is all of them, and\n'
+     '     walking, the ones left behind drop out instead of dragging the dot back */\n'
+     '  const newest = fresh[fresh.length - 1];\n'
+     '  const span = Math.max(25, newest.acc || 25);\n'
+     '  const live = fresh.filter(f => metres(newest.lat, newest.lng, f.lat, f.lng) <= span);\n'),
+    ('    if (f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();\n',
+     '    if (!FOLLOW && f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();\n'),
+    ('  startBurst(force ? 30000 : 18000);\n}\n',
+     '  startBurst(FOLLOW ? 3600000 : (force ? 30000 : 18000));\n}\n'),
+    ('        <button class="btn" id="posSharpen">Sharpen — hold still</button>\n',
+     '        <button class="btn" id="posSharpen">Sharpen — hold still</button>\n'
+     '        <button class="btn ghost" id="posFollow">Follow me: on</button>\n'),
+    ('document.getElementById("posSharpen").addEventListener("click", () => {\n',
+     'function paintFollow(){\n'
+     '  const b = document.getElementById("posFollow");\n'
+     '  if (b) b.textContent = "Follow me: " + (FOLLOW ? "on" : "off");\n'
+     '}\n'
+     'paintFollow();\n'
+     'document.getElementById("posFollow").addEventListener("click", () => {\n'
+     '  FOLLOW = !FOLLOW; LS.set("follow", FOLLOW); paintFollow();\n'
+     '  document.getElementById("posMsg").textContent = FOLLOW\n'
+     '    ? "The dot follows you while this page is open. Uses more battery."\n'
+     '    : "Listening in short bursts again, every 90 seconds.";\n'
+     '  if (!FOLLOW) { stopBurst(); burstEnd = 0; }\n'
+     '  autoLocate(true);\n'
+     '});\n'
+     'document.getElementById("posSharpen").addEventListener("click", () => {\n'),
     ('\n\ndef gps_state(fresh=False):\n',
      '\n\n_LAST_FIX = {}\n'
      '_LAST_FIX_LOCK = threading.Lock()\n'

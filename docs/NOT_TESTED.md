@@ -123,3 +123,6 @@ Not yet seen on any phone or emulator:
   v25 the next one leaves a traceback in server.log.
 - **v25's last known fix in the page.** The label and the row under a failed provider
   are proven in test 7 on the server side only; nobody has seen them drawn.
+- **v25's follow me.** Proven in Chromium with injected fixes and the mocked location.
+  Not yet walked with on the phone, and the battery cost of an open high-accuracy watch
+  while the page is visible has not been measured.

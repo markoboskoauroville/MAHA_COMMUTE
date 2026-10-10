@@ -118,6 +118,36 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   await page.waitForTimeout(4000);
   const far = await page.evaluate(() => ({ lat: map.getCenter().lat }));
   check(speed + ": the locate button follows up on the new fix (3 km away)", Math.abs(far.lat - 45.83) < 0.002);
+  // v25: the dot follows a walker. While "follow me" is on the watch stays open, and
+  // the average is taken only over the fixes near the newest, so a straight 135 m walk
+  // leaves the dot within a few metres of the newest fix, and standing still is still
+  // averaged in full.
+  const fol = await page.evaluate(() => {
+    const out = { on: FOLLOW, label: document.getElementById("posFollow").textContent };
+    autoLocate(true);
+    out.longBurst = burstEnd - Date.now() > 1800000;
+    const now = Date.now(), m = 1 / 111320;
+    FIXES = [];
+    for (let i = 0; i < 10; i++) FIXES.push({ lat: 45.80 + i * 15 * m, lng: 15.98, acc: 6, t: now - (9 - i) * 8000 });
+    const w = fuse();
+    out.behind = metres(w.lat, w.lng, 45.80 + 9 * 15 * m, 15.98);
+    FIXES = [];
+    for (let i = 0; i < 10; i++) FIXES.push({ lat: 45.80 + ((i % 3) - 1) * 3 * m, lng: 15.98, acc: 6, t: now - (9 - i) * 8000 });
+    out.stillN = fuse().n;
+    document.getElementById("posFollow").click();
+    out.offLabel = document.getElementById("posFollow").textContent;
+    out.offShort = burstEnd - Date.now() < 60000;
+    document.getElementById("posFollow").click();
+    out.back = FOLLOW;
+    FIXES = [];
+    return out;
+  });
+  check(speed + ": follow me is on by default and labelled", fol.on === true && fol.label === "Follow me: on");
+  check(speed + ": while following, the watch stays open", fol.longBurst);
+  check(speed + ": a walker's dot keeps up (" + Math.round(fol.behind) + " m behind)", fol.behind < 20);
+  check(speed + ": standing still is still averaged in full", fol.stillN === 10);
+  check(speed + ": switching it off goes back to short bursts", fol.offLabel === "Follow me: off" && fol.offShort);
+  check(speed + ": and back on", fol.back === true);
   // v23: the watch bar shows the next THREE departures, not one. Fed directly with a
   // board, so the check does not depend on what the fixture timetable has at this hour.
   const wb = await page.evaluate(() => {

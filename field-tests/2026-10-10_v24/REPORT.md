@@ -35,6 +35,15 @@ with All Commute app. Cancel all other tests."
 | PORT-1 | night bumps off a busy port | cancelled by Marko | **NOT RUN** |
 | LCH-W (F12, F13) | launcher at 40 and 60 columns | cancelled by Marko | **NOT RUN** |
 
+## Marko's complaint, found by the phone session
+
+"All commute it followed me for some time, then it stops. Right now it's happening."
+The position comes from the browser's watchPosition, not from /gps. It was opened in
+18 s bursts, hung up early once four fixes agreed within 8 m, and reopened only by the
+90 s tick: about 6 s of listening every 90 s. fuse() also averaged 90 s of fixes, so a
+walker's dot trailed (68 m behind on a 135 m walk, 8 m with the fix). The phone session
+patched all.html live; v25 carries the fix with a "Follow me" switch in Settings.
+
 ## Cautions for the next field test
 
 - A session in proot as root is not the Termux user: `dpkg -s` lies about Termux packages, and `termux-notification-list` hung (killed at 20 s). Prefer the Termux shell itself, or sshd in Termux.
