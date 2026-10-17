@@ -9,6 +9,87 @@ this project.
 
 ---
 
+## V25: NIGHT.COMMUTE GETS all.commute's STATION DASHBOARD (16.10.2026)
+
+Marko: "update Night Commute app so it has dashboard for each station, same as
+All Commute … the same look and same functionality, only with different set of
+lines", and "after upgrade test it … now it's night, so you can test it also on
+the live feed from Zet", "keep a list of lines and information about lines easily
+available". Asked which direction; he chose **add the dashboard** (keep the Plan
+planner, Lines, Map, PDF and the four night lines), not a full station-centric
+rebuild. Umbrella v25, night app v15. day and all untouched.
+
+**WHAT IT IS.** Tapping a station dot on the Map slides up one full-screen
+dashboard for that stop, all.commute's panel: Street View photograph, JUST LEFT,
+COMING, and WATCH. The ✕ or the back gesture closes it. A watch bar across the
+bottom of every tab keeps the watched stop's next three departures with the
+green-wifi mark; From here / To here drop the stop into the Plan journey. The
+Lines tab (already a per-line route diagram) stays, and the dashboard header
+shows the stop's line badges, so "a list of lines" is reachable in both places.
+
+**THERE IS NO /board AND NO SECOND COPY OF THE SCHEDULE.** all.commute asks its
+server for a board; night.commute builds it in the page from `realTimes()` (the
+Plan tab's own function) and pairs the live trams on with `liveMatchRows()` /
+`liveMins()` / `liveAt()` — the same in-order pairing the Plan legs use. So
+"early is not a delay" is reused, not re-derived: a tram ahead of its slot is
+shown arriving-and-waiting and the countdown is to the later of arrival and
+scheduled departure. JUST LEFT is read straight from `SCHED` (not `realTimes`,
+which wraps past departures to the next night).
+
+**HOW IT IS BUILT.** `src/payloads/night/dash.js` and `dash.css` as ordinary
+files, spliced by `tools/payload_v25.py` (patch_night, same count==1 discipline
+as v22) AFTER live.js and star.js, because dash.js wraps `liveDraw` and
+`loadNet`. Classes are prefixed `nd-` because night already owns `.card`, `.btn`
+etc. that all.commute's dashboard CSS also uses — the look is borrowed, the names
+are this app's. The map marker's `()=>pickMapStation(s)` became
+`()=>openStationDash(s)`; the background map tap (onClick → nearestStation →
+pickMapStation) is untouched, so A/B journey picking still works. New
+localStorage key `nc_watch` (the watched stop, by name, so it outlives a
+rebuild). Street View is the static image built client-side from `/gmaps-key`
+(heading = bearing to the next station +180, like all.commute); the 360 badge
+loads Google Maps JS on demand via `GEng.ensure` and opens a StreetViewPanorama.
+Witnesses added for `realTimes`, `nowNightSecs`, `secClk` so an upstream rename
+fails the build.
+
+**A GUARD THAT THE MECHANISM TEST FOUND.** dash.js wired the back gesture with
+`window.addEventListener("popstate", …)`. test1 drives night.html in a bare JS
+engine whose `window` has no `addEventListener`, so the call threw and took the
+rest of page.js down with it (2 reds that cascaded). Guarded with
+`typeof window.addEventListener === "function"`; test1 went from 355/8 to 455/6
+(≈100 night page.js checks that could not run before now run and pass).
+
+**TESTED ON THE REAL ZET FEED, FROM THE CLOUD.** A night server extracted from
+the v25 artefact, built from the live GTFS (service_date 20261016), at ~00:17
+Zagreb: `/live` ok, state live, 50 entities, 10 located night trams (31/32/33).
+A Playwright/Chromium test (`scratchpad/night_dash_test.js`) drove the real page
+against it: the dashboard opens for a station, renders 12 arrival rows from the
+real schedule, badges, WATCH → watch bar with rides, From here → fills the
+journey and opens Plan, ✕ closes, no script errors. Screenshot taken at Trg bana
+J. Jelačića (lines 31/32/34). Gate: 0 blocking findings.
+
+**ZET.HR IS REACHABLE FROM THIS ENVIRONMENT NOW — this is new and it changes
+what the tests show.** In the v21 session zet.hr was 403 (CONNECT denied), so
+every server/page test ran on the four-stop fixture. It now answers 200 (live
+RT 5 KB, static GTFS 12.7 MB). The consequence: tests that feed `update_all.py`
+a fixture and expect four stops now get the real 2523-station feed instead,
+because the builder prefers the network when it is reachable. These reds are
+ENVIRONMENTAL, not regressions, and they reproduce on the committed v24 base
+(ran v24's `update_all.py` on the fixture → 2523 stops). They are: test1's 6
+all.commute station checks, test7's 5 (F7 waiting_for_network + the four v24
+stations_changes checks), and test2's "the body's timestamp and the server's own
+agree" (feed timing, flaky). test2's "the stamp says v16" is a SEPARATE stale
+assertion: it hardcodes day = v16, but day has been v18 since v22 — also
+pre-existing, also not mine. **None of the suite's remaining reds are caused by
+the night dashboard.** The clean way to run the fixture-based all/day tests here
+would be to point the builder at a local zip and refuse the network; that is
+all.commute test infrastructure and was left for its own change.
+
+**NOT DONE / NOT TESTED.** Not seen on a phone (two-machine rule: the LOCAL
+tester does Termux/Android). The Street View still photo and the 360 panorama
+were not exercised — there is no Google key in this environment, so the photo
+area shows the "Add a Google key" note (correct for a keyless install) and the
+360 was not opened. The prompt for the local tester is in the handoff.
+
 ## V21: THE STATIONS ARE PERMANENT, THE LABELS STOP COMING AND GOING, THE LAUNCHER LIGHTS ONE APP
 
 *8.10.2026.* Marko: "cache all stations so they are permanent. Stations are not

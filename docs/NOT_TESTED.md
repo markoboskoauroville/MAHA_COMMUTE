@@ -96,3 +96,35 @@ nothing about Android.
 - The Detailed map for a second device. The key stays on the phone, so a laptop
   on the wifi sees the free map; that is the intended behaviour and was not
   seen in a browser.
+
+## v25, 16.10.2026: night.commute's station dashboard, and what the phone still has to prove
+
+The dashboard, the watch bar, and the whole flow were driven in Chromium
+against a night server built from the live ZET feed, and the mechanism test
+runs the spliced page in a JS engine. None of it was seen on a phone, and two
+pieces could not be exercised here at all:
+
+- **The Street View photograph.** There is no Google key in this environment, so
+  the photo area showed the "Add a Google key" note (the correct keyless state).
+  With the shared key on the phone it should show the stop's photo, with the
+  location pin centred on it. The heading is computed from the next station on
+  the line (+180), so check it faces roughly the way a passenger arrives, not a
+  blank wall.
+- **The 360 panorama.** The ◉ 360° badge loads Google Maps JS on demand and
+  opens a StreetViewPanorama. Never opened here (no key). On the phone: tap it,
+  check it opens, faces sensibly, and the ✕ and the back gesture both close it
+  without leaving the app.
+- **The tap target.** The dashboard is opened by tapping a station dot on the
+  Map. In the browser test it was opened by calling the handler and by clicking
+  the marker; on a thumb, on a real map with several dots close together, check
+  a tap lands on the dot you meant and not the one beside it.
+- **The watch bar across tabs.** It is position:fixed at the bottom. Check it
+  does not sit under the Termux/Android navigation bar, does not cover the Plan
+  result or the PDF list, and that its next-three rides update as trams move.
+- **"From here / To here" into the planner.** Check they fill the Plan pickers,
+  switch to the Plan tab, and that the journey computes — on the phone, with the
+  soft keyboard and the readonly inputs.
+- **Early-is-not-a-delay, on the real feed, watched.** Open a central stop in the
+  night window, watch a tram run ahead of its slot, and confirm the COMING row
+  shows it arriving-and-waiting (yellow arrival time, no red "early"), with the
+  countdown to the scheduled departure, not the earlier arrival.

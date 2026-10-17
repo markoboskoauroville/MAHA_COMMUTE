@@ -74,7 +74,7 @@ roof, whole and unchanged:
 | | what it is | version | port |
 |---|---|---|---|
 | `day.commute` | the daytime ride, corridors that pick themselves | v18 | 8082 |
-| `night.commute` | the four night trams, and where they are now | v14 | 8087 |
+| `night.commute` | the four night trams, where they are, and a dashboard for each stop | v15 | 8087 |
 | `all.commute` | every station around you, in colour | v47 | 8084 |
 
 ## Installing
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 24-maha_commute_v24.sh
+bash 25-maha_commute_v25.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
@@ -243,6 +243,26 @@ the strip says why. An empty map is honest. A tram that is not there is not.
 
 The strip under the map also counts the trams ZET is publishing but not
 locating, so "three trams" never quietly means "three trams exist".
+
+## A dashboard for each stop
+
+Tapping a station dot on the Map slides up one full-screen dashboard for that
+stop alone, the same panel `all.commute` has: a Street View photograph of the
+stop, what has just left, what is coming, and a **WATCH** button. The ✕ or the
+phone's back gesture puts the map back.
+
+The look is `all.commute`'s; the data under it is this app's own four night
+trams and the live feed it already reads, so there is no second copy of the
+schedule. What is coming is the timetable with the broadcasting trams paired
+onto it: a tram running ahead of its slot is shown arriving and waiting, not
+leaving early, because on a fifty-minute night timetable a tram does not drift,
+and the countdown counts to the moment it can actually take you.
+
+Pressing **WATCH** keeps that stop in a bar across the bottom of every tab, with
+its next three departures and a green wifi mark on the ones a tram is
+broadcasting for. **From here** and **To here** drop the stop straight into the
+Plan journey. The watched stop is kept by name, under `nc_watch`, so it outlives
+a schedule rebuild the way the favourites do.
 
 ## Favourites
 

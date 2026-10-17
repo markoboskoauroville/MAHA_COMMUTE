@@ -33,7 +33,7 @@ source, and the next build erases it.
 
 The newest installer in the repo root: `<VERSION>-maha_commute_v<VERSION>.sh`
 (the number in `VERSION`). Read `README.md`, `docs/NOT_TESTED.md` (it lists
-what has never been seen on a phone: that is your work list) and the V17 to V21
+what has never been seen on a phone: that is your work list) and the V17 to V25
 sections of `MEMORY.md` before you start, so you know what each thing is
 supposed to do.
 
@@ -42,7 +42,7 @@ Three apps under one launcher, all in Termux:
 | app | command | port | what to prove |
 |---|---|---|---|
 | day.commute | `day.commute` | 8082 | corridors, live rows, starts every time |
-| night.commute | `night.commute` | 8087 | the four night trams, live feed, stars |
+| night.commute | `night.commute` | 8087 | the four night trams, live feed, stars, the per-stop dashboard (v25) |
 | all.commute | `all.commute` | 8084 | every station, labels, dashboard, GPS dot |
 | launcher | `maha-commute` | n/a | quadrants, keys, update, status |
 
