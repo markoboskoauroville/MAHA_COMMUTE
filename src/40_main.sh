@@ -218,6 +218,38 @@ if [ "$ASK_KEY" = "1" ]; then
 fi
 
 # ---------------------------------------------------------------
+# the gemini key, into the same common store, the same way: the shared
+# store wins, then any app already on the phone, then a file in Downloads.
+# Never printed. Gemini reads the PDF timetables and the ZET notices; the
+# maps and the schedule work without it. If one is already stored it is
+# left alone.
+# ---------------------------------------------------------------
+step "gemini key"
+if maha_key_ok "$GEMFILE"; then
+  printf " ${OK}found${OFF} ${DIM}(the shared store)${OFF}\n"
+else
+  GFOUND=""
+  for c in "$HOME/.commute/gemini-api.txt" \
+           "$HOME/.nightcommute/gemini-api.txt" \
+           "$HOME/.all.commute/gemini-api.txt" \
+           "./gemini-api.txt" \
+           "$HOME/storage/downloads/gemini-api.txt" \
+           "$HOME/downloads/gemini-api.txt"; do
+    if maha_key_ok "$c"; then
+      grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key > "$GEMFILE"
+      chmod 600 "$GEMFILE"
+      GFOUND="$c"
+      break
+    fi
+  done
+  if [ -n "$GFOUND" ]; then
+    printf " ${OK}found${OFF} ${DIM}(%s)${OFF}\n" "$GFOUND"
+  else
+    skip_
+  fi
+fi
+
+# ---------------------------------------------------------------
 # the umbrella itself
 #
 # Everything under ~/.maha.commute is written before any app is
@@ -254,6 +286,7 @@ rm -f "$PAYDIR"/*.new 2>/dev/null || true
   printf 'PAYDIR="$APPHOME/payloads"\n'
   printf 'KEYDIR="$APPHOME/keys"\n'
   printf 'KEYFILE="$KEYDIR/google-api.txt"\n'
+  printf 'GEMFILE="$KEYDIR/gemini-api.txt"\n'
   printf 'STAMPDIR="$APPHOME/installed"\n'
   printf 'MAHA_APPS="%s"\n' "$MAHA_APPS"
 } > "$APPHOME/env.sh.new"

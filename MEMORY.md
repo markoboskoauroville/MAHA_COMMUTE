@@ -9,6 +9,65 @@ this project.
 
 ---
 
+## V26: ONE COMMON DATABASE OF ALL API KEYS, SHARED BY ALL THREE APPS (17.10.2026)
+
+Marko: "make a common database of all APIs so it's shared between applications.
+It can be picked through any application, but it's loaded in the common one. If
+already exists, of course it's ignored." Asked the one semantic question
+(overwrite vs ignore when the shared store already has that key); he chose
+**ignore — keep the shared one** (the launcher is where you deliberately
+replace). Umbrella v26, day v19, night v16, all v48.
+
+**WHAT WAS TRUE BEFORE.** `~/.maha.commute/keys/google-api.txt` existed, held
+only the Maps key, and only all.commute ever read it (its `read_keys` fallback,
+v22). Gemini was never shared. No app ever wrote the umbrella store. Maps-key
+filenames even differ: `google-api.txt` (day, all) vs `gmaps-api.txt` (night).
+
+**WHAT V26 DOES.** `~/.maha.commute/keys/` is now the common database of BOTH
+keys: `google-api.txt` (Maps/Street View) and `gemini-api.txt` (the PDF/notice
+reader). A helper is spliced into each app's server (`tools/payload_v26.py`,
+`_maha_shared_read` / `_maha_shared_seed`):
+
+- **Reads** fall back to the shared store, local key first (so a key an app was
+  given by hand still wins): day/night Maps, all three for Gemini. all.commute's
+  Maps read already did this since v22 and is unchanged.
+- **Writes** seed the shared store **only when it is empty for that key** — a key
+  already there is left alone, "ignored", so one app cannot overwrite the key
+  another set. The app still writes its own local file, so the pick takes effect
+  for that app at once. Seeding is write-through-temp, dir 700, file 600, and a
+  sub-20-char line is not a key (the same floor `_keys_from` uses).
+
+So a key set in ANY app's Settings lands in the shared store (if empty) and is
+then used by all three; picking the same or a different key elsewhere is
+ignored. To REPLACE a shared key you use the launcher's key screen, which forces
+it.
+
+**THE UMBRELLA.** `00_head.sh`/`env.sh` gain `GEMFILE="$KEYDIR/gemini-api.txt"`.
+`40_main.sh` discovers a Gemini key at install the same way as the Maps key
+(shared store, then each app's folder, then Downloads) and seeds `$GEMFILE` if
+empty. The launcher's `screen_key` (`20_menu.sh`) is now "API KEYS": it shows
+both, pastes either (Google still force-syncs to each app; Gemini is read from
+the shared store by every app so it needs no sync), and `x` forgets both. The
+uninstaller names both shared keys before wiping. No change to `MAHA_APPS` or
+`sync_key`: the read-fallback is what shares Gemini, so no per-app field 10 was
+needed.
+
+**TESTED.** Helper unit test (seed-empty, ignore-existing, 20-char floor, 600) —
+pass. Cross-app over real HTTP, shared temp HOME: night `POST /gmaps-key` +
+`/gemini-key` seed the shared store; all.commute (no local keys) then reads
+night's keys via `/api-keys` and `/gemini-key`; all's later DIFFERENT pick is
+ignored and the shared store keeps night's key. Install-time Gemini discovery
+pulls a dropped key into `$GEMFILE`. `test1` gains 14 checks (the splice landed
+in each app for both keys + the helper's behaviour) and is **469 passed, 6
+failed** (the 6 are the environmental zet.hr ones below, unchanged). Stale
+version assertions updated: `test1` all v47→v48 and day v18→v19; `test2` day
+stamp v16→v19 (day had been v18 since v22, so that one was already wrong).
+Gate: 0 blocking.
+
+**STILL THE zet.hr ENVIRONMENT NOTE (see V25).** The 6 `test1` + 5 `test7` +
+feed-timing `test2` reds are because zet.hr is reachable from this container now,
+not regressions; they reproduce on the committed base. Not seen on a phone.
+
 ## V25: NIGHT.COMMUTE GETS all.commute's STATION DASHBOARD (16.10.2026)
 
 Marko: "update Night Commute app so it has dashboard for each station, same as

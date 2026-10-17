@@ -916,7 +916,7 @@ printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that 
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
 printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
-printf '%s' "$ap" | grep -qF 'APP_VERSION = "v47"' && ok || bad "all: answers v47"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v48"' && ok || bad "all: answers v48"
 printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
 # the dashboard renders the station that was opened, and only that one
 if command -v node >/dev/null 2>&1; then
@@ -948,7 +948,7 @@ printf '%s' "$dp" | grep -qF 'pkill -f commute_server.py' && bad "day.commute st
 printf '%s' "$dp" | grep -qF 'if pgrep -f "$SERVER" >/dev/null 2>&1; then' && ok || bad "day.commute status asks about its own server"
 printf '%s' "$dp" | grep -qF 'already running${OFF}' && ok || bad "a second day.commute opens the first instead of doubling it"
 printf '%s' "$dp" | grep -qF '_mine = _pf.read().strip() == str(port)' && ok || bad "a day server only deletes its own port file"
-printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v18"' && ok || bad "day answers v18"
+printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v19"' && ok || bad "day answers v19"
 # the menu: up is the process AND the port it wrote down
 (
   T=$(mktemp -d); HOME="$T"; mkdir -p "$T/.commute"
@@ -1038,6 +1038,46 @@ if command -v python3 >/dev/null 2>&1; then
   [ "$np" -ge 11 ] && ok || bad "the launcher screen test ran (only $np checks)"
 fi
 grep -q '^  --app)' src/60_update.sh 2>/dev/null; grep -q -- '--app)' src/60_update.sh && ok || bad "the updater can aim at one app"
+
+# ---- v26: the common API-key database, shared by all three apps ----
+# Each app's server, read out of what ships, must fall back to the shared store
+# on a read and seed it on a write, for both the Maps key and the Gemini key.
+# Take the splice out of payload_v26.py and these go red.
+np=$(python3 tools/patch_payload.py src/payloads/9-night_commute_v9.sh night)
+printf '%s' "$dp" | grep -qF '_maha_shared_read("google")'   && ok || bad "day Maps read falls back to the shared store"
+printf '%s' "$dp" | grep -qF '_maha_shared_read("gemini")'   && ok || bad "day Gemini read falls back to the shared store"
+printf '%s' "$dp" | grep -qF '_maha_shared_seed("google", keys)' && ok || bad "day Maps write seeds the shared store"
+printf '%s' "$dp" | grep -qF '_maha_shared_seed("gemini", keys)' && ok || bad "day Gemini write seeds the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_read("google")'   && ok || bad "night Maps read falls back to the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_read("gemini")'   && ok || bad "night Gemini read falls back to the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_seed("google", [(key or' && ok || bad "night Maps write seeds the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_seed("gemini", keys)' && ok || bad "night Gemini write seeds the shared store"
+printf '%s' "$ap" | grep -qF '_maha_shared_read("gemini")'   && ok || bad "all Gemini read falls back to the shared store"
+printf '%s' "$ap" | grep -qF '_maha_shared_seed("google", keys)' && ok || bad "all Maps write seeds the shared store"
+printf '%s' "$ap" | grep -qF '_maha_shared_seed("gemini", [(k or' && ok || bad "all Gemini write seeds the shared store"
+grep -qF 'GEMFILE="$KEYDIR/gemini-api.txt"' src/00_head.sh && ok || bad "the umbrella names the shared gemini file"
+printf '%s' "$ap" | grep -qF '_keys_from(SHARED_KEYFILE)' && ok || bad "all Maps read still uses the shared store (v22)"
+# Behaviour of the helper that is spliced in: it seeds an empty store, IGNORES a
+# key already there (the shared one wins), rejects a sub-20-char line, and writes 600.
+if command -v python3 >/dev/null 2>&1; then
+  R26=$(python3 - <<'PYEOF'
+import os, sys, tempfile
+sys.path.insert(0, "tools"); import payload_v26 as V26
+os.environ["HOME"] = tempfile.mkdtemp()
+ns = {"os": os}; exec(V26._HELPER, ns)
+R, S = ns["_maha_shared_read"], ns["_maha_shared_seed"]
+o = []
+o.append("empty" if R("google") == [] else "BAD")
+S("google", ["A"*25]); o.append("seeded" if R("google") == ["A"*25] else "BAD")
+S("google", ["B"*25]); o.append("ignored" if R("google") == ["A"*25] else "BAD")
+S("gemini", ["short"]); o.append("floor" if R("gemini") == [] else "BAD")
+kd = os.path.join(os.environ["HOME"], ".maha.commute", "keys")
+o.append("p600" if oct(os.stat(os.path.join(kd, "google-api.txt")).st_mode)[-3:] == "600" else "BAD")
+print(" ".join(o))
+PYEOF
+)
+  eq "the shared helper: seed empty, ignore existing, floor short, 600" "empty seeded ignored floor p600" "$R26"
+fi
 
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

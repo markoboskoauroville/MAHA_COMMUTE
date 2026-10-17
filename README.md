@@ -73,9 +73,9 @@ roof, whole and unchanged:
 
 | | what it is | version | port |
 |---|---|---|---|
-| `day.commute` | the daytime ride, corridors that pick themselves | v18 | 8082 |
-| `night.commute` | the four night trams, where they are, and a dashboard for each stop | v15 | 8087 |
-| `all.commute` | every station around you, in colour | v47 | 8084 |
+| `day.commute` | the daytime ride, corridors that pick themselves | v19 | 8082 |
+| `night.commute` | the four night trams, where they are, and a dashboard for each stop | v16 | 8087 |
+| `all.commute` | every station around you, in colour | v48 | 8084 |
 
 ## Installing
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 25-maha_commute_v25.sh
+bash 26-maha_commute_v26.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
@@ -294,6 +294,26 @@ the 360 view do not.
 The key is cleaned to its own shape, letters and digits and underscore and
 minus, at the moment it is stored. That is a filter used for extraction, where
 it fails closed, and never for redaction, where it would fail open.
+
+### One shared store, for every key
+
+`~/.maha.commute/keys/` is a common database of all the API keys, shared by all
+three apps: `google-api.txt` for the Google Maps / Street View key, and
+`gemini-api.txt` for the Gemini key that reads the PDF timetables and the ZET
+notices. The apps read it, so **a key set in any one of them is used by all
+three**.
+
+A key can be set from any app's own Settings, or pasted into the launcher
+(`maha-commute key`), which is the common store itself. Setting it in an app
+**loads it into the shared store only when the store has none for that key**:
+if a key is already there it is left alone, so one app cannot quietly overwrite
+the key another one set. An app keeps its own copy too and uses that first, so
+nothing an app was given by hand is lost; the shared store is the fallback
+every app falls back to. To replace a shared key, paste the new one in the
+launcher, which forces it in.
+
+This is why no key sits in the repository: the store is on the phone, written
+`600`, read by the three servers, and never printed or sent anywhere.
 
 ## How it is built
 

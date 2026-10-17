@@ -169,10 +169,13 @@ printf "  ${BAD}settings and the shared key, on this phone.${OFF}\n"
 printf "\n  ${DIM}The three original installers still exist and put every${OFF}\n"
 printf "  ${DIM}app back. What cannot be put back is the key, unless a${OFF}\n"
 printf "  ${DIM}copy of it is somewhere else.${OFF}\n"
-if [ -s "$APPHOME/keys/google-api.txt" ]; then
-  printf "\n  ${SAND}the shared key is %s characters long and is about to go${OFF}\n" \
-    "$(tr -d ' \r\n' < "$APPHOME/keys/google-api.txt" | wc -c | tr -d ' ')"
-fi
+for kf in google-api.txt gemini-api.txt; do
+  if [ -s "$APPHOME/keys/$kf" ]; then
+    printf "\n  ${SAND}the shared %s key is %s characters long and is about to go${OFF}\n" \
+      "$(printf '%s' "$kf" | cut -d- -f1)" \
+      "$(tr -d ' \r\n' < "$APPHOME/keys/$kf" | wc -c | tr -d ' ')"
+  fi
+done
 printf "\n  ${KEY}type the word${OFF} ${SAND}wipe${OFF} ${KEY}to go ahead${OFF}\n"
 printf "\n  ${AM}>${OFF} "
 IFS= read -r W || W=""

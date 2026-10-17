@@ -703,33 +703,58 @@ screen_install() {
   done
 }
 
+# The common API-key database: one store (~/.maha.commute/keys/) that every app
+# reads, Google and Gemini both. This is "the common one" a key is loaded into.
+# A key pasted here is forced in and wins over what an app seeded; an app's own
+# pick only fills the store when it is empty. Keys are never printed.
 screen_key() {
   local a k
+  while :; do
   clear 2>/dev/null || true
-  printf "\n  ${KEY}GOOGLE KEY${OFF}\n"
-  printf "  ${DIM}one key, shared by all three, never printed${OFF}\n\n"
+  printf "\n  ${KEY}API KEYS${OFF}\n"
+  printf "  ${DIM}one shared store, used by all three, never printed${OFF}\n\n"
   if [ -s "$KEYFILE" ]; then
-    printf "  ${OK}present${OFF} ${DIM}%s characters${OFF}\n" \
+    printf "  ${KEY}Google${OFF}  ${OK}present${OFF} ${DIM}(%s characters)${OFF}\n" \
       "$(tr -d ' \r\n' < "$KEYFILE" | wc -c | tr -d ' ')"
   else
-    printf "  ${DIM}none stored${OFF}\n"
+    printf "  ${KEY}Google${OFF}  ${DIM}none stored${OFF}\n"
   fi
-  printf "\n  ${KEY}Enter${OFF} ${DIM}back${OFF}  ${KEY}p${OFF} ${DIM}paste one${OFF}  ${KEY}x${OFF} ${DIM}forget it${OFF}\n\n  ${AM}>${OFF} "
+  if [ -s "$GEMFILE" ]; then
+    printf "  ${KEY}Gemini${OFF}  ${OK}present${OFF} ${DIM}(%s characters)${OFF}\n" \
+      "$(tr -d ' \r\n' < "$GEMFILE" | wc -c | tr -d ' ')"
+  else
+    printf "  ${KEY}Gemini${OFF}  ${DIM}none stored${OFF}\n"
+  fi
+  printf "\n  ${KEY}g${OFF} ${DIM}set Google${OFF}  ${KEY}e${OFF} ${DIM}set Gemini${OFF}  ${KEY}x${OFF} ${DIM}forget both${OFF}  ${KEY}Enter${OFF} ${DIM}back${OFF}\n\n  ${AM}>${OFF} "
   IFS= read -r a || a=""
   case "$a" in
-    p|P) printf "\n  ${DIM}paste, then Enter${OFF}\n  ${AM}>${OFF} "
+    g|G) printf "\n  ${DIM}paste the Google key, then Enter${OFF}\n  ${AM}>${OFF} "
          IFS= read -r k || k=""
          k=$(printf '%s' "$k" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
          if [ -n "$k" ]; then
-           mkdir -p "$KEYDIR"; printf '%s\n' "$k" > "$KEYFILE"; chmod 600 "$KEYFILE"
+           mkdir -p "$KEYDIR"; chmod 700 "$KEYDIR" 2>/dev/null || true
+           printf '%s\n' "$k" > "$KEYFILE"; chmod 600 "$KEYFILE"
            bash "$APPHOME/install-one.sh" --sync-key force >/dev/null 2>&1 || true
            printf "\n  ${OK}stored, and given to every app that is here${OFF}\n"
          else
            printf "\n  ${DIM}nothing was changed${OFF}\n"
          fi
          anykey ;;
-    x|X) rm -f "$KEYFILE"; printf "\n  ${SAND}forgotten here${OFF}\n"; anykey ;;
+    e|E) printf "\n  ${DIM}paste the Gemini key, then Enter${OFF}\n  ${AM}>${OFF} "
+         IFS= read -r k || k=""
+         k=$(printf '%s' "$k" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
+         if [ -n "$k" ]; then
+           mkdir -p "$KEYDIR"; chmod 700 "$KEYDIR" 2>/dev/null || true
+           printf '%s\n' "$k" > "$GEMFILE"; chmod 600 "$GEMFILE"
+           printf "\n  ${OK}stored. Every app reads it from here${OFF}\n"
+         else
+           printf "\n  ${DIM}nothing was changed${OFF}\n"
+         fi
+         anykey ;;
+    x|X) rm -f "$KEYFILE" "$GEMFILE"; printf "\n  ${SAND}both forgotten here${OFF}\n"; anykey ;;
+    q|Q|"") return 0 ;;
   esac
+  done
 }
 
 case "${1:-}" in

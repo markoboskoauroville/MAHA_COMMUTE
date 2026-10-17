@@ -35,7 +35,10 @@ BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 APPHOME="$HOME/.maha.commute"
 PAYDIR="$APPHOME/payloads"
 KEYDIR="$APPHOME/keys"
+# The common API-key database, shared by all three apps. One file per API; the
+# apps read both as a fallback and seed them when empty (see tools/payload_v26.py).
 KEYFILE="$KEYDIR/google-api.txt"
+GEMFILE="$KEYDIR/gemini-api.txt"
 STAMPDIR="$APPHOME/installed"
 
 # id | command | appdir | version | port | one line | server process | short
