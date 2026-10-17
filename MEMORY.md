@@ -9,6 +9,68 @@ this project.
 
 ---
 
+## V27: THE FIRST ON-DEVICE TEST, AND THE DASHBOARD'S FAILURE STATE (17.10.2026)
+
+v25 and v26 were tested on Marko's real Pixel 7 for the first time, by a Claude
+Code session running IN Termux on the phone over adb/Remote Control (handed over
+from the DJ Mantra session; Marko asked for it while away). The cloud session
+(here) sent the rounds, this session wrote
+`field-tests/2026-10-17_v26/REPORT.md`, and the fixes. **zet.hr is reachable from
+the cloud now, but this was the real two-machine loop working for the first time
+since the rule was written.**
+
+**IT ALL WORKS ON THE PHONE.** `maha.commute-update` took the phone v21 → v26
+(installer byte-identical, sentinel matched), all three apps, no crashes. The
+night dashboard opens on a tapped stop, renders the real schedule, WATCH → bar,
+From/To → planner. The whole v26 key database passed A–E on-device: the launcher
+"API KEYS" screen, shared Google read across all three, a Gemini key in the
+common store read by all three, seed + "ignored if exists" + cross-app read, and
+cleanup. The real-feed Street View photo and 360 work **once the Google key is
+authorised** (see below).
+
+**THE KEY HAD TO BE AUTHORISED, AND THAT IS NOT APP CODE.** The phone's first
+Google key was rejected by Google: `streetview/metadata` → "This API key is not
+authorized to use this service or API", static image → 403. The Street View
+Static API and the Maps JavaScript API were not enabled/allowed for it in Google
+Cloud. Marko installed a new key (old one backed up to
+`~/.maha.commute/backup/google-api.old-20261017.txt`) and the photo + 360 then
+passed. **Lesson for support: a 403 / "not authorized" on Street View is a Google
+Cloud key-restriction problem, not an app bug, and it hits all three apps because
+they share the key.**
+
+**WHAT V27 FIXES (night v17, umbrella v27; day and all unchanged).** The failure
+state, which is the common case because most keys are not Street-View-authorised:
+1. The `<img>` onerror only hid the image, so the location pin and the 360 badge
+   (absolutely positioned in the same frame) collapsed onto the card and COVERED
+   THE WATCH BUTTON. Now `ndSvFail` replaces the whole `.nd-svwrap` with the "no
+   Street View, or the key is not authorised" note.
+2. The Leaflet/OSM attribution (z-index 1000) showed through the full-screen
+   dashboard and over the watch bar. `#ndDash`/`#ndWatchbar`/`#ndPano` now sit
+   above it (1200/1050/1300) and the attribution is hidden while the dashboard or
+   the 360 viewer is open (`body.nd-dashopen`/`nd-panoopen`), the same thing
+   all.commute does for its pano. The fixes are in `src/payloads/night/dash.{js,
+   css}` (spliced by v25's patcher), so v27 only bumps the version strings.
+Verified in headless Chromium by blocking the Street View request: the frame
+becomes the note, nothing overlaps WATCH, no script errors. test1 469/6 (the 6
+environmental), gate 0 blocking.
+
+**TWO PRE-EXISTING SECURITY FINDINGS, NOT YET FIXED (candidates for v28).** Found
+on-device, present across the apps, not from v25/v26:
+1. POST `/gemini-key` echoes the submitted key in its `keys` response (night and
+   day; all returns `{ok,set}` and does not). Loopback + phone-only, so it does
+   not reach the network, but it prints a secret, against "never printed". Fix:
+   drop the key from the response and check the Settings JS does not read it back.
+2. Per-app key files are written **644**, while the shared store is 600. The
+   Termux home is UID-private on Android, so not a cross-app exposure, but
+   inconsistent; the per-app `write_*` should `chmod 600`.
+
+**NOTES FROM THE DEVICE, pre-existing, not from v25/v26.** The update waits for
+Enter before running the fetched installer (a confirm, by design). `night.commute
+status` opens the launcher screen instead of printing a status line. all.commute
+prints a stray "Terminated pgrep …" on restart (the known pkill self-match). On
+the Map tab, the sticky clock can hide the tab row after scrolling, and the OSM
+attribution sits near the watch bar's ✕. Left for a later pass.
+
 ## V26: ONE COMMON DATABASE OF ALL API KEYS, SHARED BY ALL THREE APPS (17.10.2026)
 
 Marko: "make a common database of all APIs so it's shared between applications.
