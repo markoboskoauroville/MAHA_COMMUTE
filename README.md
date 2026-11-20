@@ -75,7 +75,7 @@ roof, whole and unchanged:
 |---|---|---|---|
 | `day.commute` | the daytime ride, corridors that pick themselves | v19 | 8082 |
 | `night.commute` | the four night trams, where they are, and a dashboard for each stop | v17 | 8087 |
-| `all.commute` | every station around you, in colour | v48 | 8084 |
+| `all.commute` | every station around you, Zagreb and Rijeka, in colour | v52 | 8084 |
 
 ## Installing
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 26-maha_commute_v26.sh
+bash 29-maha_commute_v29.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
@@ -132,6 +132,20 @@ It asks GitHub for the newest version and reinstalls only the apps that
 changed. Your keys, your PDF timetables and the downloaded schedule stay where
 they are. From inside the launcher the same thing is `maha.commute -update`.
 The older names `maha-commute` and `maha-commute-update` still work.
+
+The first app launch of the day also checks GitHub. If a newer verified
+installer is available, it is downloaded, installed without a prompt, and the
+launcher restarts on that version.
+
+### Fresh data, by default
+
+Every app starts by downloading the static schedule once again and rebuilding
+its own data from that response. A fresh start never skips the request just
+because today's file is already on the phone.
+
+The three Settings pages share one **Use stored schedule data** switch. It is
+off by default. Turn it on only when you want to reuse the last checked copy;
+the page says this explicitly, and the setting applies to the whole suite.
 
 **The map needs no key.** All three apps show OpenStreetMap, which is free.
 A Google Maps key only adds Google's map as a second choice; how to get one is

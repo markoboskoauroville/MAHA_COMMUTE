@@ -724,7 +724,12 @@ gd=$(mktemp -d)
 cp "$ALLPAY" "$gd/eight.sh"; printf '/* backdrop-filter:blur(3px); */\n' >> "$gd/eight.sh"
 python3 tools/patch_payload.py "$gd/eight.sh" all >/dev/null 2>"$gd/eight.err"; rc_is "an eighth blur upstream fails the build" 1 $?
 grep -q 'expected 7' "$gd/eight.err" && ok || bad "and says what it expected"
-sed '0,/backdrop-filter:blur(4px);/s///' "$ALLPAY" > "$gd/six.sh"
+python3 - "$ALLPAY" "$gd/six.sh" <<'PY'
+import pathlib, sys
+src = pathlib.Path(sys.argv[1]).read_text()
+src = src.replace("backdrop-filter:blur(4px);", "", 1)
+pathlib.Path(sys.argv[2]).write_text(src)
+PY
 python3 tools/patch_payload.py "$gd/six.sh" all >/dev/null 2>&1; rc_is "a payload with fewer blurs than the count fails too" 1 $?
 rm -rf "$gd"
 
@@ -849,11 +854,20 @@ python3 tools/build_copy_page.py --check >/dev/null 2>&1; rc_is "the copy page i
 # Each failure on its own: a stale page, a changed command, a missing link.
 cpd=$(mktemp -d); mkdir -p "$cpd/tools" "$cpd/docs"
 cp tools/build_copy_page.py "$cpd/tools/"; cp README.md "$cpd/"; cp docs/index.html docs/.nojekyll "$cpd/docs/"
-sed -i '0,/--apps 3$/s//--apps 9/' "$cpd/README.md"
+python3 - "$cpd/README.md" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); p.write_text(p.read_text().replace("--apps 3", "--apps 9", 1))
+PY
 python3 "$cpd/tools/build_copy_page.py" --check >/dev/null 2>&1; rc_is "a README command changed and the page not rebuilt is stale" 1 $?
-cp README.md "$cpd/README.md"; sed -i '0,/#cmd-3)/s//#cmd-99)/' "$cpd/README.md"
+cp README.md "$cpd/README.md"; python3 - "$cpd/README.md" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); p.write_text(p.read_text().replace("#cmd-3)", "#cmd-99)", 1))
+PY
 python3 "$cpd/tools/build_copy_page.py" --check >/dev/null 2>&1; rc_is "a link that points at no card fails" 1 $?
-cp README.md "$cpd/README.md"; sed -i '/#cmd-4)/d' "$cpd/README.md"
+cp README.md "$cpd/README.md"; python3 - "$cpd/README.md" <<'PY'
+import pathlib, sys
+p = pathlib.Path(sys.argv[1]); p.write_text("".join(x for x in p.read_text().splitlines(True) if "#cmd-4)" not in x))
+PY
 python3 "$cpd/tools/build_copy_page.py" --check >/dev/null 2>&1; rc_is "a command with no link under it fails" 1 $?
 rm -rf "$cpd"
 
@@ -916,7 +930,7 @@ printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that 
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
 printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
-printf '%s' "$ap" | grep -qF 'APP_VERSION = "v48"' && ok || bad "all: answers v48"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v52"' && ok || bad "all: answers v52"
 printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
 # the dashboard renders the station that was opened, and only that one
 if command -v node >/dev/null 2>&1; then
@@ -997,10 +1011,10 @@ with zipfile.ZipFile(path, "w") as z:
 PYEOF
 ids21() { python3 -c "import sqlite3,sys;print(' '.join(sorted(r[0] for r in sqlite3.connect(sys.argv[1]).execute('select stop_id from stops'))))" "$T21/network.db"; }
 python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 1
-ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+ALLC_FORCE=1 ALLC_GTFS_LOCAL="$T21/zet_gtfs.zip" ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "a day with the special service: all four stations" "100 101 200 300" "$(ids21)"
 python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 0
-ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+ALLC_FORCE=1 ALLC_GTFS_LOCAL="$T21/zet_gtfs.zip" ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "a day without it: the same four, none dropped"     "100 101 200 300" "$(ids21)"
 eq "a parent station (location_type 1) is not a station you stand at" "no" "$(ids21 | grep -qw 900 && echo yes || echo no)"
 eq "the permanent file holds them too" "4" "$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['stops']))" "$T21/stations.json")"
@@ -1017,7 +1031,7 @@ c.execute("create table dep(stop_id text, t int, trip_id text, route text, head 
 c.execute("insert into stops values('999','Old and gone',45.0,15.0,90.0)")
 c.commit()
 PYEOF
-ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+ALLC_FORCE=1 ALLC_GTFS_LOCAL="$T21/zet_gtfs.zip" ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
 eq "an old index's stops are taken in, not lost" "100 101 200 300 999" "$(ids21)"
 # every station ships inside the app, so the first screen needs no download
 eq "the stations seed carries every platform" "yes" "$(python3 -c "

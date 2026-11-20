@@ -205,9 +205,9 @@ start_app() {
   # behind and nothing holds the caller's terminal or pipe.
   L=$(launcher_of "$id")
   if command -v setsid >/dev/null 2>&1; then
-    ( cd "$HOME" 2>/dev/null; exec setsid nohup "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
+    ( cd "$HOME" 2>/dev/null; exec setsid nohup bash "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
   else
-    ( cd "$HOME" 2>/dev/null; exec nohup "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
+    ( cd "$HOME" 2>/dev/null; exec nohup bash "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
   fi
   echo $! > "$RUNDIR/$id.pid"
   disown 2>/dev/null || true
@@ -756,6 +756,32 @@ screen_key() {
   esac
   done
 }
+
+auto_update_at_start() {
+  [ "${MAHA_AUTO_UPDATE_OFF:-0}" = "1" ] && return 0
+  [ "${MAHA_AUTO_UPDATE_TRIED:-0}" = "1" ] && return 0
+  case "${1:-}" in ""|day|night|all|focus|restart|open) ;; *) return 0 ;; esac
+
+  local stamp now old new
+  stamp="$APPHOME/last-update-check"
+  now=$(date +%s)
+  if [ -r "$stamp" ]; then
+    local checked
+    checked=$(tr -cd '0-9' < "$stamp" | head -c 12)
+    if [ -n "$checked" ] && [ "$((now - checked))" -lt 86400 ] 2>/dev/null; then
+      return 0
+    fi
+  fi
+
+  old="$MAHA_VERSION"
+  bash "$APPHOME/update.sh" --auto || return 0
+  new=$(sed -n 's/^MAHA_VERSION=//p' "$APPHOME/env.sh" 2>/dev/null | head -1)
+  if [ -n "$new" ] && [ "$new" != "$old" ]; then
+    MAHA_AUTO_UPDATE_TRIED=1 exec "$BIN/maha-commute" "$@"
+  fi
+}
+
+auto_update_at_start "$@"
 
 case "${1:-}" in
   day|night|all)  start_app "$1"; exit 0 ;;

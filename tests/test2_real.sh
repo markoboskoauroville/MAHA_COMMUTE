@@ -113,7 +113,7 @@ no_  "all is not stamped"                "[ -f '$A/installed/all' ]"
 yes_ "the stamp says v19"                "[ \"\$(cat '$A/installed/day')\" = v19 ]"
 yes_ "maha.commute is installed"          "[ -x '$PREFIX/bin/maha.commute' ]"
 yes_ "maha.commute-update is installed"   "[ -x '$PREFIX/bin/maha.commute-update' ]"
-yes_ "maha.commute opens the same launcher" "maha.commute --help 2>&1 | grep -q 'maha.commute'"
+yes_ "maha.commute opens the same launcher" "bash '$PREFIX/bin/maha.commute' --help 2>&1 | grep -q 'maha.commute'"
 no_  "no temp payload was left behind"   "ls '$A/tmp'/*.run.sh >/dev/null 2>&1"
 
 # ---- the app itself was really written ----------------------------
@@ -130,9 +130,9 @@ no_  "no key shape anywhere under HOME" \
      "grep -rqE 'AIza[A-Za-z0-9_-]{30,}' '$HOME' 2>/dev/null"
 
 # ---- the menu answers ---------------------------------------------
-out=$(maha-commute --help 2>&1 || true)
+out=$(bash "$PREFIX/bin/maha-commute" --help 2>&1 || true)
 yes_ "maha.commute --help speaks"             "printf '%s' \"\$out\" | grep -q 'maha.commute \[day'"
-st=$(maha-commute status 2>&1 < /dev/null || true)
+st=$(bash "$PREFIX/bin/maha-commute" status 2>&1 < /dev/null || true)
 yes_ "maha-commute status names day.commute"  "printf '%s' \"\$st\" | grep -q 'day.commute'"
 yes_ "maha-commute status names the missing one" \
      "printf '%s' \"\$st\" | grep -q 'all.commute'"
@@ -160,7 +160,7 @@ if (exec 3<>/dev/tcp/127.0.0.1/8082) 2>/dev/null; then
   printf '  port, not by anything this test started. Stop the running\n'
   printf '  day.commute and run this again.\n'
 else
-  ( day.commute > "$T/server.log" 2>&1 & echo $! > "$T/srv.pid" )
+  ( MAHA_AUTO_UPDATE_OFF=1 bash "$PREFIX/bin/day.commute" > "$T/server.log" 2>&1 & echo $! > "$T/srv.pid" )
   SRV=$(cat "$T/srv.pid")
   for i in $(seq 1 60); do
     if (exec 3<>/dev/tcp/127.0.0.1/8082) 2>/dev/null; then exec 3<&-; up=1; break; fi
@@ -216,7 +216,7 @@ fi
 # match on, and a blanket pkill at the end of this test would reach out of
 # the sandbox and stop the app the person is actually using.
 NIGHT_BEFORE=" $(pgrep -f night_server.py | tr '\n' ' ')"
-night.commute > "$T/night.log" 2>&1
+MAHA_AUTO_UPDATE_OFF=1 bash "$PREFIX/bin/night.commute" > "$T/night.log" 2>&1
 up=0
 for i in $(seq 1 60); do
   if (exec 3<>/dev/tcp/127.0.0.1/8087) 2>/dev/null; then exec 3<&-; up=1; break; fi
@@ -348,7 +348,7 @@ else
   bash "$A/install-one.sh" all --offline >"$T/all_install.log" 2>&1
   yes_ "all.commute installs from the kept payload" "[ -x '$PREFIX/bin/all.commute' ]"
   yes_ "and its command is the screen's shim"       "grep -q '^# MAHA_SHIM all' '$PREFIX/bin/all.commute'"
-  maha-commute all >"$T/all_start.log" 2>&1 </dev/null
+  MAHA_AUTO_UPDATE_OFF=1 bash "$PREFIX/bin/maha-commute" all >"$T/all_start.log" 2>&1 </dev/null
   up=0
   for i in $(seq 1 60); do
     if (exec 3<>/dev/tcp/127.0.0.1/8084) 2>/dev/null; then exec 3<&-; up=1; break; fi

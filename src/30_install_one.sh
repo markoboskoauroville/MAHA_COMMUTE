@@ -171,18 +171,20 @@ write_shim() {   # write_shim ID CMD
 # app's own launcher is kept in ~/.maha.commute/orig/ and still does the work.
 ORIG="$HOME/.maha.commute/orig/@CMD@"
 [ -x "$ORIG" ] || { echo "the launcher for @CMD@ is missing, run the MAHA COMMUTE installer again" >&2; exit 1; }
-command -v maha-commute >/dev/null 2>&1 || exec "$ORIG" "$@"
+MAHA_BIN=$(command -v maha-commute 2>/dev/null || true)
+[ -n "$MAHA_BIN" ] || exec bash "$ORIG" "$@"
 case "${1:-}" in
-"")      exec maha-commute focus @ID@ ;;
-stop)    exec maha-commute stop @ID@ ;;
-status)  exec maha-commute status ;;
-restart) exec maha-commute restart @ID@ ;;
-open)    exec maha-commute open @ID@ ;;
-log)     exec maha-commute log @ID@ ;;
-*)       exec "$ORIG" "$@" ;;
+"")      exec bash "$MAHA_BIN" focus @ID@ ;;
+stop)    exec bash "$MAHA_BIN" stop @ID@ ;;
+status)  exec bash "$MAHA_BIN" status ;;
+restart) exec bash "$MAHA_BIN" restart @ID@ ;;
+open)    exec bash "$MAHA_BIN" open @ID@ ;;
+log)     exec bash "$MAHA_BIN" log @ID@ ;;
+*)       exec bash "$ORIG" "$@" ;;
 esac
 MAHA_SHIM_TEXT
-  sed -i "s/@ID@/$id/g; s/@CMD@/$cmd/g" "$new"
+  sed "s/@ID@/$id/g; s/@CMD@/$cmd/g" "$new" > "$new.clean"
+  mv -f "$new.clean" "$new"
   chmod +x "$new" && mv -f "$new" "$BIN/$cmd"
 }
 # END SHIM

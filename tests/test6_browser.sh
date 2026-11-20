@@ -30,8 +30,8 @@ for name, tag in (("all_commute_server.py", "ALLC_SERVER_PY"), ("update_all.py",
     open(sys.argv[2] + "/" + name, "w").write(m.group(1) + "\n")
 PYEOF
 python3 tests/fixtures/mkgtfs.py "$T/zet_gtfs.zip" 1
-ALLC_DIR="$T" python3 "$T/update_all.py" >/dev/null 2>&1
-( cd "$T" && ALLC_DIR="$T" ALLC_PORT=$PORT ALLC_NO_OPEN=1 ALLC_TAKEOVER=1 exec python3 all_commute_server.py >/dev/null 2>&1 ) &
+ALLC_DIR="$T" ALLC_GTFS_LOCAL="$T/zet_gtfs.zip" python3 "$T/update_all.py" >/dev/null 2>&1
+( cd "$T" && ALLC_DIR="$T" ALLC_GTFS_LOCAL="$T/zet_gtfs.zip" ALLC_PORT=$PORT ALLC_NO_OPEN=1 ALLC_TAKEOVER=1 exec python3 all_commute_server.py >/dev/null 2>&1 ) &
 SRV=$!
 # the server walks forward when its port is busy, and writes the one it got
 for i in $(seq 1 40); do

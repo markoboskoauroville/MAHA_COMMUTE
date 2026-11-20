@@ -78,6 +78,13 @@ const until = async (page, fn, ms) => {
     " — lines " + lines.slice(0, 8).join(","), service ? dash.deps.length > 0 : true);
   check("and a departure's line is written on the dashboard",
     !dash.deps.length || dash.text.includes(dash.deps[0].route));
+  await R.page.evaluate(async () => {
+    await fetch("cache-mode", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: true }) });
+    await loadMahaCache();
+    await refreshStationCache(STATION_SET.zagreb.rev, "zagreb");
+    await refreshStationCache(STATION_SET.rijeka.rev, "rijeka");
+  });
   const saved = await R.page.evaluate(() => { try { return Object.keys(JSON.parse(localStorage.getItem("ac2_stations_rj")).stops).length; } catch (e) { return 0; } });
   check("Rijeka's copy is kept in the browser (" + saved + ")", saved > 500);
   check("no script error in Rijeka", R.errors.length === 0 || (console.log("   " + R.errors.join("\n   ")), false));

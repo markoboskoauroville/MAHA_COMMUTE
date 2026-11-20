@@ -36,6 +36,22 @@
 
 ---
 
+## v29 · 2026-11-20
+
+**Umbrella installer: `29-maha_commute_v29.sh`**
+
+- All three apps download and rebuild fresh transit data at process start by
+  default. A shared Settings switch can opt back into stored schedule data.
+- The launcher checks GitHub once per day on first use, validates a newer
+  installer, installs it without a prompt, and restarts on the new version.
+- The phone-tested all.commute map work is now part of the maintained patch
+  chain: station-label placement, no automatic map zoom, position lock,
+  trace recording and GPX tracks, and Rijeka's live stations, boards and buses.
+- all.commute v52, day.commute v19, night.commute v17.
+
+Validation: the delivery gate has zero blockers; mechanism, stress, real-feed,
+launcher, field-regression, auto-update/cache and Chromium browser suites pass.
+
 ## v16 · 2026-10-03
 
 **Umbrella installer: `16-maha_commute_v16.sh`**

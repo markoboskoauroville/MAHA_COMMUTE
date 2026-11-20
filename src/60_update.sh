@@ -54,6 +54,7 @@ ONLY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --check) MODE="check" ;;
+    --auto)  MODE="auto" ;;
     --app)   ONLY="${2:-}"; shift ;;
     -*)      ;;
     *)       if [ -f "$1" ]; then CAND="$1"
@@ -65,7 +66,7 @@ if [ -n "$ONLY" ] && ! printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1 | grep -qx "$O
   printf "update: %s is not one of the apps\n" "$ONLY"; exit 2
 fi
 
-RAW="https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main"
+RAW="${MAHA_UPDATE_RAW:-https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main}"
 
 # What github is offering. A plain unsigned request: no token, no header,
 # nothing kept afterwards.
@@ -73,9 +74,11 @@ REMOTE_V=""
 if [ -n "$CAND" ]; then
   :   # a file was given, so github is not asked
 elif command -v curl >/dev/null 2>&1; then
-  REMOTE_V=$(curl -fsSL --max-time 20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
+  if [ "$MODE" = "auto" ]; then _timeout=5; else _timeout=20; fi
+  REMOTE_V=$(curl -fsSL --max-time "$_timeout" "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
 elif command -v wget >/dev/null 2>&1; then
-  REMOTE_V=$(wget -qO- --timeout=20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
+  if [ "$MODE" = "auto" ]; then _timeout=5; else _timeout=20; fi
+  REMOTE_V=$(wget -qO- --timeout="$_timeout" "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
 fi
 
 HERE="${MAHA_VERSION#v}"
@@ -92,10 +95,18 @@ elif [ -n "$REMOTE_V" ]; then
     if curl -fsSL --max-time 300 "$RAW/$NAME" -o "$DL" 2>/dev/null ||
        wget -qO "$DL" --timeout=300 "$RAW/$NAME" 2>/dev/null; then
       CAND="$DL"
+      if [ "$MODE" = "auto" ]; then
+        mkdir -p "$APPHOME"
+        date +%s > "$APPHOME/last-update-check"
+      fi
     else
       printf "  ${BAD}the fetch failed. Nothing was changed.${OFF}\n\n"; exit 1
     fi
   else
+    if [ "$MODE" = "auto" ]; then
+      mkdir -p "$APPHOME"
+      date +%s > "$APPHOME/last-update-check"
+    fi
     printf "\n  ${OK}v%s is the newest there is.${OFF}\n\n" "$HERE"
     exit 0
   fi
@@ -207,6 +218,12 @@ fi
 # --check only describes. It must not offer to install, with a file or without.
 if [ "$MODE" = "check" ]; then
   printf "\n  ${DIM}--check: nothing was changed${OFF}\n\n"; exit 0
+fi
+
+if [ "$MODE" = "auto" ]; then
+  printf "\n  ${DIM}automatic update: installing v%s without a prompt${OFF}\n\n" \
+    "${NEW#v}"
+  exec bash "$CAND" --offline --apps "$PICK"
 fi
 
 printf "\n  ${KEY}Enter${OFF} ${DIM}install it${OFF}    ${KEY}n${OFF} ${DIM}stop, change nothing${OFF}\n"

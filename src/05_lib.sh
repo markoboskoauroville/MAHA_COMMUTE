@@ -98,7 +98,8 @@ port_live() {
 install_command() {
   local dest="$1"
   cat > "$dest.new"
-  sed -i 's/\r$//' "$dest.new" 2>/dev/null || true
+  sed 's/\r$//' "$dest.new" > "$dest.clean"
+  mv -f "$dest.clean" "$dest.new"
   chmod +x "$dest.new"
   mv -f "$dest.new" "$dest"
 }

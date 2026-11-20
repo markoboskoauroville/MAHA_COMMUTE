@@ -73,6 +73,8 @@ import payload_v25 as V25
 import payload_v25_location as V25_LOCATION
 import payload_v26 as V26
 import payload_v27 as V27
+import payload_v28 as V28
+import payload_v29 as V29
 NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
 
 
@@ -318,14 +320,18 @@ def main():
         src = V24.patch_all(src)
         src = V25_LOCATION.patch_all(src)
         src = V26.patch_all(src)
+        src = V28.patch_all(src)
+        src = V29.patch_all(src)
     if app == "day":
         src = V22.patch_day(src)
         src = V26.patch_day(src)
+        src = V29.patch_day(src)
     if app == "night":
         src = V22.patch_night(src)
         src = V25.patch_night(src)
         src = V26.patch_night(src)
         src = V27.patch_night(src)
+        src = V29.patch_night(src)
 
     keys = RESET.get(app, [])
     if not keys:
@@ -346,4 +352,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except BrokenPipeError:
+        sys.stdout = open(os.devnull, "w")

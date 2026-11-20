@@ -23,6 +23,9 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   const ctx = await b.newContext({ viewport: { width: 390, height: 780 },
     geolocation: { latitude: 45.8052, longitude: 15.9805, accuracy: 15 }, permissions: ["geolocation"] });
   const page = await ctx.newPage();
+  await ctx.request.post(base + "/cache-mode", {
+    data: { enabled: false }
+  });
   const errors = [];
   page.on("pageerror", e => errors.push(e.message));
   await page.route("**/*", route => {
@@ -109,7 +112,8 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   await page.click("#btnLocate");
   await page.waitForTimeout(2500);
   const back = await page.evaluate(() => ({ lat: map.getCenter().lat, z: map.getZoom() }));
-  check(speed + ": the locate button brings the map to the dot", Math.abs(back.lat - 45.8049) < 0.002 && back.z >= 17);
+  check(speed + ": the locate button brings the map to the dot and keeps the user's zoom",
+    Math.abs(back.lat - 45.8049) < 0.002 && back.z === 14);
   // v22 (F8): the phone is 3 km away and no burst is running; the button must end up
   // THERE, not at the old position, once the new fix arrives.
   await ctx.setGeolocation({ latitude: 45.8300, longitude: 15.9900, accuracy: 5 });
@@ -123,7 +127,7 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   // leaves the dot within a few metres of the newest fix, and standing still is still
   // averaged in full.
   const fol = await page.evaluate(() => {
-    const out = { on: FOLLOW, label: document.getElementById("posFollow").textContent };
+    const out = { on: FOLLOW };
     autoLocate(true);
     out.longBurst = burstEnd - Date.now() > 1800000;
     const now = Date.now(), m = 1 / 111320;
@@ -134,20 +138,13 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
     FIXES = [];
     for (let i = 0; i < 10; i++) FIXES.push({ lat: 45.80 + ((i % 3) - 1) * 3 * m, lng: 15.98, acc: 6, t: now - (9 - i) * 8000 });
     out.stillN = fuse().n;
-    document.getElementById("posFollow").click();
-    out.offLabel = document.getElementById("posFollow").textContent;
-    out.offShort = burstEnd - Date.now() < 60000;
-    document.getElementById("posFollow").click();
-    out.back = FOLLOW;
     FIXES = [];
     return out;
   });
-  check(speed + ": follow me is on by default and labelled", fol.on === true && fol.label === "Follow me: on");
+  check(speed + ": following is on by default", fol.on === true);
   check(speed + ": while following, the watch stays open", fol.longBurst);
   check(speed + ": a walker's dot keeps up (" + Math.round(fol.behind) + " m behind)", fol.behind < 20);
   check(speed + ": standing still is still averaged in full", fol.stillN === 10);
-  check(speed + ": switching it off goes back to short bursts", fol.offLabel === "Follow me: off" && fol.offShort);
-  check(speed + ": and back on", fol.back === true);
   // v23: the watch bar shows the next THREE departures, not one. Fed directly with a
   // board, so the check does not depend on what the fixture timetable has at this hour.
   const wb = await page.evaluate(() => {
@@ -185,6 +182,13 @@ const check = (n, c) => { console.log((c ? "PASS " : "FAIL ") + n); if (!c) fail
   // v24: the page's own copy. A SECOND visit with every request to the server refused
   // (only the page itself is let through) must still draw the stations, because they
   // are drawn from the browser's copy before anything is asked.
+  const defaultCached = await page.evaluate(() => { try { return Object.keys(JSON.parse(localStorage.getItem("ac2_stations")).stops).length; } catch (e) { return 0; } });
+  check(speed + ": cache is off by default, so no browser station copy is stored (" + defaultCached + ")", defaultCached === 0);
+  await page.evaluate(async () => {
+    await fetch("cache-mode", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ enabled: true }) });
+    await loadMahaCache();
+    await refreshStationCache(STATION_SET.zagreb.rev, "zagreb");
+  });
   const cached = await page.evaluate(() => { try { return Object.keys(JSON.parse(localStorage.getItem("ac2_stations")).stops).length; } catch (e) { return 0; } });
   check(speed + ": the page keeps its own copy of the stations (" + cached + ")", cached >= 4);
   const p2 = await ctx.newPage();

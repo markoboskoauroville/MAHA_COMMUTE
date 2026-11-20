@@ -101,7 +101,7 @@ no_  "and no half written .new files"     "ls '$HOME/.maha.commute'/*.new '$PREF
 fresh order
 printf '\n' | bash "$ART" --offline --apps n >/dev/null 2>&1
 rm -f "$HOME/.maha.commute/env.sh"
-out=$(maha-commute status 2>&1 </dev/null || true)
+out=$(bash "$PREFIX/bin/maha-commute" status 2>&1 </dev/null || true)
 yes_ "a menu with no env says so plainly" "printf '%s' \"\$out\" | grep -q 'env.sh is missing'"
 no_  "and does not pretend to work"       "printf '%s' \"\$out\" | grep -q 'day.commute'"
 
@@ -156,7 +156,7 @@ yes_ "and its sentinel check passes, so the two are separate" \
      "printf '%s' \"\$out\" | grep -q 'ok    sentinel'"
 
 # a whole file with its last line removed: only the sentinel sees this
-head -n -1 "$ART" > "$T/nosentinel.sh"
+sed '$d' "$ART" > "$T/nosentinel.sh"
 out=$(bash tools/verify_installer.sh "$T/nosentinel.sh" 2>&1 || true)
 yes_ "a missing last line is caught"   "printf '%s' \"\$out\" | grep -q 'FAIL  sentinel'"
 yes_ "and its parse check passes, so the two are separate" \

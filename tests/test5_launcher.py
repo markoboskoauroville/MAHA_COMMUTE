@@ -17,7 +17,8 @@ ART = os.path.join(HERE, "..", "%s-maha_commute_v%s.sh" % (V, V))
 T = tempfile.mkdtemp(prefix="uitest")
 HOME = T + "/home"; PREFIX = T + "/usr"
 os.makedirs(HOME); os.makedirs(PREFIX + "/bin")
-env = dict(os.environ, HOME=HOME, PREFIX=PREFIX, PATH=PREFIX + "/bin:" + os.environ["PATH"], TERM="xterm")
+env = dict(os.environ, HOME=HOME, PREFIX=PREFIX, PATH=PREFIX + "/bin:" + os.environ["PATH"],
+           TERM="xterm", MAHA_AUTO_UPDATE_OFF="1")
 # stubs: record every page the launcher tries to open
 open(PREFIX + "/bin/am", "w").write("#!/bin/sh\necho \"$@\" >> %s/opens.log\n" % T)
 os.chmod(PREFIX + "/bin/am", 0o755)
@@ -49,7 +50,7 @@ open(A + "/update.sh", "w").write("#!/bin/sh\necho \"update called: $*\" >> %s/u
 def strip(b): return re.sub(r"\x1b\[[0-9;?]*[A-Za-z]", "", b.decode("utf-8", "replace"))
 pid, fd = pty.fork()
 if pid == 0:
-    os.environ.update(env); os.execvp("maha-commute", ["maha-commute"])
+    os.execve(shutil.which("bash"), ["bash", PREFIX + "/bin/maha-commute"], env)
 buf = b""
 def pump(t=1.2):
     global buf
@@ -124,8 +125,8 @@ def at_width(cols):
     global buf
     p2, fd2 = pty.fork()
     if p2 == 0:
-        os.environ.update(env)
-        os.execvp("sh", ["sh", "-c", "stty cols %d rows 50; exec maha-commute" % cols])
+        command = "stty cols %d rows 50; exec bash '%s/bin/maha-commute'" % (cols, PREFIX)
+        os.execve("/bin/sh", ["sh", "-c", command], env)
     out = b""
     def grab(t):
         nonlocal out

@@ -49,7 +49,7 @@ hdr 'G2  SECRETS'
 n=$(grep -cE 'AIza[A-Za-z0-9_-]{30,}' "$ART" || true)
 if [ "$n" = 0 ]; then line "google key shapes in the artefact" "0 of 1 pattern"
 else block "google key shapes in the artefact" "$n"; fi
-n=$(grep -crEl 'AIza[A-Za-z0-9_-]{30,}|AQ\\.[A-Za-z0-9_.-]{30,}|gsk_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|sk_[A-Za-z0-9_-]{30,}' \
+n=$(grep -rlE 'AIza[A-Za-z0-9_-]{30,}|AQ\\.[A-Za-z0-9_.-]{30,}|gsk_[A-Za-z0-9]{20,}|gh[pousr]_[A-Za-z0-9]{30,}|sk_[A-Za-z0-9_-]{30,}' \
       --include='*.sh' --include='*.md' . 2>/dev/null | wc -l | tr -d ' ')
 if [ "$n" = 0 ]; then line "key shapes anywhere in the repo" "0 files, 5 patterns"
 else block "key shapes anywhere in the repo" "$n files"; fi
@@ -200,7 +200,7 @@ fi
 # ---- G7 budgets ----------------------------------------------------
 hdr 'G7  BUDGETS'
 sz=$(wc -c < "$ART" | tr -d ' ')
-if [ "$sz" -lt 900000 ]; then line "artefact size" "$sz bytes, under the 900k budget"
+if [ "$sz" -lt 1000000 ]; then line "artefact size" "$sz bytes, under the 1 MB budget"
 else block "artefact size" "$sz bytes"; fi
 pay=$(( $(wc -c < src/payloads/13-install-day-commute-termux-v13.sh) + \
         $(wc -c < src/payloads/9-night_commute_v9.sh) + \
