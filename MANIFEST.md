@@ -36,6 +36,17 @@
 
 ---
 
+## v30 · 2026-11-20
+
+**Umbrella installer: `30-maha_commute_v30.sh`**
+
+- Lowercase `b` opens the currently selected app in the browser. Lowercase `k`
+  remains the shared API-key screen, so no Shift chord is required.
+- all.commute falls back from Rijeka's sometimes unreachable HTTP open-data
+  host to Autotrolej's official HTTPS timetable API. The normalized response
+  is cached for the next six hours.
+- all.commute v53, day.commute v19, night.commute v17.
+
 ## v29 · 2026-11-20
 
 **Umbrella installer: `29-maha_commute_v29.sh`**

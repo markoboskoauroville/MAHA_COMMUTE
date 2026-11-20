@@ -75,7 +75,7 @@ roof, whole and unchanged:
 |---|---|---|---|
 | `day.commute` | the daytime ride, corridors that pick themselves | v19 | 8082 |
 | `night.commute` | the four night trams, where they are, and a dashboard for each stop | v17 | 8087 |
-| `all.commute` | every station around you, Zagreb and Rijeka, in colour | v52 | 8084 |
+| `all.commute` | every station around you, Zagreb and Rijeka, in colour | v53 | 8084 |
 
 ## Installing
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 29-maha_commute_v29.sh
+bash 30-maha_commute_v30.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
@@ -146,6 +146,10 @@ because today's file is already on the phone.
 The three Settings pages share one **Use stored schedule data** switch. It is
 off by default. Turn it on only when you want to reuse the last checked copy;
 the page says this explicitly, and the setting applies to the whole suite.
+
+In the MAHA Commute launcher, press lowercase **`b`** to open the selected
+app's page in the browser. No Shift key is needed; lowercase `k` still opens
+the shared API-key screen.
 
 **The map needs no key.** All three apps show OpenStreetMap, which is free.
 A Google Maps key only adds Google's map as a second choice; how to get one is

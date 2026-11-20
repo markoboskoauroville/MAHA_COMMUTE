@@ -18,7 +18,7 @@
 # 1 2 3 4 LIGHT a quadrant. An idle app is started by its number and the
 # quadrant says RUNNING; an app that is already running is only lit, so with
 # two apps up the numbers just swap the light between them. Enter or o opens
-# the page. 0 lights nothing: it is the launcher itself, and the keys that
+# the page (b does the same thing). 0 lights nothing: it is the launcher itself, and the keys that
 # belong to no single app act on all of it.
 #
 # u UPDATES according to what is running. With nothing running it updates the
@@ -34,7 +34,7 @@
 # that changes is which app is listening.
 #
 #   Enter  open it, starting it first if it is not running
-#   o      open the page again, for when the tab was closed
+#   o / b  open the selected app's page again
 #   s      stop it
 #   R      restart it
 #   l      its log, the last twenty lines in its own words
@@ -540,11 +540,11 @@ draw() {
     printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}" "$(field "$(app_row "$sel_id")" 2)"
     if [ "$narrow" = 1 ]; then printf "\n  "; else printf "  "; fi
     if [ "$sel_inst" != 1 ]; then
-      printf "${KEY}Enter${OFF}${SAND}=install${OFF}${DIM}  open stop restart log${OFF}"
+      printf "${KEY}Enter${OFF}${SAND}=install${OFF}${DIM}  ${OFF}${KEY}b${OFF}${SAND}=browser${OFF}${DIM}  stop restart log${OFF}"
     elif [ "$sel_run" = 1 ]; then
-      printf "${KEY}Enter${OFF}${SAND}=open${OFF}  ${KEY}s${OFF}${SAND}top${OFF}  ${KEY}R${OFF}${SAND}estart${OFF}  ${KEY}l${OFF}${SAND}og${OFF}"
+      printf "${KEY}Enter${OFF}${SAND}=open${OFF}  ${KEY}b${OFF}${SAND}=browser${OFF}  ${KEY}s${OFF}${SAND}top${OFF}  ${KEY}R${OFF}${SAND}estart${OFF}  ${KEY}l${OFF}${SAND}og${OFF}"
     else
-      printf "${KEY}Enter${OFF}${SAND}=start${OFF}${DIM}  stop restart${OFF}  ${KEY}l${OFF}${SAND}og${OFF}"
+      printf "${KEY}Enter${OFF}${SAND}=start${OFF}  ${KEY}b${OFF}${SAND}=browser${OFF}${DIM}  stop restart${OFF}  ${KEY}l${OFF}${SAND}og${OFF}"
     fi
     printf "\n\n"
   fi
@@ -636,7 +636,7 @@ Arrows move the light without starting anything, for when you want to look befor
 The verbs are the same for every quadrant and act on the lit one, which is the whole point: one set of keys.
 
   Enter  open it, starting it first if it is not running
-  o      open the page again
+  o / b  open the selected app in the browser
   s      stop it
   R      restart it
   l      its log, the last twenty lines
@@ -863,7 +863,7 @@ while :; do
 
     # the verbs, on the focused quadrant
     "")  [ -n "$SELAPP" ] && start_app "$SELAPP" ;;
-    o|O) [ -n "$SELAPP" ] && { if running "$SELAPP"; then
+    o|O|b) [ -n "$SELAPP" ] && { if running "$SELAPP"; then
            LAST="$SELAPP"; open_url "http://127.0.0.1:$(app_port "$SELAPP")/?run=$RUN"
          else start_app "$SELAPP"; fi; } ;;
     s)   [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; sleep 1; } ;;
@@ -876,7 +876,7 @@ while :; do
     c|C|d|D) printf "\n"; "$PY" "$APPHOME/stream.py" check; anykey ;;
     t|T) printf "\n"; "$PY" "$APPHOME/keytest.py"; anykey ;;
     i|I) screen_install ;;
-    k|K) screen_key ;;
+    k)   screen_key ;;
     u|U) update_focus ;;
     S)   stop_all ;;
     w|W|x|X) printf "\n"; bash "$APPHOME/uninstall.sh"; anykey ;;
