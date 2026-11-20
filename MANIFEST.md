@@ -36,6 +36,14 @@
 
 ---
 
+## v31 · 2026-11-20
+
+**Umbrella installer: `31-maha_commute_v31.sh`**
+
+- Every app launch checks GitHub for a verified newer installer. The prior
+  same-day timestamp throttle is removed so a release pushed later the same day
+  is not missed; the in-process recursion guard remains.
+
 ## v30 · 2026-11-20
 
 **Umbrella installer: `30-maha_commute_v30.sh`**

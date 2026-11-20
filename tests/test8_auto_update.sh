@@ -73,7 +73,8 @@ grep -q 'v27 is the newest there is' "$T/current.log"
 
 grep -q 'auto_update_at_start "$@"' src/20_menu.sh
 grep -q 'MAHA_AUTO_UPDATE_TRIED=1 exec "$BIN/maha-commute" "$@"' src/20_menu.sh
-grep -q 'last-update-check' src/20_menu.sh
+grep -q 'last-update-check' src/60_update.sh
+! grep -q '86400' src/20_menu.sh
 
 DAY=$(python3 tools/patch_payload.py src/payloads/13-install-day-commute-termux-v13.sh day)
 NIGHT=$(python3 tools/patch_payload.py src/payloads/9-night_commute_v9.sh night)
@@ -87,4 +88,4 @@ grep -q 'r = rebuild(not use_cache)' <<<"$ALL"
 grep -q 'if (MAHA_CACHE_ENABLED) loadStationCache()' <<<"$ALL"
 grep -q 'if (MAHA_CACHE_ENABLED) {' <<<"$ALL"
 
-printf 'startup auto-update and cache policy: 17 passed, 0 failed\n'
+printf 'startup auto-update and cache policy: 18 passed, 0 failed\n'

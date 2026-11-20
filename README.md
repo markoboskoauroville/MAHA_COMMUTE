@@ -133,7 +133,7 @@ changed. Your keys, your PDF timetables and the downloaded schedule stay where
 they are. From inside the launcher the same thing is `maha.commute -update`.
 The older names `maha-commute` and `maha-commute-update` still work.
 
-The first app launch of the day also checks GitHub. If a newer verified
+Every app launch also checks GitHub. If a newer verified
 installer is available, it is downloaded, installed without a prompt, and the
 launcher restarts on that version.
 
