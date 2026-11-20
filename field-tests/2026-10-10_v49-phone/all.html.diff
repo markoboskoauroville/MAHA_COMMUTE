@@ -1,0 +1,693 @@
+--- /tmp/claude-0/-storage-emulated-0-Download/e531429a-5478-4791-bfc4-0694822fc9f5/scratchpad/all.html.before_follow	2026-10-10 06:13:55.711040731 +0000
++++ field-tests/2026-10-10_v49-phone/all.html	2026-10-10 07:01:46.827040902 +0000
+@@ -32,6 +32,57 @@
+     border:1px solid var(--border);color:var(--text);font-size:1.1rem;cursor:pointer;
+     display:flex;align-items:center;justify-content:center;}
+   .tool.on{border-color:var(--cyan);color:var(--cyan);}
++  /* v50: the long press menu on the locate button. It exists because locking
++     the map to you is a mode, and a mode that a single tap can turn on is a
++     mode you turn on by accident. */
++  #recMenu{position:absolute;top:calc(60px + env(safe-area-inset-top));right:12px;z-index:700;
++    display:none;flex-direction:column;min-width:244px;padding:6px;border-radius:14px;
++    background:rgba(13,17,23,.96);border:1px solid var(--border);
++    box-shadow:0 10px 30px rgba(0,0,0,.6);}
++  #recMenu.show{display:flex;}
++  /* The picker is a list this app draws, not an <input type=file>. On Android
++     that input opens Chrome's chooser, which asks for the camera, swallows the
++     first tap and offers no Files entry at all -- and these files live in a
++     folder we can already read. See the manifest's file-picker module. */
++  #trackPick{position:absolute;left:12px;right:12px;top:calc(60px + env(safe-area-inset-top));
++    bottom:70px;z-index:720;display:none;flex-direction:column;border-radius:16px;
++    background:rgba(13,17,23,.975);border:1px solid var(--border);
++    box-shadow:0 14px 40px rgba(0,0,0,.65);overflow:hidden;}
++  #trackPick.show{display:flex;}
++  .tphead{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;
++    border-bottom:1px solid var(--border);}
++  .tphead b{font-size:.98rem;}
++  .tpbody{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:6px;}
++  .tpfoot{padding:8px 14px;border-top:1px solid var(--border);color:var(--muted);
++    font-size:.74rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
++  .tpr{display:grid;grid-template-columns:1fr auto;gap:2px 10px;width:100%;
++    background:none;border:0;color:var(--text);text-align:left;padding:11px 10px;
++    border-radius:10px;cursor:pointer;font:inherit;}
++  .tpr:active{background:rgba(255,255,255,.07);}
++  .tpr b{font-size:.9rem;font-weight:620;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
++  .tpr i{grid-column:1;font-style:normal;font-size:.75rem;color:var(--muted);}
++  .tpr .tpd{grid-row:1 / span 2;align-self:center;font-size:.8rem;color:var(--cyan);white-space:nowrap;}
++  .tpr.foreign b::after{content:" \00b7 Mantra Trail";color:var(--muted);font-weight:400;font-size:.74rem;}
++  .tpempty{padding:18px 12px;color:var(--muted);font-size:.84rem;}
++  #lockMenu{position:absolute;top:calc(60px + env(safe-area-inset-top));right:12px;z-index:700;
++    display:none;flex-direction:column;min-width:232px;padding:6px;border-radius:14px;
++    background:rgba(13,17,23,.96);border:1px solid var(--border);
++    box-shadow:0 10px 30px rgba(0,0,0,.6);}
++  #lockMenu.show{display:flex;}
++  .lmi{display:grid;grid-template-columns:22px 1fr;gap:2px 6px;align-items:baseline;
++    background:none;border:0;color:var(--text);text-align:left;padding:9px 8px;
++    border-radius:10px;cursor:pointer;font:inherit;}
++  .lmi:active{background:rgba(255,255,255,.07);}
++  .lmi b{font-size:.9rem;font-weight:650;}
++  .lmi i{grid-column:2;font-style:normal;font-size:.76rem;color:var(--muted);}
++  .lmtick{grid-row:1 / span 2;color:var(--cyan);font-size:1rem;line-height:1.1;}
++  .tool.locate.locked{border-color:var(--cyan);color:var(--cyan);}
++  /* v49: recording. Red, because it is the one control that is writing
++     something down, and it pulses so a glance at the cradle answers "is it
++     still running" without reading anything. */
++  .tool.rec{color:var(--muted);}
++  .tool.rec.on{border-color:#ff4d5e;color:#ff4d5e;animation:recpulse 1.6s ease-in-out infinite;}
++  @keyframes recpulse{0%,100%{opacity:1}50%{opacity:.45}}
+   /* one or the other: our stars, or Google's own transit icons */
+   .viewseg{display:flex;border:1px solid var(--border);border-radius:12px;overflow:hidden;
+     background:rgba(13,17,23,.35);}
+@@ -98,7 +149,20 @@
+      with a margin of extra reach around it for a thumb */
+   .pin{position:absolute;left:50%;top:50%;
+     transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,0px)));
+-    cursor:pointer;touch-action:manipulation;}
++    cursor:pointer;touch-action:manipulation;
++    /* v49: Android's text-scaling slider was inflating these labels to several
++       hundred pixels, which no amount of clever placement can fit on a phone.
++       A map label is sized by the map, not by the system font setting. */
++    -webkit-text-size-adjust:100%;text-size-adjust:100%;}
++  /* v49: the station itself. It is always drawn, whether or not the label
++     beside it survived the fight for space, so zooming out leaves a readable
++     map of dots rather than nothing. It counter-translates the parent's
++     offset, which is what keeps it on the station while the label moves. */
++  .pindot{position:absolute;left:50%;top:50%;width:13px;height:13px;border-radius:50%;
++    background:var(--c,#fff);border:2px solid rgba(0,0,0,.8);
++    box-shadow:0 0 0 1px rgba(255,255,255,.35);pointer-events:none;z-index:0;
++    transform:translate(-50%,-50%)
++      translate(calc(-1 * var(--dx,0px)),calc(-1 * var(--dy,0px)));}
+   .pin::before{content:"";position:absolute;inset:-12px -10px;}
+   .pinchip{position:absolute;left:37px;top:50%;transform:translateY(-50%);
+     pointer-events:none;}
+@@ -109,7 +173,7 @@
+     margin-top:-4px;border-radius:50%;background:currentColor;
+     box-shadow:0 0 0 1.5px rgba(0,0,0,.7);}
+   .pinid span{display:inline-block;padding:7px 9px;border-radius:7px;
+-    font:800 .71rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
++    font:800 var(--pinfs,11px)/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+     color:var(--c,#fff);background:rgba(13,17,23,.72);
+     border:1px solid var(--c,#30363d);white-space:nowrap;text-shadow:0 1px 2px #000;}
+   .pinchip span{display:inline-block;font:700 .74rem/1 system-ui,sans-serif;color:#fff;
+@@ -360,10 +424,35 @@
+         <circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="8" opacity=".45"/>
+         <path d="M12 1.6v3M12 19.4v3M1.6 12h3M19.4 12h3" stroke-linecap="round"/>
+       </svg></button>
++    <button class="tool rec" id="btnRec" title="Record the way you go">
++      <svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="7"
++           fill="currentColor"/></svg></button>
+     <button class="tool" id="btnLabels" title="Street names">A</button>
+     <button class="tool" id="btnSetup" title="Settings">⚙</button>
+   </div>
+ 
++  <div id="recMenu">
++    <button class="lmi" id="rmSave"><span class="lmtick">↓</span><b>Save this track</b>
++      <i>a .gpx file in Documents / All Commute / Tracks</i></button>
++    <button class="lmi" id="rmCancel"><span class="lmtick">×</span><b>Cancel recording</b>
++      <i>stop and throw away what is drawn</i></button>
++    <button class="lmi" id="rmOpen"><span class="lmtick">↑</span><b>Open a saved track</b>
++      <i>yours and Mantra Trail's</i></button>
++  </div>
++
++  <div id="trackPick">
++    <div class="tphead"><b>Saved tracks</b><button class="close" id="tpClose">✕</button></div>
++    <div class="tpbody" id="tpBody"></div>
++    <div class="tpfoot" id="tpFoot">·</div>
++  </div>
++
++  <div id="lockMenu">
++    <button class="lmi" id="lmLock"><span class="lmtick">·</span><b>Lock to my position</b>
++      <i>the middle of the screen stays on you</i></button>
++    <button class="lmi" id="lmCentre"><span class="lmtick">·</span><b>Centre on me once</b>
++      <i>and leave the map where you put it after</i></button>
++  </div>
++
+   <div id="gpsChip" title="Tap for the whole picture">
+     <span class="gdot"></span><b id="gpsAcc">—</b><span id="gpsSrc">looking…</span>
+   </div>
+@@ -673,6 +762,13 @@
+ // once on the very first run, before there is any view of yours to keep. The
+ // dot moves by itself; the map never follows it and never changes zoom.
+ let WANT_CENTRE = false, HAD_VIEW = !!LS.get("view", null);
++/* v50: the map is the user's. Nothing here moves it or changes its zoom on
++   its own. The locate button centres once, and LOCK -- set from the long
++   press on that button -- is the only thing that keeps centring afterwards.
++   Unlocked, the dot is free to drift off the screen, which is the correct
++   behaviour and not a fault. */
++let LOCK = !!LS.get("lock", false);
++let lastStopsT = 0;
+ let STOPSEQ = 0;              // the newest stations request; an older answer is dropped
+ /* THE STATIONS ARE THE PAGE'S OWN DATA (v24). Every station is kept in the browser,
+    drawn before anything is asked of the server, and refreshed only when the
+@@ -1047,28 +1143,115 @@
+   const m = MARKS[s.stop_id], e = m && m.getElement ? m.getElement() : null;
+   return e ? e.querySelector(".pin") : null;
+ }
++/* =========================================================================
++   THE TRACE  (v49)
++   A record button that leaves the way you went on the map. It is deliberately
++   dumb: every fix that is more than eight metres from the last one recorded is
++   appended, and the line is redrawn. Eight metres because GPS noise standing
++   still is a few metres and a trace that grows while the car is parked is a
++   scribble, not a record.
++
++   It is kept in localStorage under ac2_trace, which the new-run reset does not
++   clear -- a journey you recorded is work, and the reset exists to throw away
++   what you PICKED, not what you made.
++   ========================================================================= */
++let TRACE = LS.get("trace", []) || [];
++let RECORDING = !!LS.get("rec", false);
++let traceLine = null, gTraceLine = null;
++const TRACE_MIN_M = 8;
++
++function drawTrace(){
++  const pts = TRACE.map(p => [p.lat, p.lng]);
++  if (usingGoogle()) {
++    if (gTraceLine) { gTraceLine.setMap(null); gTraceLine = null; }
++    if (pts.length > 1 && typeof google !== "undefined" && gmap) {
++      gTraceLine = new google.maps.Polyline({
++        path: TRACE.map(p => ({ lat: p.lat, lng: p.lng })),
++        strokeColor: "#ff4d5e", strokeOpacity: .9, strokeWeight: 4 });
++      gTraceLine.setMap(gmap);
++    }
++    return;
++  }
++  if (!map || typeof L === "undefined") return;
++  if (traceLine) { try { map.removeLayer(traceLine); } catch (e) {} traceLine = null; }
++  if (pts.length > 1) {
++    traceLine = L.polyline(pts, { color: "#ff4d5e", weight: 4, opacity: .9,
++                                  lineJoin: "round", lineCap: "round" }).addTo(map);
++  }
++}
++function traceAdd(lat, lng){
++  if (!RECORDING) return;
++  const last = TRACE.length ? TRACE[TRACE.length - 1] : null;
++  if (last && metres(last.lat, last.lng, lat, lng) < TRACE_MIN_M) return;
++  TRACE.push({ lat: lat, lng: lng, t: Date.now() });
++  if (TRACE.length > 5000) TRACE.shift();
++  LS.set("trace", TRACE);
++  drawTrace();
++}
++function traceLengthM(){
++  let d = 0;
++  for (let i = 1; i < TRACE.length; i++)
++    d += metres(TRACE[i-1].lat, TRACE[i-1].lng, TRACE[i].lat, TRACE[i].lng);
++  return d;
++}
++function paintRec(){
++  const b = document.getElementById("btnRec");
++  if (!b) return;
++  b.classList.toggle("on", RECORDING);
++  const m = Math.round(traceLengthM());
++  b.title = RECORDING
++    ? "Recording — " + (m >= 1000 ? (m/1000).toFixed(2) + " km" : m + " m") + ". Tap to stop."
++    : (TRACE.length > 1
++        ? "Tap to record. Hold to clear the " + (m >= 1000 ? (m/1000).toFixed(2) + " km" : m + " m") + " already drawn."
++        : "Record the way you go");
++}
++function setRecording(on){
++  RECORDING = !!on;
++  LS.set("rec", RECORDING);
++  if (RECORDING && ME && !ME.pinned) traceAdd(ME.lat, ME.lng);
++  paintRec();
++  hud(RECORDING ? "Recording the way you go." :
++      (TRACE.length > 1 ? "Stopped. The line stays on the map." : "Not recording."));
++}
++function clearTrace(){
++  TRACE = []; LS.set("trace", TRACE); drawTrace(); paintRec();
++  hud("Trace cleared.");
++}
++function pinFontPx(){
++  /* v49: the label is sized by the zoom, not by one fixed number. Zoomed out
++     the whole city is on the screen and a big label is a wall; zoomed in there
++     is one street and the label has to be readable from a car cradle. */
++  const z = curZoom();
++  return Math.round(Math.max(9, Math.min(17, 9 + (z - 13) * 1.5)));
++}
+ function layoutPins(){
++  /* v49: labels are PLACED, not pushed apart.
++     The old version gave every station a label and then shoved the labels off
++     each other until they stopped overlapping, which moved them far from the
++     stations they named and still collided once they were bigger than the gaps.
++     Now each station is offered a series of positions, nearest first, and takes
++     the first one that is free and on the screen. A station that cannot have a
++     label without covering another keeps its dot and loses its label, so the
++     map thins out as you zoom out instead of turning into a pile of text. */
++  const sz = !usingGoogle() && map ? map.getSize() : null;
++  const host = usingGoogle() ? document.getElementById("gmap")
++                             : (map && map.getContainer());
++  if (host) host.style.setProperty("--pinfs", pinFontPx() + "px");
++
+   const it = [];
+   STOPS.forEach(s => {
+     const el = pinEl(s), p = pxOf(s);
+     if (!el || !p) return;
++    const lab = el.querySelector(".pinid");
++    if (lab) lab.style.display = "";          // measure it as it will be drawn
+     const sp = el.querySelector(".pinid span");
+     const r = sp ? sp.getBoundingClientRect() : { width: 60, height: 27 };
+-    const w = (r.width || 60) + 6, h = (r.height || 27) + 6;
+-    let dx = 0, dy = 0;
+-    if (s.bearing != null) {
+-      const b = s.bearing * Math.PI / 180;
+-      const rx = Math.cos(b), ry = Math.sin(b);          // right of the way it leaves
+-      const d = Math.abs(rx) * w / 2 + Math.abs(ry) * h / 2 + 18;
+-      dx = rx * d; dy = ry * d;
+-    }
+-    it.push({ s, el, p, w, h, dx, dy });
++    it.push({ s, el, lab, p, w: (r.width || 60) + 6, h: (r.height || 27) + 6,
++              dx: 0, dy: 0, show: false });
+   });
+-  // a label must stay on the screen: keep its centre inside the map, with a margin
+-  // (the Leaflet map only; the Google pixels have no fixed origin to clamp against)
+-  const sz = !usingGoogle() && map ? map.getSize() : null;
+-  // What is drawn over the map, measured now and not guessed: the status line,
+-  // the buttons and the GPS chip on top; the watch bar at the bottom.
++  if (!it.length) return;
++
++  // what is drawn over the map, measured rather than guessed
+   const lim = { top: 8, bottom: sz ? sz.y - 4 : 0 };
+   if (sz) {
+     const mr = map.getContainer().getBoundingClientRect();
+@@ -1083,42 +1266,69 @@
+       if (r.height > 0) lim.bottom = Math.min(lim.bottom, r.top - mr.top - 6);
+     }
+   }
+-  const clampAll = () => {
+-    if (!sz) return false;
+-    let c = false;
+-    it.forEach(o => {
+-      const nx = Math.min(Math.max(o.p.x + o.dx, o.w / 2 + 4), sz.x - o.w / 2 - 4) - o.p.x;
+-      const lo = lim.top + o.h / 2, hi = lim.bottom - o.h / 2;
+-      const ny = (hi > lo ? Math.min(Math.max(o.p.y + o.dy, lo), hi) : o.p.y + o.dy) - o.p.y;
+-      if (Math.abs(nx - o.dx) > .5 || Math.abs(ny - o.dy) > .5) c = true;
+-      o.dx = nx; o.dy = ny;
+-    });
+-    return c;
++
++  /* Who gets a label when they cannot all have one: the station you are
++     watching or have just tapped always, then the ones nearest the middle of
++     the screen, which is where you are looking and, while following, where
++     you are. */
++  const cx = sz ? sz.x / 2 : 0, cy = sz ? sz.y / 2 : 0;
++  it.forEach(o => {
++    const key = (SEL && SEL.stop_id === o.s.stop_id) || isWatched(o.s.stop_id);
++    o.pri = key ? -1e9 : Math.hypot(o.p.x - cx, o.p.y - cy);
++  });
++  it.sort((a, b) => a.pri - b.pri);
++
++  const placed = [];
++  const free = (o, dx, dy) => {
++    const x = o.p.x + dx, y = o.p.y + dy;
++    if (sz) {
++      if (x - o.w / 2 < 4 || x + o.w / 2 > sz.x - 4) return false;
++      if (y - o.h / 2 < lim.top || y + o.h / 2 > lim.bottom) return false;
++    }
++    for (let i = 0; i < placed.length; i++) {
++      const q = placed[i], qx = q.p.x + q.dx, qy = q.p.y + q.dy;
++      if (Math.abs(x - qx) < (o.w + q.w) / 2 + 2 &&
++          Math.abs(y - qy) < (o.h + q.h) / 2 + 2) return false;
++    }
++    // nor may a label sit on top of another station's dot
++    for (let i = 0; i < it.length; i++) {
++      const q = it[i]; if (q === o) continue;
++      if (Math.abs(x - q.p.x) < o.w / 2 + 8 && Math.abs(y - q.p.y) < o.h / 2 + 8) return false;
++    }
++    return true;
++  };
++  const spots = (o) => {
++    const ax = o.w / 2 + 11, ay = o.h / 2 + 11;
++    const ring = [[0, -ay], [0, ay], [ax, 0], [-ax, 0],
++                  [ax, -ay], [-ax, -ay], [ax, ay], [-ax, ay]];
++    const out = ring.slice();
++    for (let k = 0; k < ring.length; k++) out.push([ring[k][0] * 1.9, ring[k][1] * 1.9]);
++    for (let k = 0; k < ring.length; k++) out.push([ring[k][0] * 2.9, ring[k][1] * 2.9]);
++    return out;
+   };
+-  for (let k = 0; k < 80; k++) {
+-    let moved = false;
+-    for (let i = 0; i < it.length; i++) for (let j = i + 1; j < it.length; j++) {
+-      const a = it[i], b = it[j];
+-      const cx = (b.p.x + b.dx) - (a.p.x + a.dx), cy = (b.p.y + b.dy) - (a.p.y + a.dy);
+-      const ox = (a.w + b.w) / 2 - Math.abs(cx), oy = (a.h + b.h) / 2 - Math.abs(cy);
+-      if (ox <= 0 || oy <= 0) continue;
+-      moved = true;
+-      if (ox < oy) { const sg = cx === 0 ? (i < j ? 1 : -1) : Math.sign(cx); a.dx -= sg * ox / 2; b.dx += sg * ox / 2; }
+-      else { const sg = cy === 0 ? (i < j ? 1 : -1) : Math.sign(cy); a.dy -= sg * oy / 2; b.dy += sg * oy / 2; }
++  it.forEach(o => {
++    const cand = spots(o);
++    for (let k = 0; k < cand.length; k++) {
++      if (free(o, cand[k][0], cand[k][1])) {
++        o.dx = cand[k][0]; o.dy = cand[k][1]; o.show = true; placed.push(o); break;
++      }
+     }
+-    if (clampAll()) moved = true;
+-    if (!moved) break;
+-  }
++  });
++
+   it.forEach(o => {
+-    const L = Math.hypot(o.dx, o.dy);
+-    o.el.style.setProperty("--dx", o.dx.toFixed(1) + "px");
+-    o.el.style.setProperty("--dy", o.dy.toFixed(1) + "px");
++    const c = COLOUR[o.s.stop_id] || "#fff";
++    if (o.lab) o.lab.style.display = o.show ? "" : "none";
++    o.el.style.setProperty("--dx", (o.show ? o.dx : 0).toFixed(1) + "px");
++    o.el.style.setProperty("--dy", (o.show ? o.dy : 0).toFixed(1) + "px");
++    o.el.style.setProperty("--c", c);
++    let dot = o.el.querySelector(".pindot");
++    if (!dot) { dot = document.createElement("i"); dot.className = "pindot"; o.el.appendChild(dot); }
+     let ld = o.el.querySelector(".pinlead");
+     if (!ld) { ld = document.createElement("i"); ld.className = "pinlead"; o.el.insertBefore(ld, o.el.firstChild); }
+-    ld.style.display = L < 6 ? "none" : "block";
++    const L = o.show ? Math.hypot(o.dx, o.dy) : 0;
++    ld.style.display = (o.show && L > o.h / 2 + 6) ? "block" : "none";
+     ld.style.width = L.toFixed(1) + "px";
+-    ld.style.background = COLOUR[o.s.stop_id] || "#fff";
+-    ld.style.color = COLOUR[o.s.stop_id] || "#fff";
++    ld.style.background = c; ld.style.color = c;
+     ld.style.transform = "rotate(" + (Math.atan2(-o.dy, -o.dx) * 180 / Math.PI).toFixed(1) + "deg)";
+   });
+ }
+@@ -1197,6 +1407,14 @@
+    ========================================================================= */
+ let FIXES = [];            // recent accepted fixes
+ let watchId = null, burstEnd = 0, burstTick = null;
++/* v49: FOLLOW keeps the watch open instead of sampling in bursts.
++   The bursts were the reason the map followed you for a few seconds and
++   then stopped: 18 s of listening every 90 s, cut short to about 6 s the
++   moment a fix looked good. Walking, that is one position per 90 s and a
++   dot that sits still while you do not. The GNSS is still released the
++   instant the page is hidden, which is what visibilitychange does below,
++   so a phone in a pocket is not tracking. */
++let FOLLOW = true;
+ const FIX_TTL = 90000;     // a fix older than this is stale
+ 
+ function fuse(){
+@@ -1205,8 +1423,17 @@
+   const now = Date.now();
+   const live = FIXES.filter(f => now - f.t < FIX_TTL);
+   if (!live.length) return null;
+-  const best = Math.min.apply(null, live.map(f => f.acc));
+-  const use = live.filter(f => f.acc <= Math.max(best * 2.5, best + 8));
++  /* v49: averaging ninety seconds of fixes is right when you are standing and
++     wrong the moment you walk, because half the samples are from where you
++     were. So the average is taken only over fixes near the newest one: stand
++     still and they are all near it, and the full average is kept; walk, and
++     the ones you have left behind drop out on their own. */
++  const newest = live[live.length - 1];
++  const span = Math.max(25, newest.acc || 25);
++  const near = live.filter(f => metres(newest.lat, newest.lng, f.lat, f.lng) <= span);
++  const pool = near.length ? near : [newest];
++  const best = Math.min.apply(null, pool.map(f => f.acc));
++  const use = pool.filter(f => f.acc <= Math.max(best * 2.5, best + 8));
+   let wsum = 0, la = 0, lo = 0;
+   use.forEach(f => { const w = 1 / (f.acc * f.acc); wsum += w; la += f.lat * w; lo += f.lng * w; });
+   if (!wsum) return null;
+@@ -1228,10 +1455,24 @@
+   if (!map && !gmap) return;
+   drawMe();
+   updateAccBox(); paintChip();
+-  if (WANT_CENTRE || (!CENTRED && !HAD_VIEW)) { setView(ME, Math.max(17, curZoom())); CENTRED = true; WANT_CENTRE = false; }
++  traceAdd(ME.lat, ME.lng);
++  /* WANT_CENTRE is the single shot from a tap on the locate button and is
++     spent here. LOCK keeps the middle of the screen on you until it is turned
++     off. The last clause is the cold start only: a first run with no saved
++     view has to put the map somewhere. The zoom is whatever the user left it
++     at, in every one of those cases. */
++  if (WANT_CENTRE || LOCK || (!CENTRED && !HAD_VIEW)) {
++    setView(ME, curZoom()); CENTRED = true; WANT_CENTRE = false;
++  }
+   const need = lastStopFetch
+     ? metres(lastStopFetch.lat, lastStopFetch.lng, ME.lat, ME.lng) : 1e9;
+-  if (need > 35 || !STOPS.length) loadStops();
++  /* 35 m is two and a half seconds in a car, and refetching the stations that
++     often buries the page in its own requests. Distance OR time, whichever is
++     the longer wait. */
++  if ((need > 35 && Date.now() - lastStopsT > 8000) || !STOPS.length) {
++    lastStopsT = Date.now();
++    loadStops();
++  }
+   else if (!quiet) hud(stopsLine());
+ }
+ function curZoom(){ const v = currentView(); return v && v.zoom ? v.zoom : 17; }
+@@ -1252,11 +1493,14 @@
+       (STOPS.length ? " · " + STOPS.length + " stations near you" : "") +
+       ". Tap a station.");
+     /* good enough, and settled: stop burning the GNSS chip */
+-    if (f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();
++    if (!FOLLOW && f && f.acc <= 8 && f.n >= 4 && Date.now() > burstEnd - ms + 6000) stopBurst();
+   }, err => {
+     stopBurst();
+     if (err && err.code === 1)
+-      hud("Location refused. Pan the map to where you are, or pin yourself in ⚙.");
++      /* v52: code 1 is the BROWSER refusing, not the phone failing to find a
++         fix, and the cure is three taps in Chrome rather than anything this
++         app can do. The old wording sent him looking for a fault here. */
++      hud("Chrome is blocking location for this page. Tap the <b>crossed-out location icon</b> left of the address bar → Permissions → Location → Allow, then reload. Or pin yourself by hand in ⚙.");
+     else hud("No position yet. ⚙ → Position has ways to help.");
+     if (!STOPS.length) loadStops();
+   }, { enableHighAccuracy: true, maximumAge: 0, timeout: ms });
+@@ -1281,7 +1525,7 @@
+   const now = Date.now();
+   if (!force && now - lastFix < 8000) return;
+   lastFix = now;
+-  startBurst(force ? 30000 : 18000);
++  startBurst(force ? 30000 : (FOLLOW ? 3600000 : 18000));
+ }
+ function sharpen(){
+   if (ME && ME.pinned) { hud("You are pinned by hand. Unpin in ⚙ first."); return; }
+@@ -1683,6 +1927,207 @@
+ document.getElementById("engFree").addEventListener("click", () => setEngine("free"));
+ document.getElementById("engDetail").addEventListener("click", () => setEngine("detail"));
+ 
++/* v50: the locate button. A tap centres once. A long press opens the menu,
++   because locking is a mode and a tap is too cheap a gesture to set one. */
++function paintLock(){
++  const b = document.getElementById("btnLocate");
++  if (b) b.classList.toggle("locked", LOCK);
++  const t = document.querySelector("#lmLock .lmtick");
++  if (t) t.textContent = LOCK ? "\u2713" : "\u00b7";
++}
++function closeLockMenu(){
++  const m = document.getElementById("lockMenu");
++  if (m) m.classList.remove("show");
++}
++function setLock(on){
++  LOCK = !!on;
++  LS.set("lock", LOCK);
++  paintLock();
++  if (LOCK && ME) setView(ME, curZoom());
++  hud(LOCK ? "Locked. The middle of the screen stays on you."
++           : "Unlocked. The map stays where you put it.");
++}
++(function(){
++  const b = document.getElementById("btnLocate");
++  const m = document.getElementById("lockMenu");
++  if (!b || !m) return;
++  let held = false, t = null;
++  const start = () => { held = false; t = setTimeout(() => {
++    held = true; paintLock(); m.classList.add("show");
++  }, 550); };
++  const end = () => { if (t) { clearTimeout(t); t = null; } };
++  b.addEventListener("touchstart", start, { passive: true });
++  b.addEventListener("touchend", end);
++  b.addEventListener("touchcancel", end);
++  b.addEventListener("mousedown", start);
++  b.addEventListener("mouseup", end);
++  b.addEventListener("mouseleave", end);
++  // the capture phase, so the long press never also fires the tap below it
++  b.addEventListener("click", (e) => {
++    if (held) { held = false; e.stopPropagation(); e.preventDefault(); }
++  }, true);
++  document.getElementById("lmLock").addEventListener("click", () => {
++    setLock(!LOCK); closeLockMenu();
++  });
++  document.getElementById("lmCentre").addEventListener("click", () => {
++    closeLockMenu();
++    if (ME) { setView(ME, curZoom()); hud("Centred."); }
++    else { WANT_CENTRE = true; hud("No position yet. It will centre on the first fix."); }
++  });
++  document.addEventListener("click", (e) => {
++    if (!m.classList.contains("show")) return;
++    if (m.contains(e.target) || b.contains(e.target)) return;
++    closeLockMenu();
++  }, true);
++})();
++/* v49: tap records, a long press throws the line away. The clear is behind a
++   hold because a recorded journey is the one thing on this map that cannot be
++   fetched again, and a stray thumb on a cradle should not be able to lose it. */
++/* v51: a track that has been opened from a file is drawn beside the one being
++   recorded, never over it. Losing a recording by opening something to look at
++   it would be the same class of mistake as the dropout. */
++let OPENED = null, openedLine = null, gOpenedLine = null;
++function drawOpened(){
++  const pts = (OPENED && OPENED.points) ? OPENED.points : [];
++  if (usingGoogle()) {
++    if (gOpenedLine) { gOpenedLine.setMap(null); gOpenedLine = null; }
++    if (pts.length > 1 && typeof google !== "undefined" && gmap) {
++      gOpenedLine = new google.maps.Polyline({
++        path: pts.map(p => ({ lat: p.lat, lng: p.lng })),
++        strokeColor: "#ffb020", strokeOpacity: .95, strokeWeight: 4 });
++      gOpenedLine.setMap(gmap);
++    }
++    return;
++  }
++  if (!map || typeof L === "undefined") return;
++  if (openedLine) { try { map.removeLayer(openedLine); } catch (e) {} openedLine = null; }
++  if (pts.length > 1) {
++    openedLine = L.polyline(pts.map(p => [p.lat, p.lng]),
++      { color: "#ffb020", weight: 4, opacity: .95, dashArray: "1 7",
++        lineJoin: "round", lineCap: "round" }).addTo(map);
++  }
++}
++function closeRecMenu(){ const m = document.getElementById("recMenu"); if (m) m.classList.remove("show"); }
++function closePicker(){ const m = document.getElementById("trackPick"); if (m) m.classList.remove("show"); }
++
++function fmtM(m){ return m >= 1000 ? (m / 1000).toFixed(2) + " km" : Math.round(m) + " m"; }
++function fmtWhen(sec){
++  if (!sec) return "";
++  const d = new Date(sec * 1000), n = new Date();
++  const same = d.toDateString() === n.toDateString();
++  const hh = String(d.getHours()).padStart(2, "0"), mm = String(d.getMinutes()).padStart(2, "0");
++  return same ? ("today " + hh + ":" + mm)
++              : (d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" +
++                 String(d.getDate()).padStart(2, "0") + " " + hh + ":" + mm);
++}
++
++async function saveTrack(){
++  if (TRACE.length < 2) { hud("Nothing recorded yet."); return; }
++  const suggested = "";          // the server builds the default: date, time, the two stations
++  const name = prompt("Name for this track\n\nLeave it empty and it is named by date, time and the stations at each end.", suggested);
++  if (name === null) return;     // cancelled, and nothing is thrown away
++  hud("Saving…", true);
++  try {
++    const r = await fetch("track/save", { method: "POST", cache: "no-store",
++      headers: { "Content-Type": "application/json" },
++      body: JSON.stringify({ name: name, points: TRACE }) }).then(x => x.json());
++    if (!r.ok) { hud("Not saved: " + esc(r.reason || "unknown")); return; }
++    hud("Saved <b>" + esc(r.file) + "</b> \u00b7 " + fmtM(r.metres) + ". Rename it in your file browser if you like.");
++  } catch (e) { hud("Not saved: the app did not answer."); }
++}
++function cancelRecording(){
++  if (!RECORDING && TRACE.length < 2) { hud("Nothing to cancel."); return; }
++  if (TRACE.length > 1 && !confirm("Throw away the recording? It has not been saved."))
++    return;
++  setRecording(false);
++  clearTrace();
++}
++async function openPicker(){
++  const panel = document.getElementById("trackPick");
++  const body = document.getElementById("tpBody");
++  const foot = document.getElementById("tpFoot");
++  panel.classList.add("show");
++  body.innerHTML = '<div class="tpempty">Reading the folder\u2026</div>';
++  let r;
++  try {
++    r = await fetch("tracks", { cache: "no-store" }).then(x => x.json());
++  } catch (e) {
++    body.innerHTML = '<div class="tpempty">The app did not answer.</div>'; return;
++  }
++  foot.textContent = (r.dirs || [r.dir]).join("  \u00b7  ");
++  const ts = r.tracks || [];
++  if (!ts.length) {
++    body.innerHTML = '<div class="tpempty">No tracks yet. Record one and save it, ' +
++      'or drop a .gpx into that folder.</div>';
++    return;
++  }
++  body.innerHTML = "";
++  ts.forEach(t => {
++    const b = document.createElement("button");
++    b.className = "tpr" + (t.ours ? "" : " foreign");
++    b.innerHTML = '<b>' + esc(t.name) + '</b>' +
++      '<i>' + esc(fmtWhen(t.modified)) + " \u00b7 " + t.points + ' points</i>' +
++      '<span class="tpd">' + esc(fmtM(t.metres)) + '</span>';
++    b.addEventListener("click", () => loadTrack(t.file));
++    body.appendChild(b);
++  });
++}
++async function loadTrack(file){
++  closePicker();
++  hud("Opening\u2026", true);
++  try {
++    const r = await fetch("track?f=" + encodeURIComponent(file), { cache: "no-store" })
++      .then(x => x.json());
++    if (!r.ok) { hud("Could not open it: " + esc(r.reason || "unknown")); return; }
++    OPENED = r;
++    drawOpened();
++    /* Opening a track is the user asking to see it, so the map goes to it --
++       at the zoom they already chose, never a zoom of ours. */
++    if (r.points && r.points.length) setView({ lat: r.points[0].lat, lng: r.points[0].lng }, curZoom());
++    hud("<b>" + esc(r.name) + "</b> \u00b7 " + fmtM(r.metres) + " \u00b7 " +
++        r.points.length + " points. Long press \u25cf to close it.");
++  } catch (e) { hud("Could not open it: the app did not answer."); }
++}
++function closeOpened(){
++  OPENED = null; drawOpened(); hud("Closed the opened track.");
++}
++
++(function(){
++  const b = document.getElementById("btnRec");
++  const m = document.getElementById("recMenu");
++  if (!b || !m) return;
++  let held = false, t = null;
++  const start = () => { held = false; t = setTimeout(() => {
++    held = true;
++    const o = document.getElementById("rmOpen");
++    o.querySelector("b").textContent = OPENED ? "Close the opened track" : "Open a saved track";
++    o.querySelector("i").textContent = OPENED ? OPENED.name : "yours and Mantra Trail's";
++    m.classList.add("show");
++  }, 650); };
++  const end = () => { if (t) { clearTimeout(t); t = null; } };
++  b.addEventListener("touchstart", start, { passive: true });
++  b.addEventListener("touchend", end);
++  b.addEventListener("touchcancel", end);
++  b.addEventListener("mousedown", start);
++  b.addEventListener("mouseup", end);
++  b.addEventListener("mouseleave", end);
++  b.addEventListener("click", (e) => {
++    if (held) { held = false; e.stopPropagation(); e.preventDefault(); return; }
++    setRecording(!RECORDING);
++  });
++  document.getElementById("rmSave").addEventListener("click", () => { closeRecMenu(); saveTrack(); });
++  document.getElementById("rmCancel").addEventListener("click", () => { closeRecMenu(); cancelRecording(); });
++  document.getElementById("rmOpen").addEventListener("click", () => {
++    closeRecMenu();
++    if (OPENED) closeOpened(); else openPicker();
++  });
++  document.getElementById("tpClose").addEventListener("click", closePicker);
++  document.addEventListener("click", (e) => {
++    if (!m.classList.contains("show")) return;
++    if (m.contains(e.target) || b.contains(e.target)) return;
++    closeRecMenu();
++  }, true);
++})();
+ document.getElementById("btnSetup").addEventListener("click", () => {
+   document.getElementById("setup").classList.add("show");
+   document.getElementById("rLbl").textContent = fmtDist(RADIUS);
+@@ -2016,7 +2461,7 @@
+ document.getElementById("btnLocate").addEventListener("click", () => {
+   const b = document.getElementById("btnLocate");
+   if (ME && ME.pinned) {
+-    setView(ME, Math.max(17, curZoom()));
++    setView(ME, curZoom());
+     hud("You are pinned by hand. Unpin in ⚙ to use the satellites again.");
+     return;
+   }
+@@ -2025,7 +2470,7 @@
+   // position, and again to the first fix of the new burst, which is where you
+   // are. The flag lapses after the burst so a later automatic fix cannot use it.
+   WANT_CENTRE = true;
+-  if (ME) setView(ME, Math.max(17, curZoom()));
++  if (ME) setView(ME, curZoom());
+   clearTimeout(window.__wantT); window.__wantT = setTimeout(() => { WANT_CENTRE = false; }, 35000);
+   sharpen();
+   setTimeout(() => b.classList.remove("busy"), 30000);
+@@ -2287,6 +2732,7 @@
+   } else { ENGINE = "free"; MODE = "stars"; }
+   paintMode();
+   await watchIndex();
++  drawTrace(); paintRec(); paintLock();
+   autoLocate(true);
+   loadGps(false);
+   if (!gpsPoll) gpsPoll = setInterval(() => { if (!document.hidden) paintChip(); }, 3000);

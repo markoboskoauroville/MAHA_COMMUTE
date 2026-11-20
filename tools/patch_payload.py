@@ -70,6 +70,7 @@ import payload_v22 as V22
 import payload_v23 as V23
 import payload_v24 as V24
 import payload_v25 as V25
+import payload_v25_location as V25_LOCATION
 import payload_v26 as V26
 import payload_v27 as V27
 NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
@@ -315,6 +316,7 @@ def main():
         src = V22.patch_all(src)
         src = V23.patch_all(src)
         src = V24.patch_all(src)
+        src = V25_LOCATION.patch_all(src)
         src = V26.patch_all(src)
     if app == "day":
         src = V22.patch_day(src)
