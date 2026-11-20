@@ -1,0 +1,43 @@
+== --check
+
+  v21 is the newest there is.
+
+EXIT=0
+== --check --app nosuch
+update: nosuch is not one of the apps
+EXIT=2
+== --check --app all
+
+  v21 is the newest there is.
+
+EXIT=0
+== --check <file>
+
+  ॐ  MAHA COMMUTE update
+
+  found /sdcard/Download/21-maha_commute_v21.sh
+  ok    size, 811808 bytes
+  ok    it is a script
+  ok    parses, and said nothing at all
+  ok    MAHA_COMMUTE_SENTINEL v21 0cb9477d42d1ca12
+
+  this phone has v21, the file is v21
+  the same version. Running it again changes nothing and is safe.
+  installed now, and kept: day.commute night.commute all.commute
+
+  Enter install it    n stop, change nothing
+
+  > 
+  nothing was changed
+
+EXIT=0
+== --check <missing file>
+
+  v21 is the newest there is.
+
+EXIT=0
+== maha.commute-update --check (dot form)
+
+  v21 is the newest there is.
+
+EXIT=0

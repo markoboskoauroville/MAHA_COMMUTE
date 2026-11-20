@@ -1,0 +1,4 @@
+1 /data/data/com.termux/files/home/.maha.commute/keys/google-api.txt
+1 /data/data/com.termux/files/home/.commute/google-api.txt
+1 /data/data/com.termux/files/home/.nightcommute/gmaps-api.txt
+1 /sdcard/Download/Google-maps-api.txt

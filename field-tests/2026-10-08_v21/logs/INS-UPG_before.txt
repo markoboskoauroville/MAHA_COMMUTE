@@ -1,0 +1,32 @@
+.all.commute/network.db 25042944 f1e5920c1301320a
+.all.commute/google-api.txt 40 ea5229e782f32067
+.commute/google-api.txt 1 01ba4719c80b6fe9
+.nightcommute/night.json 1870 2bafda173c4c0184
+.nightcommute/coords.json 1397 f4c6d4e15e8b09bd
+.commute/gemini-api.txt MISSING
+.all.commute:
+total 24771
+drwx------.  2 u0_a331 u0_a331     3452 Oct  7 07:09 .
+drwx------. 24 u0_a331 u0_a331     3452 Oct  7 16:36 ..
+-rw-------.  1 u0_a331 u0_a331   101814 Oct  7 06:01 all.html
+-rw-------.  1 u0_a331 u0_a331    86953 Oct  7 06:01 all_commute_server.py
+-rw-------.  1 u0_a331 u0_a331       40 Oct  7 07:09 google-api.txt
+-rw-------.  1 u0_a331 u0_a331 25042944 Oct  7 06:02 network.db
+-rw-------.  1 u0_a331 u0_a331        4 Oct  7 06:02 port
+-rw-------.  1 u0_a331 u0_a331    66049 Oct  7 07:42 server.log
+-rw-------.  1 u0_a331 u0_a331    11258 Oct  7 06:01 update_all.py
+-rw-------.  1 u0_a331 u0_a331      164 Oct  7 06:02 zet_gtfs.zip.meta.json
+
+.commute/pdf:
+total 243
+drwx------. 2 u0_a331 u0_a331  3452 Oct  7 06:09 .
+drwx------. 3 u0_a331 u0_a331  3452 Oct  7 06:11 ..
+-rw-------. 1 u0_a331 u0_a331   727 Oct  7 06:09 220.json
+-rw-------. 1 u0_a331 u0_a331 55602 Oct  7 06:09 220.pdf
+-rw-------. 1 u0_a331 u0_a331   673 Oct  7 06:09 221.json
+-rw-------. 1 u0_a331 u0_a331 56268 Oct  7 06:09 221.pdf
+-rw-------. 1 u0_a331 u0_a331   673 Oct  7 06:09 241.json
+-rw-------. 1 u0_a331 u0_a331 47494 Oct  7 06:09 241.pdf
+-rw-------. 1 u0_a331 u0_a331   673 Oct  7 06:09 268.json
+-rw-------. 1 u0_a331 u0_a331 57921 Oct  7 06:09 268.pdf
+45df3e60f6e2d1d22eaf27d8f8aadd2e728b676d975d395ac57f739235e70948  /data/data/com.termux/files/home/storage/downloads/21-maha_commute_v21.sh

@@ -1,0 +1,85 @@
+
+  ॐ  MAHA COMMUTE  installer v21
+  day, night and all of Zagreb, under one word
+
+  > checking Termux... ok
+
+  what this phone has
+    ok       python         all three servers
+    ok       termux-api     opens the page by itself
+    ok       fuser          frees a busy port
+    ok       procps         finds and stops servers
+    ok       sha256sum      checks the payloads
+    ok       base64         used by all.commute
+
+  > dependencies... all present
+  > storage... allowed
+  > google maps key... found (/data/data/com.termux/files/home/.commute/google-api.txt)
+  > the umbrella... ok
+  > payloads, all three... ok
+  > the install routine... ok
+  > the stream checker... ok
+  > the key tester... ok
+  > the updater... ok
+  > the uninstaller... ok
+  > the launcher... ok
+  > the updater command... ok
+  > maha.commute and maha.commute-update... ok
+
+  | all.commute v44
+
+  | ALL.COMMUTE  stars v39
+  | Water | show me where I am, and tell me how well you know
+
+  dependencies
+    Termux                    ok
+    python                    ok
+    base64                    ok
+    fuser                     ok
+    station index             ok
+    google key                ok
+    gemini key                missing reads the printed timetable PDFs
+    Termux:API                ok
+
+  install mode:
+    Enter  interface only, nothing downloaded (fast)
+    y      also refresh the station cache from ZET
+
+  >   mode: offline
+
+  > stopping the commute server... ok
+  > making room... ok
+  > keeping a copy of the old app... (.prev.bak) ok
+  > installing the server... ok
+  > putting every station on the phone... ok
+  > installing the station indexer... ok
+  > installing the star interface... ok
+  > installing the all.commute command... ok
+  > Termux:Widget desktop shortcut... ok
+  > station cache... skipped
+
+  installed the star interface v39  type all.commute to start it
+  open it, let it find you, tap a station
+  in settings: load a Gemini key, then Store the lines around me
+  on the Google key: Street View Static API draws the photograph,
+  Maps JavaScript API draws the 360 view and the detailed map layers
+  to go back: cp ~/.all.commute/NAME.prev.bak ~/.all.commute/NAME
+              for NAME = all.html and all_commute_server.py
+
+
+  ॐ  MAHA COMMUTE  v21
+
+    on   day.commute     v17, port 8082
+    on   night.commute   v13, port 8087
+    on   all.commute     v44, port 8084
+
+    updated: all.commute
+    already current, left alone: day.commute night.commute
+
+  type maha.commute for the launcher, maha.commute-update for the newest version
+  or the app name on its own: day.commute, night.commute, all.commute
+
+  the three payloads are kept in /data/data/com.termux/files/home/.maha.commute/payloads
+  so any app can be added or removed later with no download
+
+EXIT=0

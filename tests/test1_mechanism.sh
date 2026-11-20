@@ -76,9 +76,10 @@ eq "no zero padding" "1-maha_commute_v1.sh" "$(maha_artefact_name 1)"
 # ---- installed is about the command, not the claim ----------------
 T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
 BIN="$T/bin"; STAMPDIR="$T/stamps"; mkdir -p "$BIN" "$STAMPDIR"
-MAHA_APPS="day|day.commute|.commute|v13|8082|the daytime ride
-night|night.commute|.nightcommute|v9|8087|the four night trams
-all|all.commute|.all.commute|v39|8084|every station around you"
+MAHA_APPS="day|day.commute|.commute|v13|8082|the daytime ride|/.commute/commute_server.py|the daytime ride
+night|night.commute|.nightcommute|v9|8087|the four night trams|night_server.py|four night trams
+all|all.commute|.all.commute|v39|8084|every station around you|all_commute_server.py|stations around you"
+HOME_REAL="$HOME"; HOME="$T/home"; mkdir -p "$HOME"
 
 is_installed day && bad "empty bin reported an install" || ok
 printf 'v13\n' > "$STAMPDIR/day"
@@ -86,7 +87,11 @@ if is_installed day; then bad "a stamp with no command behind it was believed"; 
 printf '#!/bin/sh\n' > "$BIN/day.commute"
 if is_installed day; then bad "a file with no execute bit counted"; else ok; fi
 chmod +x "$BIN/day.commute"
+# v22: the command alone is not an install; its folder has to be there too
+if is_installed day; then bad "a command whose app folder is gone counted as installed"; else ok; fi
+mkdir -p "$HOME/.commute"; : > "$HOME/.commute/commute_server.py"
 if is_installed day; then ok; else bad "a real command was not seen"; fi
+HOME="$HOME_REAL"
 eq "version comes from the stamp" "v13" "$(stamped_version day)"
 rm -f "$STAMPDIR/day"
 eq "no stamp is a question mark" "?" "$(stamped_version day)"
@@ -906,12 +911,12 @@ printf '%s' "$dp" | grep -qF 'name: "Nova TV",' && ok || bad "day: the corridor 
 ap=$(python3 tools/patch_payload.py src/payloads/39-install-all_commute-termux-v39.sh all)
 printf '%s' "$ap" | grep -q 'id="dashBtn"' && bad "all: the DASHBOARD button is gone" || ok
 printf '%s' "$ap" | grep -q 'popwrap' && bad "all: the small station window is gone" || ok
-printf '%s' "$ap" | grep -qF '.pinid{position:relative;display:block;pointer-events:auto;}' && ok || bad "all: the station label answers a tap"
+printf '%s' "$ap" | grep -qF '.pinid{position:relative;display:block;pointer-events:auto;z-index:1;}' && ok || bad "all: the station label answers a tap"
 printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that wobbles is still a tap"
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
 printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
-printf '%s' "$ap" | grep -qF 'APP_VERSION = "v44"' && ok || bad "all: answers v44 (v21)"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v48"' && ok || bad "all: answers v48"
 printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
 # the dashboard renders the station that was opened, and only that one
 if command -v node >/dev/null 2>&1; then
@@ -943,7 +948,7 @@ printf '%s' "$dp" | grep -qF 'pkill -f commute_server.py' && bad "day.commute st
 printf '%s' "$dp" | grep -qF 'if pgrep -f "$SERVER" >/dev/null 2>&1; then' && ok || bad "day.commute status asks about its own server"
 printf '%s' "$dp" | grep -qF 'already running${OFF}' && ok || bad "a second day.commute opens the first instead of doubling it"
 printf '%s' "$dp" | grep -qF '_mine = _pf.read().strip() == str(port)' && ok || bad "a day server only deletes its own port file"
-printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v18"' && ok || bad "day answers v18 (v21)"
+printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v19"' && ok || bad "day answers v19"
 # the menu: up is the process AND the port it wrote down
 (
   T=$(mktemp -d); HOME="$T"; mkdir -p "$T/.commute"
@@ -963,84 +968,116 @@ printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v18"' && ok || bad "day answers v
 R5=$(tr '\n' ' ' < /tmp/.mc_run.$$); rm -f /tmp/.mc_run.$$
 eq "all.commute running is not day.commute running"  "DOWN1 DOWN2 DOWN3 " "$R5"
 
-# ---- v21: one shared GTFS, quadrant 4 -----------------------------------
-GT=$(mktemp -d)
-R6=$(MAHA_GTFS_DIR="$GT" python3 - src/45_gtfs.py <<'PYEOF' 2>&1
-import importlib.util, io, json, os, sys, zipfile, urllib.request, datetime
-sp = importlib.util.spec_from_file_location("g", sys.argv[1]); g = importlib.util.module_from_spec(sp); sp.loader.exec_module(g)
-today = datetime.date.today().strftime("%Y%m%d")
-def feed(bad_ref=False):
-    b = io.BytesIO()
-    with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
-        z.writestr("agency.txt", "agency_name,agency_timezone\nZET,Europe/Zagreb\n")
-        z.writestr("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nA,Alpha,45.81,15.97\nB,Beta,45.82,15.98\n")
-        z.writestr("routes.txt", "route_id,route_short_name,route_type\n6,6,0\n")
-        z.writestr("trips.txt", "route_id,service_id,trip_id\n6,S,T1\n")
-        z.writestr("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
-                   "S,1,1,1,1,1,1,1,20200101,20991231\n")
-        z.writestr("calendar_dates.txt", "service_id,date,exception_type\nS,%s,1\n" % today)
-        z.writestr("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
-                   "T1,08:00:00,08:00:00,A,1\nT1,08:05:00,08:05:00,%s,2\n" % ("ZZ" if bad_ref else "B"))
-    return b.getvalue()
-good = feed()
-out = {}
-out["good"] = g.quick_check(good)[0]
-out["notzip"] = g.quick_check(b"<html>maintenance</html>")[0]
-out["cut"] = g.quick_check(good[: len(good) // 2])[0]
-nost = io.BytesIO()
-with zipfile.ZipFile(nost, "w") as z: z.writestr("agency.txt", "agency_name,agency_timezone\nZET,x\n")
-out["missing"] = g.quick_check(nost.getvalue())[1]
-# fetch: the server hands out a good feed first, then a damaged one
-class R:
-    def __init__(s, d): s.d = io.BytesIO(d); s.headers = {"Content-Length": str(len(d)), "ETag": "e"}
-    def read(s, n=-1): return s.d.read(n)
-    def close(s): pass
-serve = [good]
-urllib.request.urlopen = lambda req, timeout=0: R(serve[0])
-d, ch = g.fetch(who="day", max_age=0); out["first"] = (len(d) == len(good), ch)
-serve[0] = good[:-40]
-d, ch = g.fetch(who="day", max_age=0, force=True)
-out["kept"] = open(g.ZIP, "rb").read() == good
-out["refused_logged"] = any(h["event"] == "refused" for h in g.history())
-d, ch = g.fetch(who="all", max_age=600); out["all_changed"] = ch
-d, ch = g.fetch(who="day", max_age=600); out["day_again"] = ch
-rep = g.deep_check(g.ZIP); out["level_good"] = rep["level"]; out["today"] = rep["service"]["days"][0]["trips"]
-open(g.ZIP, "wb").write(feed(bad_ref=True)); out["level_badref"] = g.deep_check(g.ZIP)["level"]
-print(json.dumps(out))
+# ---- v21: the stations are permanent; the launcher lights one app -------
+# The rebuild is the REAL update_all.py, taken out of the patched payload, fed
+# a four stop feed. Stop 200 has a departure only on the day of the special
+# service, stop 300 only on a ride filed under yesterday (24:10). Before v21
+# the index held three stops, then two, and 300 never.
+T21=$(mktemp -d)
+printf '%s' "$ap" | python3 -c '
+import re,sys
+s=sys.stdin.read()
+for name,tag in (("update_all.py","ALLC_UPDATE_PY"),("all_commute_server.py","ALLC_SERVER_PY")):
+    m=re.search(r"cat > \"\$APPDIR/%s\" << \x27%s\x27\n(.*?)\n%s\n"%(re.escape(name),tag,tag),s,re.S)
+    open(sys.argv[1]+"/"+name,"w").write(m.group(1)+"\n")' "$T21"
+cat > "$T21/mkgtfs.py" <<'PYEOF'
+import zipfile, sys, datetime
+path, special = sys.argv[1], sys.argv[2] == "1"
+t = datetime.date.today(); y = t - datetime.timedelta(days=1)
+f = lambda d: d.strftime("%Y%m%d")
+files = {
+ "stops.txt": "stop_id,stop_name,stop_lat,stop_lon,location_type\n100,Glavni kolodvor,45.8050,15.9800,0\n101,Branimirova,45.8055,15.9810,0\n200,Samo radnim danom,45.8060,15.9790,0\n300,Nocna linija,45.8070,15.9820,\n900,Parent station,45.8052,15.9805,1\n",
+ "routes.txt": "route_id,route_short_name,route_long_name\n6,6,Sljeme\n31,31,Nocna\n",
+ "trips.txt": "route_id,service_id,trip_id,trip_headsign\n6,DAILY,t1,Sljeme\n6,SPECIAL,t2,Sljeme\n31,NIGHT,t3,Nocna\n",
+ "stop_times.txt": "trip_id,arrival_time,departure_time,stop_id,stop_sequence\nt1,08:00:00,08:00:00,100,1\nt1,08:05:00,08:05:00,101,2\nt2,09:00:00,09:00:00,200,1\nt2,09:05:00,09:05:00,100,2\nt3,24:10:00,24:10:00,300,1\nt3,24:15:00,24:15:00,100,2\n",
+ "calendar_dates.txt": "service_id,date,exception_type\nDAILY,%s,1\n%sNIGHT,%s,1\n" % (f(t), ("SPECIAL,%s,1\n" % f(t)) if special else "", f(y)),
+}
+with zipfile.ZipFile(path, "w") as z:
+    for k, v in files.items(): z.writestr(k, v)
+PYEOF
+ids21() { python3 -c "import sqlite3,sys;print(' '.join(sorted(r[0] for r in sqlite3.connect(sys.argv[1]).execute('select stop_id from stops'))))" "$T21/network.db"; }
+python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 1
+ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+eq "a day with the special service: all four stations" "100 101 200 300" "$(ids21)"
+python3 "$T21/mkgtfs.py" "$T21/zet_gtfs.zip" 0
+ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+eq "a day without it: the same four, none dropped"     "100 101 200 300" "$(ids21)"
+eq "a parent station (location_type 1) is not a station you stand at" "no" "$(ids21 | grep -qw 900 && echo yes || echo no)"
+eq "the permanent file holds them too" "4" "$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['stops']))" "$T21/stations.json")"
+eq "a quiet stop keeps the way it faces" "yes" "$(python3 -c "import json,sys;b=json.load(open(sys.argv[1]))['stops']['200'][3];print('yes' if b is not None else 'no')" "$T21/stations.json")"
+rm -f "$T21/network.db"
+eq "the stations survive the index being deleted" "4" "$(python3 -c "import json,sys;print(len(json.load(open(sys.argv[1]))['stops']))" "$T21/stations.json")"
+# the first rebuild after the update keeps what an OLD index (served stops only) knew
+rm -f "$T21/stations.json"
+python3 - "$T21" <<'PYEOF'
+import sqlite3, sys
+c = sqlite3.connect(sys.argv[1] + "/network.db")
+c.execute("create table stops(stop_id text primary key, name text, lat real, lon real, bearing real)")
+c.execute("create table dep(stop_id text, t int, trip_id text, route text, head text)")
+c.execute("insert into stops values('999','Old and gone',45.0,15.0,90.0)")
+c.commit()
+PYEOF
+ALLC_FORCE=1 ALLC_DIR="$T21" python3 "$T21/update_all.py" >/dev/null 2>&1
+eq "an old index's stops are taken in, not lost" "100 101 200 300 999" "$(ids21)"
+# every station ships inside the app, so the first screen needs no download
+eq "the stations seed carries every platform" "yes" "$(python3 -c "
+import json;d=json.load(open('src/payloads/stations_seed.json'))['stops']
+ok=len(d)>2400 and all(45.3<v[1]<46.3 and 15.3<v[2]<16.7 for v in d.values()) and '236_10' not in d
+print('yes' if ok else 'no')")"
+printf '%s' "$ap" | grep -qF "putting every station on the phone" && ok || bad "all: the installer puts the seed on the phone"
+printf '%s' "$ap" | grep -qF 'raise ValueError("outside the Zagreb area")' && ok || bad "all: a stop with coordinates far from Zagreb is dropped"
+printf '%s' "$ap" | grep -qF 'def stations_ready():' && ok || bad "all: /stops works from the file when the index is gone"
+rm -rf "$T21"
+
+# the launcher: a number lights an app, 0 is the launcher, u follows what runs
+if command -v python3 >/dev/null 2>&1; then
+  R21=$(python3 -u tests/test5_launcher.py 2>&1)
+  np=$(printf '%s\n' "$R21" | grep -c '^PASS'); nf=$(printf '%s\n' "$R21" | grep -c '^FAIL')
+  pass=$((pass+np)); fail=$((fail+nf))
+  printf '%s\n' "$R21" | grep '^FAIL' || true
+  [ "$np" -ge 11 ] && ok || bad "the launcher screen test ran (only $np checks)"
+fi
+grep -q '^  --app)' src/60_update.sh 2>/dev/null; grep -q -- '--app)' src/60_update.sh && ok || bad "the updater can aim at one app"
+
+# ---- v26: the common API-key database, shared by all three apps ----
+# Each app's server, read out of what ships, must fall back to the shared store
+# on a read and seed it on a write, for both the Maps key and the Gemini key.
+# Take the splice out of payload_v26.py and these go red.
+np=$(python3 tools/patch_payload.py src/payloads/9-night_commute_v9.sh night)
+printf '%s' "$dp" | grep -qF '_maha_shared_read("google")'   && ok || bad "day Maps read falls back to the shared store"
+printf '%s' "$dp" | grep -qF '_maha_shared_read("gemini")'   && ok || bad "day Gemini read falls back to the shared store"
+printf '%s' "$dp" | grep -qF '_maha_shared_seed("google", keys)' && ok || bad "day Maps write seeds the shared store"
+printf '%s' "$dp" | grep -qF '_maha_shared_seed("gemini", keys)' && ok || bad "day Gemini write seeds the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_read("google")'   && ok || bad "night Maps read falls back to the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_read("gemini")'   && ok || bad "night Gemini read falls back to the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_seed("google", [(key or' && ok || bad "night Maps write seeds the shared store"
+printf '%s' "$np" | grep -qF '_maha_shared_seed("gemini", keys)' && ok || bad "night Gemini write seeds the shared store"
+printf '%s' "$ap" | grep -qF '_maha_shared_read("gemini")'   && ok || bad "all Gemini read falls back to the shared store"
+printf '%s' "$ap" | grep -qF '_maha_shared_seed("google", keys)' && ok || bad "all Maps write seeds the shared store"
+printf '%s' "$ap" | grep -qF '_maha_shared_seed("gemini", [(k or' && ok || bad "all Gemini write seeds the shared store"
+grep -qF 'GEMFILE="$KEYDIR/gemini-api.txt"' src/00_head.sh && ok || bad "the umbrella names the shared gemini file"
+printf '%s' "$ap" | grep -qF '_keys_from(SHARED_KEYFILE)' && ok || bad "all Maps read still uses the shared store (v22)"
+# Behaviour of the helper that is spliced in: it seeds an empty store, IGNORES a
+# key already there (the shared one wins), rejects a sub-20-char line, and writes 600.
+if command -v python3 >/dev/null 2>&1; then
+  R26=$(python3 - <<'PYEOF'
+import os, sys, tempfile
+sys.path.insert(0, "tools"); import payload_v26 as V26
+os.environ["HOME"] = tempfile.mkdtemp()
+ns = {"os": os}; exec(V26._HELPER, ns)
+R, S = ns["_maha_shared_read"], ns["_maha_shared_seed"]
+o = []
+o.append("empty" if R("google") == [] else "BAD")
+S("google", ["A"*25]); o.append("seeded" if R("google") == ["A"*25] else "BAD")
+S("google", ["B"*25]); o.append("ignored" if R("google") == ["A"*25] else "BAD")
+S("gemini", ["short"]); o.append("floor" if R("gemini") == [] else "BAD")
+kd = os.path.join(os.environ["HOME"], ".maha.commute", "keys")
+o.append("p600" if oct(os.stat(os.path.join(kd, "google-api.txt")).st_mode)[-3:] == "600" else "BAD")
+print(" ".join(o))
 PYEOF
 )
-rm -rf "$GT"
-eq "gtfs: a sound feed passes the quick check"      '"good": true'     "$(printf '%s' "$R6" | grep -o '"good": [a-z]*')"
-eq "gtfs: a web page is not a GTFS"                 '"notzip": false'  "$(printf '%s' "$R6" | grep -o '"notzip": [a-z]*')"
-eq "gtfs: a download cut in half is refused"        '"cut": false'     "$(printf '%s' "$R6" | grep -o '"cut": [a-z]*')"
-eq "gtfs: a missing table is named"                 '"missing": "stops.txt is missing"' "$(printf '%s' "$R6" | grep -o '"missing": "[^"]*"')"
-eq "gtfs: the first fetch lands and is new to day"  '"first": [true, true]' "$(printf '%s' "$R6" | grep -o '"first": \[[a-z]*, [a-z]*\]')"
-eq "gtfs: a damaged download leaves the good file"  '"kept": true'     "$(printf '%s' "$R6" | grep -o '"kept": [a-z]*')"
-eq "gtfs: and the refusal is in the history"        '"refused_logged": true' "$(printf '%s' "$R6" | grep -o '"refused_logged": [a-z]*')"
-eq "gtfs: all.commute learns it changed on its own" '"all_changed": true' "$(printf '%s' "$R6" | grep -o '"all_changed": [a-z]*')"
-eq "gtfs: day is not told twice"                    '"day_again": false' "$(printf '%s' "$R6" | grep -o '"day_again": [a-z]*')"
-eq "gtfs: the deep check passes a sound feed"       '"level_good": "ok"' "$(printf '%s' "$R6" | grep -o '"level_good": "[a-z]*"')"
-eq "gtfs: and counts today's trips"                 '"today": 1'       "$(printf '%s' "$R6" | grep -o '"today": [0-9]*')"
-eq "gtfs: a stop that does not exist is a failure"  '"level_badref": "bad"' "$(printf '%s' "$R6" | grep -o '"level_badref": "[a-z]*"')"
-for a in day:13-install-day-commute-termux-v13.sh night:9-night_commute_v9.sh all:39-install-all_commute-termux-v39.sh; do
-  pp=$(python3 tools/patch_payload.py "src/payloads/${a#*:}" "${a%%:*}")
-  printf '%s' "$pp" | grep -qF "who=\"${a%%:*}\"" && ok || bad "${a%%:*}: asks the shared GTFS first"
-  printf '%s' "$pp" | grep -qF 'def _own_get_gtfs(force=False):' && ok || bad "${a%%:*}: keeps its own download as the fallback"
-done
-grep -qF '    4)   SEL=4; screen_gtfs ;;' src/20_menu.sh && ok || bad "menu: 4 is the GTFS"
-grep -qF 'if [ -z "$id" ] && [ "$slot" = 4 ]; then gtfs_cell; return; fi' src/20_menu.sh && ok || bad "menu: quadrant 4 shows the schedule"
-grep -qF 'maha_emit_gtfs > "$APPHOME/gtfs/gtfs.py.new"' src/40_main.sh && ok || bad "the installer writes the shared gtfs.py"
-(
-  T=$(mktemp -d); HOME="$T"; KEYFILE="$T/k.txt"; mkdir -p "$T/.commute" "$T/.all.commute"
-  printf '\n' > "$T/.commute/google-api.txt"
-  printf 'AIzaTESTTESTTESTTESTTESTTESTTESTTEST123\n' > "$KEYFILE"
-  eval "$(sed -n '/^share_key() {/,/^}/p' src/20_menu.sh)"
-  n=$(share_key); printf '%s %s %s' "$n" "$(tr -d '\n' < "$T/.commute/google-api.txt" | wc -c | tr -d ' ')" "$( [ -e "$T/.nightcommute/gmaps-api.txt" ] && echo made || echo skipped)"
-  rm -rf "$T"
-) > /tmp/.mc_key.$$ 2>&1
-eq "the shared key reaches the installed apps, and only those" "2 39 skipped" "$(cat /tmp/.mc_key.$$)"; rm -f /tmp/.mc_key.$$
-grep -qF '"$BIN/maha-commute" sharekey' src/40_main.sh && ok || bad "the installer hands the key to apps it left alone"
-grep -qF '_k=$(grep -v' src/40_main.sh && grep -qF 'if [ -n "$_k" ]; then' src/40_main.sh && ok || bad "a blank key file is not a found key"
+  eq "the shared helper: seed empty, ignore existing, floor short, 600" "empty seeded ignored floor p600" "$R26"
+fi
 
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

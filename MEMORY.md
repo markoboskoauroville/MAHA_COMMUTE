@@ -9,6 +9,372 @@ this project.
 
 ---
 
+## V26: ONE COMMON DATABASE OF ALL API KEYS, SHARED BY ALL THREE APPS (17.10.2026)
+
+Marko: "make a common database of all APIs so it's shared between applications.
+It can be picked through any application, but it's loaded in the common one. If
+already exists, of course it's ignored." Asked the one semantic question
+(overwrite vs ignore when the shared store already has that key); he chose
+**ignore — keep the shared one** (the launcher is where you deliberately
+replace). Umbrella v26, day v19, night v16, all v48.
+
+**WHAT WAS TRUE BEFORE.** `~/.maha.commute/keys/google-api.txt` existed, held
+only the Maps key, and only all.commute ever read it (its `read_keys` fallback,
+v22). Gemini was never shared. No app ever wrote the umbrella store. Maps-key
+filenames even differ: `google-api.txt` (day, all) vs `gmaps-api.txt` (night).
+
+**WHAT V26 DOES.** `~/.maha.commute/keys/` is now the common database of BOTH
+keys: `google-api.txt` (Maps/Street View) and `gemini-api.txt` (the PDF/notice
+reader). A helper is spliced into each app's server (`tools/payload_v26.py`,
+`_maha_shared_read` / `_maha_shared_seed`):
+
+- **Reads** fall back to the shared store, local key first (so a key an app was
+  given by hand still wins): day/night Maps, all three for Gemini. all.commute's
+  Maps read already did this since v22 and is unchanged.
+- **Writes** seed the shared store **only when it is empty for that key** — a key
+  already there is left alone, "ignored", so one app cannot overwrite the key
+  another set. The app still writes its own local file, so the pick takes effect
+  for that app at once. Seeding is write-through-temp, dir 700, file 600, and a
+  sub-20-char line is not a key (the same floor `_keys_from` uses).
+
+So a key set in ANY app's Settings lands in the shared store (if empty) and is
+then used by all three; picking the same or a different key elsewhere is
+ignored. To REPLACE a shared key you use the launcher's key screen, which forces
+it.
+
+**THE UMBRELLA.** `00_head.sh`/`env.sh` gain `GEMFILE="$KEYDIR/gemini-api.txt"`.
+`40_main.sh` discovers a Gemini key at install the same way as the Maps key
+(shared store, then each app's folder, then Downloads) and seeds `$GEMFILE` if
+empty. The launcher's `screen_key` (`20_menu.sh`) is now "API KEYS": it shows
+both, pastes either (Google still force-syncs to each app; Gemini is read from
+the shared store by every app so it needs no sync), and `x` forgets both. The
+uninstaller names both shared keys before wiping. No change to `MAHA_APPS` or
+`sync_key`: the read-fallback is what shares Gemini, so no per-app field 10 was
+needed.
+
+**TESTED.** Helper unit test (seed-empty, ignore-existing, 20-char floor, 600) —
+pass. Cross-app over real HTTP, shared temp HOME: night `POST /gmaps-key` +
+`/gemini-key` seed the shared store; all.commute (no local keys) then reads
+night's keys via `/api-keys` and `/gemini-key`; all's later DIFFERENT pick is
+ignored and the shared store keeps night's key. Install-time Gemini discovery
+pulls a dropped key into `$GEMFILE`. `test1` gains 14 checks (the splice landed
+in each app for both keys + the helper's behaviour) and is **469 passed, 6
+failed** (the 6 are the environmental zet.hr ones below, unchanged). Stale
+version assertions updated: `test1` all v47→v48 and day v18→v19; `test2` day
+stamp v16→v19 (day had been v18 since v22, so that one was already wrong).
+Gate: 0 blocking.
+
+**STILL THE zet.hr ENVIRONMENT NOTE (see V25).** The 6 `test1` + 5 `test7` +
+feed-timing `test2` reds are because zet.hr is reachable from this container now,
+not regressions; they reproduce on the committed base. Not seen on a phone.
+
+## V25: NIGHT.COMMUTE GETS all.commute's STATION DASHBOARD (16.10.2026)
+
+Marko: "update Night Commute app so it has dashboard for each station, same as
+All Commute … the same look and same functionality, only with different set of
+lines", and "after upgrade test it … now it's night, so you can test it also on
+the live feed from Zet", "keep a list of lines and information about lines easily
+available". Asked which direction; he chose **add the dashboard** (keep the Plan
+planner, Lines, Map, PDF and the four night lines), not a full station-centric
+rebuild. Umbrella v25, night app v15. day and all untouched.
+
+**WHAT IT IS.** Tapping a station dot on the Map slides up one full-screen
+dashboard for that stop, all.commute's panel: Street View photograph, JUST LEFT,
+COMING, and WATCH. The ✕ or the back gesture closes it. A watch bar across the
+bottom of every tab keeps the watched stop's next three departures with the
+green-wifi mark; From here / To here drop the stop into the Plan journey. The
+Lines tab (already a per-line route diagram) stays, and the dashboard header
+shows the stop's line badges, so "a list of lines" is reachable in both places.
+
+**THERE IS NO /board AND NO SECOND COPY OF THE SCHEDULE.** all.commute asks its
+server for a board; night.commute builds it in the page from `realTimes()` (the
+Plan tab's own function) and pairs the live trams on with `liveMatchRows()` /
+`liveMins()` / `liveAt()` — the same in-order pairing the Plan legs use. So
+"early is not a delay" is reused, not re-derived: a tram ahead of its slot is
+shown arriving-and-waiting and the countdown is to the later of arrival and
+scheduled departure. JUST LEFT is read straight from `SCHED` (not `realTimes`,
+which wraps past departures to the next night).
+
+**HOW IT IS BUILT.** `src/payloads/night/dash.js` and `dash.css` as ordinary
+files, spliced by `tools/payload_v25.py` (patch_night, same count==1 discipline
+as v22) AFTER live.js and star.js, because dash.js wraps `liveDraw` and
+`loadNet`. Classes are prefixed `nd-` because night already owns `.card`, `.btn`
+etc. that all.commute's dashboard CSS also uses — the look is borrowed, the names
+are this app's. The map marker's `()=>pickMapStation(s)` became
+`()=>openStationDash(s)`; the background map tap (onClick → nearestStation →
+pickMapStation) is untouched, so A/B journey picking still works. New
+localStorage key `nc_watch` (the watched stop, by name, so it outlives a
+rebuild). Street View is the static image built client-side from `/gmaps-key`
+(heading = bearing to the next station +180, like all.commute); the 360 badge
+loads Google Maps JS on demand via `GEng.ensure` and opens a StreetViewPanorama.
+Witnesses added for `realTimes`, `nowNightSecs`, `secClk` so an upstream rename
+fails the build.
+
+**A GUARD THAT THE MECHANISM TEST FOUND.** dash.js wired the back gesture with
+`window.addEventListener("popstate", …)`. test1 drives night.html in a bare JS
+engine whose `window` has no `addEventListener`, so the call threw and took the
+rest of page.js down with it (2 reds that cascaded). Guarded with
+`typeof window.addEventListener === "function"`; test1 went from 355/8 to 455/6
+(≈100 night page.js checks that could not run before now run and pass).
+
+**TESTED ON THE REAL ZET FEED, FROM THE CLOUD.** A night server extracted from
+the v25 artefact, built from the live GTFS (service_date 20261016), at ~00:17
+Zagreb: `/live` ok, state live, 50 entities, 10 located night trams (31/32/33).
+A Playwright/Chromium test (`scratchpad/night_dash_test.js`) drove the real page
+against it: the dashboard opens for a station, renders 12 arrival rows from the
+real schedule, badges, WATCH → watch bar with rides, From here → fills the
+journey and opens Plan, ✕ closes, no script errors. Screenshot taken at Trg bana
+J. Jelačića (lines 31/32/34). Gate: 0 blocking findings.
+
+**ZET.HR IS REACHABLE FROM THIS ENVIRONMENT NOW — this is new and it changes
+what the tests show.** In the v21 session zet.hr was 403 (CONNECT denied), so
+every server/page test ran on the four-stop fixture. It now answers 200 (live
+RT 5 KB, static GTFS 12.7 MB). The consequence: tests that feed `update_all.py`
+a fixture and expect four stops now get the real 2523-station feed instead,
+because the builder prefers the network when it is reachable. These reds are
+ENVIRONMENTAL, not regressions, and they reproduce on the committed v24 base
+(ran v24's `update_all.py` on the fixture → 2523 stops). They are: test1's 6
+all.commute station checks, test7's 5 (F7 waiting_for_network + the four v24
+stations_changes checks), and test2's "the body's timestamp and the server's own
+agree" (feed timing, flaky). test2's "the stamp says v16" is a SEPARATE stale
+assertion: it hardcodes day = v16, but day has been v18 since v22 — also
+pre-existing, also not mine. **None of the suite's remaining reds are caused by
+the night dashboard.** The clean way to run the fixture-based all/day tests here
+would be to point the builder at a local zip and refuse the network; that is
+all.commute test infrastructure and was left for its own change.
+
+**NOT DONE / NOT TESTED.** Not seen on a phone (two-machine rule: the LOCAL
+tester does Termux/Android). The Street View still photo and the 360 panorama
+were not exercised — there is no Google key in this environment, so the photo
+area shows the "Add a Google key" note (correct for a keyless install) and the
+360 was not opened. The prompt for the local tester is in the handoff.
+
+## V21: THE STATIONS ARE PERMANENT, THE LABELS STOP COMING AND GOING, THE LAUNCHER LIGHTS ONE APP
+
+*8.10.2026.* Marko: "cache all stations so they are permanent. Stations are not
+moving, only schedule is changing", the running apps shown in the terminal with
+1 and 3 only moving a highlight, `0` back to the launcher, update the whole
+launcher only when nothing runs, and "sometimes the labels for stations are
+showing, sometimes they're not. What is going on?"
+
+**THE LABELS HAD TWO CAUSES, both found by running the thing, not by reading.**
+
+1. *The index was the day's timetable.* `stops` was filled from "the stops that
+   see a departure today", so a station was a by-product of the schedule. A stop
+   served only on weekdays vanished on Sunday; a night-line stop (rides filed
+   under yesterday as 24:10) was never there; a diverted line took its stops
+   away for the week. Reproduced with a four stop feed: three stops one day,
+   two the next, and the night stop never.
+2. *A race in the page.* `pageshow` and `focus` call `autoLocate()` while boot
+   is still awaiting `/api-keys`. On a phone that answers quickly the first
+   position arrives BEFORE `initFreeMap()`; `drawMe` throws on `.addTo(null)`
+   after `ME` was stored, so `first = !ME` was never true again, the map never
+   moved to the person and the stations, loaded around them, were drawn off
+   screen. Whether the labels were there depended on which finished first.
+   `tests/test6_browser.sh` reproduces it against v20 (6 of 8 fail) and passes
+   on v21 (8 of 8).
+
+**THE FIX.** `stations.json` is its own file. Every rebuild MERGES the feed's
+stops into it and never removes one; a bearing is kept from the last day it
+could be worked out; the first rebuild after the update takes in the old
+index's stops. `stops` in the index is filled from it, the server reads it
+directly when the index is gone or being rebuilt (so `/stops` and
+`/find-stops` never answer "no index" while a file of stations exists), and
+`/status` says `stations: true` so the page draws them at once. Clearing the
+index no longer clears the stations. The page: no drawing onto a map that is
+not there, `CENTRED` (not `!ME`) decides whether to move the map, boot replays
+a fix that beat the map, and a slow `/stops` answer can no longer overwrite a
+newer one.
+
+**THE LAUNCHER.** `0` is the launcher (`SEL=0`, nothing lit). A number starts an
+idle app and only lights a running one; Enter or `o` opens the page. A running
+quadrant says RUNNING with its port and age, and the screen repaints itself
+when the set of running apps changes (read with a 4 s timeout; status above
+128 is a timeout, NOT end of input, which is what the old code would have
+treated as "the person is gone"). `u`: nothing running updates the whole
+launcher; apps running updates only the lit app through `update.sh --app ID`;
+nothing lit says so. The old update.sh parsed no arguments at all, so `--check`
+and a file path had never worked; it parses them now. The F-key digits are gone
+from the bottom row because 0 and 1 to 4 now mean something else.
+
+**THE MAP DOES NOT FOLLOW THE DOT (later on 8.10.2026).** Marko: the map
+zoomed and jumped by itself; it should move to him only when he presses the
+locate button, so the app can also be used to watch his position on the map
+regardless of the timetable. `applyFix` used to call `setView(ME, max(17, zoom))`
+on the first fix and again whenever the dot was outside the view, and every
+focus, pageshow and 90 second timer starts a new burst, so a zoomed-out map was
+pulled back in. Now only `WANT_CENTRE` (set by the button) or the very first run
+with no saved view moves the map; the dot is redrawn by every fix and nothing
+else. test6 pans away, moves the phone, and asserts the centre and zoom are
+untouched until the button is pressed. **The real GTFS could not be fetched
+here:** zet.hr is denied by this environment's network policy (403 on CONNECT),
+so every server and page test still runs on a four stop feed built by
+`tests/fixtures/mkgtfs.py`. Allow `zet.hr` and `www.zet.hr` under the
+environment's Allowed domains to test against the real feed.
+
+**THE REAL FEED (uploaded by Marko, 8.10.2026) CAUGHT A BUG THE FAKE ONE HID.**
+ZET's stops.txt has 3800 rows: 2525 platforms (`location_type` 0, ids like
+`98_1`) and 1275 PARENT stations (`location_type` 1, id `98`). Merging every row
+would have drawn a second label over each stop's own platforms, so only
+platforms are kept (`2525 stations`). On the real feed the old behaviour lost
+17 platforms today (Thursday), 74 on Saturday and 188 on Sunday (2337 of 2525
+served): those were the vanishing labels. The real rebuild takes about 6 s.
+Checked on the real data: `/stops`, `/find-stops`, `/board` (37 departures at
+109_1), and the page in Chromium with ids like `109_1` and `110_61`. Several
+platforms sit within metres of each other (110_x), so their labels overlap; that
+is the existing design and was not changed. The feed itself is not in git (the
+repository is public, and it is 12 MB).
+
+**EVERY STATION IS CARRIED IN THE APP (8.10.2026).** Marko: hardcode all the
+station positions so stations show immediately, always.
+`src/payloads/stations_seed.json` (2523 platforms, 133 KB) is written to
+`~/.all.commute/stations.json` by the installer when there is none, so a fresh
+install with no feed and no index answers `/stops` at once (checked: 14 stations
+around Glavni kolodvor, no network). Rebuilds merge into it. Regenerate it only
+when ZET adds stops: run update_all.py on a real feed, then
+`tools/make_stations_seed.py <that stations.json>`. ZET's own feed has TWO stops
+with coordinates in Russia and Belarus (Kvaternikov trg 236_10 and 236_13); the
+rebuild drops anything outside 45.3-46.3 N, 15.3-16.7 E, and the seed tool
+refuses a file that contains one. The pre-install `pkill -f` of the all
+installer killed the tool's own shell (exit 144) when the command text held the
+server's name, so fresh-install checks run detached (`setsid nohup`).
+
+**LABELS DO NOT OVERLAP (8.10.2026).** Marko: platforms a few metres apart drew
+their labels on top of each other and could not be selected. `layoutPins()` in
+the page moves each label off its station to the right of the way vehicles
+leave it (they drive on the right), far enough that the label's edge clears the
+station, then pushes any labels that still touch apart, keeps them inside the
+screen (Leaflet engine), and draws a line and dot to the true position. It runs
+after every draw and every zoom, in pixels. test6 zooms out until the three
+fixture stops would collide, asserts no two label rectangles intersect, and taps
+each label to check it opens its own station. First version left one label at
+x = -20 (off screen); the clamp is why that no longer happens. A single quote in
+a JS comment broke the repr'd string in payload_v21.py: no apostrophes there.
+The Google engine path is written the same way but was not exercised (no key).
+
+**WHAT WENT WRONG ON THE WAY.** `pkill -f` and `pgrep -f` with the server's
+name matched the very shell running them (twice), and the shell died with exit
+144 and no output. A test server started inside `( ... ) &` leaves the python
+child behind when the subshell is killed, so the next run found its port taken
+and talked to the dead one: `exec` it, and read the port from the port file.
+test5 passed alone and failed inside test1 because of fixed sleeps; it waits
+for the screen now.
+
+**NOT DONE.** The MANTRA_MANIFEST is private and was not on this machine, so
+none of its rules were read this session. Day and night still rebuild their
+own station lists daily; only all.commute has the permanent file. Nothing has
+been seen on a phone.
+
+## V24: THE STATIONS ARE THE PAGE'S OWN DATA (9.10.2026)
+
+Marko: make the station cache permanent, always compare it with the recent feeds,
+cache what comes in, and have the layout of the stations on BOTH maps before the map
+has loaded, because it is local, not streamed.
+
+Already true on disk: `stations.json` is merged into and never trimmed, and a copy
+ships in the installer. What was not: the PAGE still asked the server for the nearby
+ones every time, so a slow or stopped server meant no labels. Now the page keeps its
+own copy (`localStorage` key `ac2_stations`, about 130 KB), and boot is: init the
+map, load the copy, `loadStops()` from it (`localStops()`, the same radius and
+widening rules as the server's `/stops`), and only then ask for the key and the
+status. Both engines draw through the same `drawStars`. The server publishes the list
+at `/stations.json` (ETag, 304) with `stations_rev`, a hash of the LIST (not of the
+file, whose `updated` changes every day), in `/status`; `watchIndex` fetches it again
+only when the revision differs. The first visit on a browser has no copy and falls
+back to `/stops` as before.
+
+The comparison: every rebuild compares the feed with the cache before merging and
+stores `changes` in `stations.json` (feed platforms, new, moved 5 m or more, renamed,
+and how many cached ones the feed no longer lists, which are kept). It is in the log,
+in `/status` as `stations_changes`, and in Settings as "Last feed". all v47, umbrella
+v24. test6 loads the page a second time with the server refusing everything but the
+page and expects the labels; test7 feeds three variants of the feed (same, one new
+one moved one renamed, one dropped) and checks the counts and that a dropped station
+stays. `tests/fixtures/mkgtfs.py` takes the variant as a third argument.
+
+Not done: day.commute and night.commute still read their own station lists; the
+Google engine path was written to the same code but not exercised (no key here).
+
+## V23: THE WATCH BAR SHOWS THE NEXT THREE (9.10.2026)
+
+Marko: with the dashboard collapsed, the bar at the bottom of the map showed the one
+next departure of the watched station; he wants the next three trams or buses.
+`updateWatchBar()` now takes `comingAt(id).slice(0, 3)`; the bar is two rows (star,
+name and the stop-watching X on top; the three rides, each with its line, its
+minutes and the wifi mark when live, under them), by `flex-wrap` and `order:3` on
+`.weta`. Fewer than three coming shows fewer, none shows a dash, a ride that has
+left is never counted. all.commute v46, umbrella v23, day and night untouched. The
+taller bar is already allowed for by `layoutPins`, which measures the bar's real
+top; test6 checks it (feeds `BOARDS` directly so it does not depend on the hour).
+Not seen on a phone.
+
+## V22: THE ANSWERS TO THE FIRST FIELD TEST (8.10.2026)
+
+The first report from the LOCAL tester (`field-tests/2026-10-08_v21/REPORT.md`,
+Pixel 7 plus emulator) found 14 faults around v21's features, which themselves held.
+Each is fixed with a test, and `tests/test7_v22.sh` holds the ones that need the
+installer or the server.
+
+- **F1 labels under the controls.** The clamp measures the HUD, the buttons, the GPS
+  chip and the watch bar instead of assuming 64 px, and runs on every move as well as
+  every zoom (a clamp in screen pixels goes stale when the map is panned; the test
+  that panned found it). The HUD now sits under the buttons, the GPS chip under it.
+- **F2, F3 the key.** The installer copies the shared key into every app's own key
+  file (field 9 of `MAHA_APPS`; `install-one.sh --sync-key [force]`), the launcher's
+  key screen forces it, and all.commute's server falls back to the shared store. A
+  file counts as a key only if its cleaned content is 20+ characters: a lone newline
+  (one byte, so `-s` was true) had won over the real key and emptied the store.
+- **F4** installed = the command AND the app's server file (`app_files_present`), in
+  the installer and the launcher.
+- **F5** `maha-commute day | cat` hung because `( cd && setsid X & echo )` puts the
+  `&` on the whole list: a forked copy of the launcher stayed as the server's parent
+  holding the caller's stdout. Now `( cd; exec setsid nohup X ... ) &`. Reproduced here
+  (94 s) before the fix and checked after. **F10** without a terminal `read -t` returns
+  at once and the three minute wait was a few seconds: it `sleep`s when stdin is not a
+  tty.
+- **F6** /rebuild, /cache/clear, /sched-delete are POST; every POST and every
+  state-changing GET of all three apps is refused if `Sec-Fetch-Site` is cross-site or
+  same-site, or `Origin` differs from `Host` (`_cross_site`, inside `_phone_only`). curl
+  sends neither header and is allowed: it is the phone talking to itself.
+- **F7** the start-up build retries (30 s, then 1, 2, 5, every 5 minutes; test sets
+  `ALLC_RETRY_FIRST`) and `/status` says `waiting_for_network`.
+- **F8** the locate button restarts the watch (a running one says nothing until the
+  phone moves), keeps `WANT_CENTRE` for the first new fix, and `setView` no longer
+  animates, because Leaflet ignores a setView that arrives during a zoom animation
+  and the button's own first jump starts one.
+- **F9** the dependency table checks `termux-location`, not `termux-open-url`, and says
+  when the Termux:API APP is missing. **F11** `update --check` only describes, with or
+  without a file; a path that does not exist is an error (exit 2).
+- **F12, F13, F14** below 49 columns the four apps are four lines; the key rows wrap
+  by width; the help is `fold`ed to the terminal and no longer mentions F keys; the
+  quadrant's third line is the app's description (the version is on the first line);
+  the attribution is hidden while the 360 view is open; the installer banner says v45.
+
+**WHAT WENT WRONG ON THE WAY.** `printf '%s' | fold | while read` drops the last line
+(no trailing newline): the verbs and hint lines vanished until it was `printf '%s\n'`.
+The scratch copy of the patched page was stale for two runs, so a fix looked broken
+that was never in the page: regenerate before extracting. `pkill -f` killed the tool's
+own shell again (exit 144) whenever the command text held the pattern.
+
+**NOT DONE.** Items the report marks BLOCKED stay for the phone: the 360 imagery, the
+network location provider, a Gemini key. The unplanned findings (the watched stop is
+fetched twice; every start opens a new Chrome tab; github `main` VERSION still 20) are
+not addressed.
+
+## THE TWO-MACHINE RULE (8.10.2026)
+
+Marko's rule, now first in `MANIFEST.md`: the LOCAL Claude Code (his computer,
+Android emulator, real Termux from F-Droid) only TESTS and writes
+`field-tests/<date>_v<VERSION>/`; the CLOUD Claude Code upgrades. The local one
+must end by telling Marko to ask the cloud one to read the report. Its prompt is
+`docs/LOCAL_TEST_PROMPT.md`. At the start of a session here, read the newest
+`field-tests/*/REPORT.md`; its "Requests for the cloud" list is the work.
+
+**Marko, 8.10.2026: the prompt for the local tester is ALWAYS written out in a
+code box at the end of a version or a test request, and it ALWAYS opens by
+ordering the local Claude Code to read MANIFEST.md.** Template in
+`docs/LOCAL_TEST_PROMPT.md`.
+
 ## V17: THE APPS' OWN NAMES OPEN THE LAUNCHER, AND THE WIFI IS TOLD WHAT IT MAY SEE
 
 *4.10.2026.* Brought over from a long chat that had been building the same

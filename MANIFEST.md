@@ -1,5 +1,37 @@
 # MANIFEST
 
+## THE TWO-MACHINE RULE (set by Marko, 8.10.2026, applies to every version)
+
+**The local machine tests. The cloud machine upgrades.**
+
+- The **cloud** Claude Code owns the repository: sources, tools, tests, docs,
+  version numbers, the build, the memory. Every change is made here, and only
+  here.
+- The **local** Claude Code (Marko's computer, with the Android emulator and real
+  Termux) only **tests**. It follows `docs/LOCAL_TEST_PROMPT.md`, never edits
+  anything outside `field-tests/`, writes its results to
+  `field-tests/<date>_v<VERSION>/REPORT.md` (+ `results.json`, logs,
+  screenshots), pushes only that folder, and ends by telling Marko to ask the
+  cloud Claude Code to read the report and make the changes.
+- The cycle is: cloud builds and tests what it can, local tests the rest on the
+  emulator, cloud reads `field-tests/` and fixes, a new version, local tests
+  again. A fix made on the test machine is a second copy of the source and is
+  erased by the next build, so it is not allowed.
+- When the cloud Claude Code starts a session, it checks `field-tests/` for a
+  report newer than the last version and reads it before anything else.
+- **THE PROMPT IS ALWAYS WRITTEN, IN A CODE BOX (Marko, 8.10.2026).** Every time
+  the cloud Claude Code finishes a version, or Marko asks for a test, its last
+  message contains the prompt for the local Claude Code, written out in full in
+  a single code box he can copy, naming the exact version, the branch and what
+  changed since the last field test and so deserves the most attention. Never
+  "run the usual prompt", never a link to it, never left for him to ask for.
+- **THE LOCAL CLAUDE CODE READS THIS MANIFEST EVERY TIME.** The first line of
+  every such prompt orders it to read `MANIFEST.md` completely, then
+  `docs/LOCAL_TEST_PROMPT.md`, before it touches the emulator, on every run,
+  even if it did so last time.
+
+---
+
 **Change log for MAHA_COMMUTE. One entry per version, newest first.**
 
 ---

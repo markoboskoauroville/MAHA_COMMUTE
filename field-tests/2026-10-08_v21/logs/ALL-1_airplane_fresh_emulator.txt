@@ -1,0 +1,67 @@
+--- network check (expect failure)
+000
+no network
+  all.commute stopped
+ls: cannot access '/data/data/com.termux/files/home/.all.commute': No such file or directory
+  > google maps key... found (the shared store)
+  > the umbrella... ok
+  > payloads, all three... ok
+  > the install routine... ok
+  > the stream checker... ok
+  > the key tester... ok
+  > the updater... ok
+  > the uninstaller... ok
+  > the launcher... ok
+  > the updater command... ok
+  > maha.commute and maha.commute-update... ok
+
+  ॐ  MAHA COMMUTE  v21
+
+    on   day.commute     v17, port 8082
+    on   night.commute   v13, port 8087
+    on   all.commute     v44, port 8084
+    already current, left alone: all.commute
+
+  type maha.commute for the launcher, maha.commute-update for the newest version
+  or the app name on its own: day.commute, night.commute, all.commute
+
+  the three payloads are kept in /data/data/com.termux/files/home/.maha.commute/payloads
+  so any app can be added or removed later with no download
+
+ls: cannot access '/data/data/com.termux/files/home/.all.commute': No such file or directory
+--- maha-commute status says:
+  +---------------------+---------------------+
+  |1 day.commute        |2 night.commute      |
+  |  RUNNING 8082  16m  |  RUNNING 8087  16m  |
+  |  v17                |  v13                |
+  +---------------------+---------------------+
+  |3 all.commute        |4 free               |
+  |  v44  ready         |                     |
+  |  v44                |  room for a fourth  |
+--- install-one all --offline
+  > installing the station indexer... ok
+  > installing the star interface... ok
+  > installing the all.commute command... ok
+  > Termux:Widget desktop shortcut... ok
+  > station cache... skipped
+
+  installed the star interface v39  type all.commute to start it
+  open it, let it find you, tap a station
+  in settings: load a Gemini key, then Store the lines around me
+  on the Google key: Street View Static API draws the photograph,
+  Maps JavaScript API draws the 360 view and the detailed map layers
+  to go back: cp ~/.all.commute/NAME.prev.bak ~/.all.commute/NAME
+              for NAME = all.html and all_commute_server.py
+
+total 376
+drwx------.  2 u0_a213 u0_a213   4096 Oct  8 17:43 .
+drwx------. 10 u0_a213 u0_a213   4096 Oct  8 17:43 ..
+-rw-------.  1 u0_a213 u0_a213 107162 Oct  8 17:43 all.html
+-rw-------.  1 u0_a213 u0_a213  88425 Oct  8 17:43 all_commute_server.py
+-rw-------.  1 u0_a213 u0_a213 132846 Oct  8 17:43 stations.json
+-rw-------.  1 u0_a213 u0_a213  13515 Oct  8 17:43 update_all.py
+seed count 2523 2523 updated 0
+port=8084
+{"ok": false, "state": "idle", "state_reason": "", "stations": true, "feed_ok": false, "feed_reason": "URLError(gaierror(7, 'No address associated with hostname'))"}
+stops 15 True 
+{"ok": false, "reason": "no station index yet"}

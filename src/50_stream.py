@@ -69,14 +69,6 @@ CACHES = {
         "dirs": [],
         "keep": ["gmaps-api.txt", "gemini-api.txt", "port", "server.out"],
     },
-    # v21: the one schedule all three share. A refresh throws it away like the
-    # apps' own copies, and the next app to ask fetches it fresh.
-    "shared": {
-        "dir": ".maha.commute/gtfs",
-        "files": ["zet_gtfs.zip", "meta.json", "health.json", "status.txt"],
-        "dirs": [],
-        "keep": ["gtfs.py", "history.jsonl"],
-    },
     "all": {
         "dir": ".all.commute",
         "files": ["zet_gtfs.zip"],
@@ -348,9 +340,6 @@ def check_static(res, feed):
     for app, spec in CACHES.items():
         z = os.path.join(os.path.expanduser("~"), spec["dir"], "zet_gtfs.zip")
         if not os.path.exists(z):
-            shared = os.path.join(APPHOME, "gtfs", "zet_gtfs.zip")
-            if app != "shared" and os.path.exists(shared):
-                continue        # since v21 it reads the shared schedule, checked below
             res.add("ok", "%s schedule" % app, "no cached copy yet")
             continue
         age_h = (time.time() - os.path.getmtime(z)) / 3600.0

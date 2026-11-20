@@ -73,9 +73,9 @@ roof, whole and unchanged:
 
 | | what it is | version | port |
 |---|---|---|---|
-| `day.commute` | the daytime ride, corridors that pick themselves | v17 | 8082 |
-| `night.commute` | the four night trams, and where they are now | v13 | 8087 |
-| `all.commute` | every station around you, in colour | v43 | 8084 |
+| `day.commute` | the daytime ride, corridors that pick themselves | v19 | 8082 |
+| `night.commute` | the four night trams, where they are, and a dashboard for each stop | v16 | 8087 |
+| `all.commute` | every station around you, in colour | v48 | 8084 |
 
 ## Installing
 
@@ -83,7 +83,7 @@ The one line at the top is the usual way in, and it ends here: one file, and
 it carries all three apps inside it.
 
 ```sh
-bash 20-maha_commute_v20.sh
+bash 26-maha_commute_v26.sh
 ```
 
 [Copy this command: tap here for a page with a Copy button](https://markoboskoauroville.github.io/MAHA_COMMUTE/#cmd-6)
@@ -140,7 +140,10 @@ key file.
 
 That is the whole interface. All three apps are on the screen from the first
 frame whether they are installed or not: an app that is not here is dim rather
-than absent, and pressing its number offers to install it. Colour carries the
+than absent, and pressing its number offers to install it. Pressing the number
+of an idle app starts it; pressing the number of a running app only lights it,
+and `0` lights the launcher itself. `u` updates the whole launcher when nothing
+is running, and only the lit app when something is. Colour carries the
 state and nothing else, so green is running, sand is installed and ready, grey
 is present but not available.
 
@@ -241,6 +244,26 @@ the strip says why. An empty map is honest. A tram that is not there is not.
 The strip under the map also counts the trams ZET is publishing but not
 locating, so "three trams" never quietly means "three trams exist".
 
+## A dashboard for each stop
+
+Tapping a station dot on the Map slides up one full-screen dashboard for that
+stop alone, the same panel `all.commute` has: a Street View photograph of the
+stop, what has just left, what is coming, and a **WATCH** button. The ✕ or the
+phone's back gesture puts the map back.
+
+The look is `all.commute`'s; the data under it is this app's own four night
+trams and the live feed it already reads, so there is no second copy of the
+schedule. What is coming is the timetable with the broadcasting trams paired
+onto it: a tram running ahead of its slot is shown arriving and waiting, not
+leaving early, because on a fifty-minute night timetable a tram does not drift,
+and the countdown counts to the moment it can actually take you.
+
+Pressing **WATCH** keeps that stop in a bar across the bottom of every tab, with
+its next three departures and a green wifi mark on the ones a tram is
+broadcasting for. **From here** and **To here** drop the stop straight into the
+Plan journey. The watched stop is kept by name, under `nc_watch`, so it outlives
+a schedule rebuild the way the favourites do.
+
 ## Favourites
 
 Tap the ☆ beside a station in the picker and it becomes ★. Starred stations
@@ -271,6 +294,26 @@ the 360 view do not.
 The key is cleaned to its own shape, letters and digits and underscore and
 minus, at the moment it is stored. That is a filter used for extraction, where
 it fails closed, and never for redaction, where it would fail open.
+
+### One shared store, for every key
+
+`~/.maha.commute/keys/` is a common database of all the API keys, shared by all
+three apps: `google-api.txt` for the Google Maps / Street View key, and
+`gemini-api.txt` for the Gemini key that reads the PDF timetables and the ZET
+notices. The apps read it, so **a key set in any one of them is used by all
+three**.
+
+A key can be set from any app's own Settings, or pasted into the launcher
+(`maha-commute key`), which is the common store itself. Setting it in an app
+**loads it into the shared store only when the store has none for that key**:
+if a key is already there it is left alone, so one app cannot quietly overwrite
+the key another one set. An app keeps its own copy too and uses that first, so
+nothing an app was given by hand is lost; the shared store is the fallback
+every app falls back to. To replace a shared key, paste the new one in the
+launcher, which forces it in.
+
+This is why no key sits in the repository: the store is on the phone, written
+`600`, read by the three servers, and never printed or sent anywhere.
 
 ## How it is built
 

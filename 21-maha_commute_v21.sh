@@ -5,11 +5,11 @@
 # hand: it is assembled from src/ and every hand edit is lost on
 # the next build. The sources are the ones to change.
 #
-# built            2026-10-07 05:36 UTC
+# built            2026-10-08 13:31 UTC
 # payloads, as carried, key stripped:
-#   day    v18    191804 bytes  sha256 2de9a6a6e564e199
-#   night  v14    150000 bytes  sha256 711b1e3f68d58643
-#   all    v44    213820 bytes  sha256 9731cf1f0ef12320
+#   day    v17    190668 bytes  sha256 a26d0fc5eacdbcee
+#   night  v13    148860 bytes  sha256 f7f62b158e4ef4ea
+#   all    v44    354849 bytes  sha256 a8943b8d278b958f
 #
 # The Google Maps key that was inside two of these payloads has
 # been taken out and replaced with a placeholder. The installer
@@ -60,8 +60,8 @@ STAMPDIR="$APPHOME/installed"
 # cannot keep: at twenty one characters "the four night trams" loses its
 # last letter and "every station around you" loses three. So the layout is
 # not narrowed and the words are not cut. A shorter sentence is written.
-MAHA_APPS="day|day.commute|.commute|v18|8082|the daytime ride|/.commute/commute_server.py|the daytime ride
-night|night.commute|.nightcommute|v14|8087|the four night trams|night_server.py|four night trams
+MAHA_APPS="day|day.commute|.commute|v17|8082|the daytime ride|/.commute/commute_server.py|the daytime ride
+night|night.commute|.nightcommute|v13|8087|the four night trams|night_server.py|four night trams
 all|all.commute|.all.commute|v44|8084|every station around you|all_commute_server.py|stations around you"
 
 MODE=""
@@ -251,7 +251,7 @@ maha_emit_payload() {
 #   bash 13-install-day-commute-termux-v13.sh --offline  skip the python check
 
 set -e
-COMMUTE_VERSION="v18"
+COMMUTE_VERSION="v17"
 BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 APPDIR="$HOME/.commute"
 
@@ -437,7 +437,7 @@ import http.server
 # Version constants for the /version endpoint. These live in Python because the
 # server file is written via a quoted heredoc, so the shell COMMUTE_VERSION is
 # NOT expanded in here; referencing it raised NameError. Keep in sync manually.
-APP_VERSION = "v18"
+APP_VERSION = "v17"
 APP_BUILD = "b41"
 import socket
 import socketserver
@@ -1640,44 +1640,7 @@ def bus_json_fresh_for(ymd):
     except Exception:
         return False
 
-
-def _maha_gtfs():
-    """MAHA COMMUTE v21: the one GTFS the family shares, if the umbrella is here."""
-    try:
-        import importlib.util
-        p = os.path.join(os.path.expanduser("~"), ".maha.commute", "gtfs", "gtfs.py")
-        if not os.path.isfile(p):
-            return None
-        spec = importlib.util.spec_from_file_location("maha_gtfs", p)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    except Exception:
-        return None
-
-
-def _maha_drop_own(paths):
-    """The shared copy is the copy: an app's own old zip is only disk."""
-    for p in paths:
-        try:
-            if os.path.isfile(p):
-                os.remove(p)
-        except OSError:
-            pass
-
 def get_gtfs(force=False):
-    g = _maha_gtfs()
-    if g is not None:
-        try:
-            data, changed = g.fetch(force=force, who="day", log=log)
-            _maha_drop_own([CACHE_ZIP, META_PATH])
-            return data, changed
-        except Exception as e:
-            log("  the shared GTFS did not answer (%r), fetching our own" % (e,))
-    return _own_get_gtfs(force)
-
-
-def _own_get_gtfs(force=False):
     """Return (zip_bytes, changed). Asks the ZET server whether the zip
     changed (ETag / Last-Modified); on 304 or an identical hash it reuses
     the local copy instead of downloading the whole file again."""
@@ -4186,9 +4149,9 @@ function openSetup() {
       : "on this phone only (no Wi-Fi address)"; }).catch(() => {});
   fetch("version", { cache: "no-store" }).then(r => r.json())
     .then(v => { const el = document.getElementById("verLine");
-      if (el) el.textContent = (v.version || "v18") + " (a) · " + (v.build || ""); })
+      if (el) el.textContent = (v.version || "v17") + " (a) · " + (v.build || ""); })
     .catch(() => { const el = document.getElementById("verLine");
-      if (el) el.textContent = "v18 (a)"; });
+      if (el) el.textContent = "v17 (a)"; });
   renderZetStatic();
   syncAutoDirButtons();
   syncMapStyleButtons();
@@ -4559,7 +4522,7 @@ MAHA_PAY_day_7c1a
 #   bash night.commute.v9.sh            Enter = offline install
 #   bash night.commute.v9.sh --offline  skip the python check
 set -e
-NIGHT_VERSION="v14 (a)"
+NIGHT_VERSION="v13 (a)"
 BIN="${PREFIX:-/data/data/com.termux/files/usr}/bin"
 APPDIR="$HOME/.nightcommute"
 
@@ -4692,8 +4655,8 @@ import os, json, time, base64, hashlib, threading, socket, urllib.parse, urllib.
 import urllib.error, io, csv, zipfile, collections, datetime
 import http.server, socketserver, logging
 
-APP_VERSION = "v14"
-APP_BUILD = "n14-a"
+APP_VERSION = "v13"
+APP_BUILD = "n13-a"
 APPDIR = os.environ.get("NIGHTCOMMUTE_DIR", os.path.expanduser("~/.nightcommute"))
 START_PORT = int(os.environ.get("NIGHTCOMMUTE_PORT", "8087"))
 PORTFILE = os.path.join(APPDIR, "port")
@@ -4826,44 +4789,7 @@ def build_night_from_zip(zip_bytes, now=None):
             "built": int(time.time()), "service": sorted(service)}
     return net, coords_out, sched, meta
 
-
-def _maha_gtfs():
-    """MAHA COMMUTE v21: the one GTFS the family shares, if the umbrella is here."""
-    try:
-        import importlib.util
-        p = os.path.join(os.path.expanduser("~"), ".maha.commute", "gtfs", "gtfs.py")
-        if not os.path.isfile(p):
-            return None
-        spec = importlib.util.spec_from_file_location("maha_gtfs", p)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    except Exception:
-        return None
-
-
-def _maha_drop_own(paths):
-    """The shared copy is the copy: an app's own old zip is only disk."""
-    for p in paths:
-        try:
-            if os.path.isfile(p):
-                os.remove(p)
-        except OSError:
-            pass
-
 def _get_gtfs(force=False):
-    g = _maha_gtfs()
-    if g is not None:
-        try:
-            data, changed = g.fetch(force=force, who="night", log=_log)
-            _maha_drop_own([CACHE_ZIP, GTFS_META])
-            return data, changed
-        except Exception as e:
-            _log("  the shared GTFS did not answer (%r), fetching our own" % (e,))
-    return _own_get_gtfs(force)
-
-
-def _own_get_gtfs(force=False):
     meta = {}
     try: meta = json.load(open(GTFS_META, encoding="utf-8"))
     except Exception: meta = {}
@@ -6926,8 +6852,8 @@ function openSetup(){ refreshDots(); renderPdfMgr(); renderViewGrid(); renderNig
     if (el) el.textContent = (d && d.ip) ? "on Wi-Fi:  http://" + d.ip + ":" + (location.port || "8087") + "/night.html"
       : "on this phone only (no Wi-Fi address)"; }).catch(() => {});
   fetch("version",{cache:"no-store"}).then(r=>r.json())
-    .then(v=>{ document.getElementById("verLine").textContent=(v.version||"v14")+" (a) · "+(v.build||""); })
-    .catch(()=>{ document.getElementById("verLine").textContent="v14 (a)"; });
+    .then(v=>{ document.getElementById("verLine").textContent=(v.version||"v13")+" (a) · "+(v.build||""); })
+    .catch(()=>{ document.getElementById("verLine").textContent="v13 (a)"; });
   document.getElementById("setupmodal").classList.add("show"); }
 function closeSetup(){ document.getElementById("setupmodal").classList.remove("show"); }
 
@@ -7636,7 +7562,7 @@ sed -i 's/\r$//' "$BIN/night.commute" 2>/dev/null || true
 chmod +x "$BIN/night.commute"
 done_
 
-printf "\n  ${OK}installed  night.commute v14 (a)${OFF}\n"
+printf "\n  ${OK}installed  night.commute v13 (a)${OFF}\n"
 printf "  type ${KEY}night.commute${OFF} to start it, or ${KEY}commute${OFF} for the family menu\n"
 printf "  ${DIM}four night trams, 23:50–04:40, served locally${OFF}\n"
 printf "  ${WARN}if the app looks unchanged: close the old browser tab and open the${OFF}\n"
@@ -8335,6 +8261,34 @@ def fetch_rt():
 BUILD_STATE = {"state": "idle", "reason": ""}
 
 
+STATIONS_PATH = os.path.join(APPDIR, "stations.json")
+_stations_mem = {"mtime": None, "rows": []}
+
+
+def station_rows():
+    """Every station there has ever been, from stations.json. [] if none."""
+    try:
+        mt = os.path.getmtime(STATIONS_PATH)
+    except OSError:
+        return []
+    if _stations_mem["mtime"] != mt:
+        try:
+            with open(STATIONS_PATH, encoding="utf-8") as f:
+                st = json.load(f).get("stops", {})
+            _stations_mem["rows"] = [
+                {"stop_id": k, "name": v[0], "lat": v[1], "lon": v[2], "bearing": v[3]}
+                for k, v in st.items()]
+            _stations_mem["mtime"] = mt
+        except Exception:
+            return _stations_mem["rows"]
+    return _stations_mem["rows"]
+
+
+def stations_ready():
+    """Stations are there if the file has them or the index does."""
+    return bool(station_rows()) or index_ready()
+
+
 def index_ready():
     """sqlite3.connect happily creates an empty file, so the file existing
     proves nothing. Ask the tables instead."""
@@ -8386,12 +8340,15 @@ def hav(a_lat, a_lon, b_lat, b_lon):
 def stops_near_radius(lat, lon, radius_m, limit=60):
     dlat = radius_m / 111320.0
     dlon = radius_m / (111320.0 * max(math.cos(lat * math.pi / 180), 0.2))
-    con = db()
-    rows = con.execute(
-        "select stop_id, name, lat, lon, bearing from stops"
-        " where lat between ? and ? and lon between ? and ?",
-        (lat - dlat, lat + dlat, lon - dlon, lon + dlon)).fetchall()
-    con.close()
+    rows = [r for r in station_rows()
+            if lat - dlat <= r["lat"] <= lat + dlat and lon - dlon <= r["lon"] <= lon + dlon]
+    if not rows and index_ready():
+        con = db()
+        rows = con.execute(
+            "select stop_id, name, lat, lon, bearing from stops"
+            " where lat between ? and ? and lon between ? and ?",
+            (lat - dlat, lat + dlat, lon - dlon, lon + dlon)).fetchall()
+        con.close()
     out = []
     for r in rows:
         d = hav(lat, lon, r["lat"], r["lon"])
@@ -9254,7 +9211,8 @@ def trip_detail(trip_id):
 
 def index_status():
     out = {"ok": index_ready(), "state": BUILD_STATE["state"],
-           "state_reason": BUILD_STATE["reason"]}
+           "state_reason": BUILD_STATE["reason"],
+           "stations": bool(station_rows())}
     if out["ok"]:
         try:
             con = db()
@@ -9520,7 +9478,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 lon = float(q.get("lon", ["0"])[0])
                 r = min(float(q.get("r", ["350"])[0]), 8000.0)
                 widen = q.get("widen", ["1"])[0] != "0"
-                if not index_ready():
+                if not stations_ready():
                     return self._json({"ok": False, "reason": not_ready()})
                 found, used = stops_near(lat, lon, r, want_min=(6 if widen else 0))
                 return self._json({"ok": True, "radius": used,
@@ -9568,16 +9526,21 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                    "vehicles": veh})
             if route == "/find-stops":
                 term = (q.get("q", [""])[0] or "").strip()
-                if not index_ready():
+                if not stations_ready():
                     return self._json({"ok": False, "reason": not_ready(), "stops": []})
                 if len(term) < 2:
                     return self._json({"ok": True, "stops": []})
-                con = db()
-                rows = con.execute(
-                    "select stop_id, name, lat, lon, bearing from stops"
-                    " where name like ? or stop_id like ? order by name limit 80",
-                    ("%" + term + "%", term + "%")).fetchall()
-                con.close()
+                tl = term.lower()
+                rows = sorted((r for r in station_rows()
+                               if tl in (r["name"] or "").lower() or r["stop_id"].startswith(term)),
+                              key=lambda r: r["name"] or "")[:80]
+                if not rows and index_ready():
+                    con = db()
+                    rows = con.execute(
+                        "select stop_id, name, lat, lon, bearing from stops"
+                        " where name like ? or stop_id like ? order by name limit 80",
+                        ("%" + term + "%", term + "%")).fetchall()
+                    con.close()
                 have = "lat" in q and "lon" in q
                 la = float(q.get("lat", ["0"])[0]); lo = float(q.get("lon", ["0"])[0])
                 out = []
@@ -9978,6 +9941,15 @@ if __name__ == "__main__":
 ALLC_SERVER_PY
 done_
 
+step "putting every station on the phone"
+if [ ! -s "$APPDIR/stations.json" ]; then
+  cat > "$APPDIR/stations.json.tmp" << 'ALLC_STATIONS_SEED'
+{"updated":0,"count":2523,"stops":{"1000_23":["Markuševečka Trnava",45.8806,16.032953,10.3],"1000_24":["Markuševečka Trnava",45.880525,16.032939,176.6],"1001_23":["Markušev. Popovec 62",45.888484,16.035014,339.2],"1001_24":["Markušev. Popovec 62",45.888748,16.034968,189.7],"1002_23":["Budeki-kapelica",45.891371,16.033438,353.5],"1002_24":["Budeki-kapelica",45.891309,16.033378,156.6],"1003_23":["Vidovec-trgovina",45.896288,16.032632,28.9],"1003_24":["Vidovec-trgovina",45.896274,16.03264,174.1],"1004_23":["Vidovec - škola",45.89847,16.034366,null],"1004_24":["Vidovec - škola",45.898476,16.034182,206.0],"1005_23":["Oporovec",45.852066,16.055635,356.4],"1005_24":["Oporovec",45.851976,16.055534,185.3],"1006_23":["Sunekova 172",45.856055,16.055272,15.3],"1006_24":["Sunekova 172",45.855375,16.055444,178.9],"1007_23":["Čugovec",45.858208,16.056118,354.0],"1007_24":["Čugovec",45.858087,16.056047,188.8],"1008_23":["Gumerec",45.862874,16.055409,5.6],"1008_24":["Gumerec",45.862975,16.055411,174.8],"1009_23":["Ivanovićeva ulica",45.867588,16.056071,3.1],"1009_24":["Ivanovićeva ulica",45.867515,16.055982,185.0],"100_1":["Sveti Duh",45.813211,15.943075,102.1],"100_2":["Sveti Duh",45.813639,15.941471,288.5],"1010_23":["Mihovci",45.875437,16.056325,9.6],"1010_24":["Mihovci",45.875222,16.056303,179.1],"1011_23":["Goliš",45.879928,16.057418,350.1],"1011_24":["Goliš",45.879889,16.057409,189.4],"1012_23":["Trstenik",45.88528,16.056072,31.9],"1012_24":["Trstenik",45.88526,16.056077,170.2],"1013_23":["Lepušići",45.887191,16.05778,24.6],"1013_24":["Lepušići",45.887473,16.058019,211.4],"1014_23":["Kameščica",45.890593,16.060018,359.4],"1014_24":["Kameščica",45.890683,16.059967,202.9],"1015_21":["Čučerje-crkva",45.893941,16.060215,null],"1015_23":["Čučerje-crkva",45.894756,16.059903,0.0],"1015_24":["Čučerje-crkva",45.89476,16.059785,178.2],"1015_25":["Čučerje-crkva",45.893941,16.060215,183.0],"1016_23":["Markovići",45.898132,16.059907,31.8],"1016_24":["Markovići",45.898595,16.060475,187.1],"1017_23":["Sruki",45.901887,16.063248,333.4],"1017_24":["Sruki",45.901248,16.063174,215.3],"1018_23":["Čučerje",45.905045,16.060971,null],"1018_24":["Čučerje",45.905031,16.060976,158.0],"1019_21":["Ljubijska",45.833388,16.040749,45.9],"1019_22":["Ljubijska",45.832265,16.04046,154.0],"101_1":["Mandaličina",45.812427,15.948326,89.3],"101_2":["Mandaličina",45.812493,15.94886,282.5],"1020_21":["Zdenačka",45.835401,16.043726,45.4],"1020_22":["Zdenačka",45.834808,16.042664,211.1],"1021_21":["Blaža Jurišića",45.840522,16.053077,99.3],"1021_22":["Blaža Jurišića",45.84013,16.051659,234.3],"1023_23":["Studentski grad",45.838208,16.06172,306.6],"1023_24":["Studentski grad",45.838067,16.06146,222.6],"1024_23":["Klin",45.829649,16.063165,3.0],"1025_22":["Klin-Koledinečka",45.831974,16.063339,271.0],"1025_23":["Klin-Koledinečka",45.832342,16.064236,40.7],"1025_24":["Klin-Koledinečka",45.831382,16.063598,187.6],"1026_21":["Koledinečka",45.83198,16.057498,87.8],"1026_22":["Koledinečka",45.832045,16.057226,298.1],"1027_21":["Bistrička-Zagrebačka",45.827498,16.10777,112.0],"1027_22":["Bistrička-Zagrebačka",45.827811,16.105547,254.6],"1027_23":["Bistrička-Zagrebačka",45.828283,16.106724,8.8],"1027_42":["Bistrička-Zagrebačka",45.827488,16.107775,57.6],"1027_52":["Bistrička-Zagrebačka",45.827493,16.107855,57.4],"1027_62":["Bistrička-Zagrebačka",45.827493,16.107855,57.4],"1028_21":["Trg Lovre Matačića",45.832538,16.108188,87.8],"1029_21":["Trakoščanska-Selčina",45.83262,16.111278,123.2],"102_1":["Slovenska",45.812458,15.951965,79.1],"102_2":["Slovenska",45.812472,15.952514,270.5],"1030_21":["Ruščenica",45.847613,16.058433,71.2],"1030_22":["Ruščenica",45.847395,16.057626,216.1],"1031_21":["Varoška",45.848948,16.064073,110.3],"1031_22":["Varoška",45.848966,16.063297,248.3],"1032_23":["Branovečka",45.849199,16.072884,7.2],"1032_24":["Branovečka",45.848743,16.072625,258.8],"1033_23":["Branovec",45.857188,16.074324,1.5],"1033_24":["Branovec",45.857102,16.074287,187.9],"1034_23":["Prevende",45.862816,16.074533,18.3],"1034_24":["Prevende",45.862936,16.074578,182.0],"1035_23":["Mudifaji",45.871054,16.078453,354.2],"1035_24":["Mudifaji",45.870695,16.077601,191.8],"1036_23":["Furdini",45.874274,16.077986,340.0],"1036_24":["Furdini",45.874111,16.078007,184.7],"1037_21":["Jalševec",45.880457,16.074749,160.3],"1037_22":["Jalševec",45.880457,16.074749,null],"1038_21":["Koledinečka-škola",45.831929,16.061458,110.1],"1038_25":["Koledinečka-škola",45.83192,16.061444,null],"1039_23":["Ulica Breza",45.825102,16.063717,350.4],"1039_24":["Ulica Breza",45.825183,16.063652,167.0],"103_1":["Trg dr. F. Tuđmana",45.813111,15.956823,120.6],"103_2":["Trg dr. F. Tuđmana",45.813169,15.957786,247.0],"103_3":["Trg dr. F. Tuđmana",45.812808,15.957457,249.9],"1040_21":["Ulica Platana",45.822955,16.064855,84.6],"1040_23":["Ulica Platana",45.823324,16.064093,351.6],"1040_24":["Ulica Platana",45.822218,16.064067,174.5],"1041_22":["Resnički gaj",45.809811,16.063818,316.7],"1041_23":["Resnički gaj",45.80972,16.06544,4.5],"1041_24":["Resnički gaj",45.809094,16.06426,119.5],"1043_23":["Kvaternikov trg",45.813396,15.998643,null],"1043_24":["Kvaternikov trg",45.812988,15.998963,137.4],"1043_25":["Kvaternikov trg",45.813797,15.99828,323.7],"1043_34":["Kvaternikov trg",45.812745,15.999159,142.5],"1043_43":["Kvaternikov trg",45.814248,15.997761,null],"1043_44":["Kvaternikov trg",45.81256,15.999288,142.2],"1043_53":["Kvaternikov trg",45.813959,15.997705,null],"1043_54":["Kvaternikov trg",45.813132,15.998772,142.7],"1043_64":["Kvaternikov trg",45.814248,15.997761,345.3],"1043_74":["Kvaternikov trg",45.813959,15.997705,354.3],"1044_21":["Veterinarski f.",45.806986,16.006877,61.7],"1044_23":["Veterinarski f.",45.807312,16.005685,321.1],"1044_24":["Veterinarski f.",45.806575,16.005949,141.6],"1045_21":["Livadarski put",45.808261,16.010269,67.0],"1045_22":["Livadarski put",45.808289,16.010381,253.4],"1046_21":["Trg Volovčica",45.810269,16.017063,85.6],"1046_22":["Trg Volovčica",45.810086,16.016884,248.4],"1047_21":["Turopoljska",45.810526,16.021857,130.0],"1047_22":["Turopoljska",45.810202,16.022122,268.2],"1048_21":["Kolareva",45.808549,16.025234,111.1],"1048_22":["Kolareva",45.808453,16.025628,305.6],"1049_21":["Getaldićeva",45.807365,16.029627,110.1],"1049_22":["Getaldićeva",45.807126,16.030674,269.5],"104_22":["Britanski trg",45.814285,15.964053,357.9],"104_23":["Britanski trg",45.81378,15.964362,40.8],"104_24":["Britanski trg",45.813808,15.964171,326.8],"104_28":["Britanski trg",45.813944,15.964018,null],"1050_21":["Borongajska Kampus",45.805927,16.035253,67.9],"1050_22":["Borongajska Kampus",45.806013,16.034933,290.6],"1050_23":["Borongajska Kampus",45.806431,16.035843,42.2],"1052_21":["Vukomerec-okretište",45.806419,16.046315,77.8],"1052_22":["Vukomerec-okretište",45.806623,16.046197,284.0],"1053_21":["Sobolski put",45.806948,16.049834,29.8],"1053_22":["Sobolski put",45.806999,16.049843,244.3],"1054_21":["Vukomerečka 40",45.810299,16.052587,30.3],"1054_22":["Vukomerečka 40",45.810086,16.052503,211.0],"1055_21":["Resnički put",45.813602,16.055354,80.3],"1055_22":["Resnički put",45.812702,16.054864,212.2],"1056_21":["Trnava",45.814096,16.059615,null],"1056_22":["Trnava",45.814234,16.060308,235.0],"1058_24":["Heinzelova - MUP",45.798586,16.014951,125.6],"1059_21":["Žitnjak - okretište",45.801473,16.061805,82.4],"1059_22":["Žitnjak - okretište",45.800938,16.060027,260.0],"1059_26":["Žitnjak - okretište",45.800985,16.060048,258.8],"105_1":["Frankopanska",45.813254,15.969401,94.1],"105_2":["Frankopanska",45.813303,15.968628,251.9],"105_3":["Frankopanska",45.812499,15.969598,86.2],"105_4":["Frankopanska",45.812487,15.969483,191.2],"1060_21":["DIOKI",45.802035,16.067869,88.6],"1060_22":["DIOKI",45.801914,16.067676,260.1],"1061_21":["Servisna - INA",45.802157,16.075216,77.4],"1061_22":["Servisna - INA",45.802038,16.074966,268.6],"1062_21":["Resnik I,kbr.47",45.803071,16.081073,100.0],"1062_22":["Resnik I,kbr.47",45.803116,16.080671,263.4],"1063_21":["Resnik I - crkva",45.802172,16.088386,57.8],"1063_22":["Resnik I - crkva",45.802374,16.087876,278.4],"1064_21":["Resnik 104",45.801063,16.09308,83.6],"1064_22":["Resnik 104",45.801053,16.095515,283.9],"1065_21":["Ivanjorečka-pošta",45.799861,16.113774,113.9],"1065_22":["Ivanjorečka-pošta",45.799905,16.113593,280.5],"1066_22":["Ivanja Reka-okret.",45.797816,16.118967,314.1],"1066_23":["Ivanja Reka-okret.",45.799217,16.1185,4.6],"1066_24":["Ivanja Reka-okret.",45.797237,16.119858,158.4],"1066_26":["Ivanja Reka-okret.",45.797816,16.118967,null],"1067_21":["Sv. Ivana-D.Grubera",45.801707,16.118785,null],"1067_23":["Sv. Ivana-D.Grubera",45.801465,16.118664,7.4],"1067_24":["Sv. Ivana-D.Grubera",45.801825,16.118627,173.9],"1067_25":["Sv. Ivana-D.Grubera",45.801707,16.118785,178.1],"1068_23":["Pokupska",45.792933,16.026335,305.8],"1068_24":["Pokupska",45.792067,16.027263,125.5],"106_1":["Trg bana J. Jelačića",45.812858,15.977265,110.2],"106_2":["Trg bana J. Jelačića",45.813069,15.976531,267.2],"1070_23":["Kanalski put",45.791239,16.029776,305.2],"1070_24":["Kanalski put",45.790221,16.030972,125.9],"1071_24":["Radnička 218",45.786324,16.038701,125.2],"1072_23":["Črnkovečka",45.785672,16.040973,305.7],"1072_24":["Črnkovečka",45.784292,16.042836,125.2],"1073_23":["Žitnjačka",45.782834,16.046617,305.8],"1073_24":["Žitnjačka",45.781843,16.047818,126.1],"1074_23":["Radnička - INA",45.779262,16.053659,306.0],"1074_24":["Radnička - INA",45.778274,16.054843,126.2],"1075_23":["Petruševec",45.776479,16.059323,305.2],"1075_24":["Petruševec",45.776343,16.058632,129.3],"1076_21":["Žitnjak-ambulanta",45.781706,16.061702,27.9],"1076_22":["Žitnjak-ambulanta",45.781732,16.061639,197.1],"1077_21":["Struge III.",45.786335,16.065218,44.6],"1077_22":["Struge III.",45.786868,16.065901,210.1],"1078_21":["Struge",45.790915,16.071703,null],"1078_22":["Struge",45.790915,16.071703,225.0],"1079_21":["Petruševec I odv. V",45.774685,16.05722,39.3],"1079_22":["Petruševec I odv. V",45.774636,16.056965,238.6],"107_3":["Zrinjevac",45.809168,15.977826,347.0],"107_4":["Zrinjevac",45.809508,15.977652,165.2],"1080_21":["Trafostanica",45.77314,16.053678,58.0],"1080_22":["Trafostanica",45.773122,16.053407,268.1],"1081_21":["Petruševečko naselje",45.773016,16.048717,87.9],"1081_22":["Petruševečko naselje",45.773016,16.048717,null],"1082_21":["Lastovska-škola",45.79325,15.994665,159.6],"1082_22":["Lastovska-škola",45.793821,15.994749,293.1],"1083_21":["Sportski centar",45.79009,16.000158,97.0],"1083_22":["Sportski centar",45.79018,15.999667,278.3],"1084_21":["Lastovska",45.789842,16.003073,167.7],"1084_22":["Lastovska",45.790425,16.002792,263.6],"1085_22":["Bundek",45.783504,15.978265,268.0],"1085_23":["Bundek",45.784166,15.980081,358.8],"1085_24":["Bundek",45.782882,15.97974,174.8],"1086_21":["Sloboština",45.764197,15.987907,73.6],"1086_22":["Sloboština",45.764304,15.987695,null],"1087_23":["Bolšićeva",45.764861,15.991141,0.4],"1087_24":["Bolšićeva",45.763521,15.990608,186.2],"1088_24":["Hribarov prilaz",45.7653,15.993417,177.8],"1089_21":["Abramovićeva",45.76243,15.993577,95.1],"1089_22":["Abramovićeva",45.763189,15.993005,322.1],"1090_21":["Hrelićka",45.762125,15.998448,41.7],"1090_22":["Hrelićka",45.762166,15.99717,289.4],"1091_24":["Božidara Magovca",45.772225,15.993924,159.8],"1092_21":["Dječji vrtić",45.769243,15.995497,88.1],"1093_23":["Božidara Magovca 111",45.769374,16.001107,360.0],"1094_22":["Ukrajinska",45.773007,16.001113,271.5],"1095_21":["Fancevljev prilaz",45.77307,15.997547,265.9],"1095_22":["Fancevljev prilaz",45.77307,15.997547,272.4],"1098_21":["Dankovečka",45.829622,16.056709,108.7],"1098_23":["Dankovečka",45.830648,16.056034,14.1],"1098_24":["Dankovečka",45.829928,16.055799,247.9],"1099_21":["Trnovčica 117",45.836017,16.068771,77.9],"1099_22":["Trnovčica 117",45.836206,16.068583,220.8],"109_1":["Glavni kolodvor",45.805213,15.979278,85.8],"109_2":["Glavni kolodvor",45.805235,15.97846,305.6],"1100_21":["Josipa Stadlera",45.836645,16.072972,118.8],"1100_22":["Josipa Stadlera",45.836753,16.072898,259.7],"1101_21":["Dubečka 89",45.834525,16.078512,108.5],"1102_23":["Rosandićeva",45.833186,16.083061,295.2],"1102_24":["Rosandićeva",45.833531,16.082766,192.1],"1103_23":["Ivankovićeva",45.829669,16.081709,15.0],"1103_24":["Ivankovićeva",45.829524,16.081537,240.5],"1104_23":["Brestovečka-d. dom",45.833451,16.093151,326.0],"1104_24":["Brestovečka-d. dom",45.832897,16.093537,141.8],"1105_23":["Novoselec",45.852398,16.082165,339.0],"1105_24":["Novoselec",45.85218,16.082231,null],"1105_26":["Novoselec",45.852181,16.082228,171.5],"1106_23":["Resnik silos",45.805602,16.072548,309.7],"1106_24":["Resnik silos",45.806006,16.072074,115.1],"1107_23":["Remete 76",45.843214,15.995501,329.7],"1107_24":["Remete 76",45.84343,15.995327,160.0],"1108_23":["Remete 8",45.838954,15.997705,340.2],"1108_24":["Remete 8",45.838898,15.997695,142.7],"1109_23":["Rim",45.835171,16.001786,323.1],"1109_24":["Rim",45.834771,16.002208,148.6],"110_21":["Glavni kolodvor",45.803939,15.978579,null],"110_22":["Glavni kolodvor",45.803745,15.977791,null],"110_26":["Glavni kolodvor",45.803622,15.977789,null],"110_32":["Glavni kolodvor",45.803619,15.977369,169.0],"110_36":["Glavni kolodvor",45.803578,15.977422,169.4],"110_41":["Glavni kolodvor",45.803857,15.979041,184.2],"110_42":["Glavni kolodvor",45.803284,15.977098,165.5],"110_46":["Glavni kolodvor",45.803578,15.977422,169.4],"110_51":["Glavni kolodvor",45.803781,15.979205,185.7],"110_52":["Glavni kolodvor",45.802712,15.977034,170.6],"110_61":["Glavni kolodvor",45.803776,15.979408,187.5],"110_62":["Glavni kolodvor",45.802209,15.977324,163.2],"110_72":["Glavni kolodvor",45.801989,15.977234,160.7],"110_82":["Glavni kolodvor",45.803206,15.977119,165.4],"1110_23":["Barutanski jarak 96",45.832034,16.004677,327.3],"1110_24":["Barutanski jarak 96",45.832022,16.004617,163.0],"1111_23":["Barutanski jarak 48",45.828505,16.006273,342.5],"1111_24":["Barutanski jarak 48",45.828141,16.006319,136.5],"1112_23":["Remete 128",45.846044,15.993123,328.6],"1112_24":["Remete 128",45.846837,15.992544,150.4],"1113_23":["Prilesje",45.823093,16.013452,334.5],"1114_23":["Prilesje - ŠUMA",45.827535,16.013539,338.9],"1114_24":["Prilesje - ŠUMA",45.827362,16.013494,188.5],"1115_23":["Oboj-Jurja Ves",45.829833,16.012264,351.9],"1115_24":["Oboj-Jurja Ves",45.829663,16.012205,158.7],"1116_23":["Oboj 28",45.833995,16.011418,339.4],"1116_24":["Oboj 28",45.833447,16.011656,174.2],"1117_23":["Oboj - Kosa",45.838033,16.009244,340.0],"1117_24":["Oboj - Kosa",45.837694,16.009484,160.4],"1118_23":["Bukovac - VODOVOD",45.841059,16.007667,355.3],"1118_24":["Bukovac - VODOVOD",45.840726,16.007543,156.0],"1119_23":["Bukovac 115",45.843051,16.007434,48.5],"1119_24":["Bukovac 115",45.842903,16.007559,180.3],"111_1":["Branimir centar",45.805442,15.983765,41.6],"111_2":["Branimir centar",45.805568,15.98445,289.0],"1120_21":["Gornji Bukovac",45.8442,16.009299,134.8],"1120_22":["Gornji Bukovac",45.844377,16.009052,215.2],"1121_23":["Gornji Bukovac-Kosa",45.840763,16.01548,308.9],"1121_24":["Gornji Bukovac-Kosa",45.840641,16.014439,109.1],"1122_23":["Melinišće",45.839322,16.01971,323.6],"1122_24":["Melinišće",45.839441,16.019414,97.7],"1123_23":["Bolnica Rebro",45.823093,16.007593,302.9],"1124_23":["Boln. Jordanovac",45.825356,16.002577,294.0],"1125_23":["Škabrnjska",45.834235,16.037995,359.1],"1125_24":["Škabrnjska",45.833765,16.038012,216.5],"1126_23":["Valturska",45.838296,16.037901,7.0],"1126_24":["Valturska",45.83833,16.03785,178.6],"1127_23":["Sjeverna",45.843484,16.038818,351.0],"1127_24":["Sjeverna",45.843534,16.038826,187.4],"1128_23":["Pesteri",45.848002,16.037793,323.5],"1128_24":["Pesteri",45.84804,16.037726,170.3],"1129_23":["Zelenčica",45.850319,16.035331,354.4],"1129_24":["Zelenčica",45.850174,16.035402,142.8],"112_1":["Branim. tržnica",45.80614,15.99198,148.9],"112_2":["Branim. tržnica",45.806132,15.991438,263.4],"1130_23":["Lešće",45.854473,16.034746,344.7],"1130_24":["Lešće",45.854421,16.034707,173.5],"1131_23":["Blizno",45.856972,16.033766,352.8],"1131_24":["Blizno",45.856825,16.033662,163.2],"1132_23":["Dotršćinska",45.86097,16.033037,null],"1132_24":["Dotršćinska",45.860812,16.032955,173.0],"1133_21":["Maksimirska naselja",45.814796,16.027445,74.6],"1133_22":["Maksimirska naselja",45.814626,16.025497,271.9],"1134_21":["Ravnice",45.816004,16.033726,76.4],"1134_22":["Ravnice",45.815774,16.031734,255.2],"1135_21":["I.Štefanov.zavoj",45.817579,16.043049,76.4],"1135_22":["I.Štefanov.zavoj",45.817688,16.042728,268.3],"1136_21":["Štefanov.-Stud.kamp.",45.818645,16.04937,76.5],"1136_22":["Štefanov.-Stud.kamp.",45.818491,16.047498,256.4],"1137_21":["Osječka",45.819741,16.055933,64.1],"1137_22":["Osječka",45.819597,16.053988,256.3],"1138_21":["Aleja javora",45.823208,16.068727,156.0],"1139_21":["Branimirova-A.Javora",45.822292,16.070829,76.5],"1139_22":["Branimirova-A.Javora",45.822179,16.068978,259.3],"113_3":["Autobusni kol.",45.804385,15.993636,327.6],"113_4":["Autobusni kol.",45.803725,15.993918,157.7],"1140_21":["Branim-Čulinečka",45.821625,16.063037,43.6],"1140_22":["Branim-Čulinečka",45.82088,16.062054,257.1],"1140_23":["Branim-Čulinečka",45.82153,16.062958,null],"1140_25":["Branim-Čulinečka",45.82153,16.062958,23.8],"1141_21":["Svetošimunska-trgov.",45.838619,16.02702,301.9],"1141_22":["Svetošimunska-trgov.",45.838738,16.026871,310.5],"1142_21":["Čret-Melinišće",45.840797,16.021244,118.4],"1142_26":["Čret-Melinišće",45.840828,16.021176,118.5],"1143_21":["Čret 27",45.842492,16.020532,163.7],"1143_22":["Čret 27",45.842482,16.020568,314.1],"1144_21":["Jazbina 48",45.844636,16.016962,130.8],"1144_22":["Jazbina 48",45.845862,16.015564,311.6],"1145_21":["VIII. Jazbinski odv.",45.848178,16.011709,134.9],"1145_22":["VIII. Jazbinski odv.",45.848336,16.011566,325.5],"1147_21":["Jazbina 71",45.846614,16.01396,133.4],"1148_23":["Gračanska 10",45.846438,15.976997,344.1],"1148_24":["Gračanska 10",45.845939,15.976852,198.9],"1149_23":["Gračanska 48",45.850991,15.975136,354.0],"1149_24":["Gračanska 48",45.850381,15.975325,166.5],"114_1":["Držićeva",45.801133,15.99643,85.6],"114_2":["Držićeva",45.801033,15.994405,266.0],"114_3":["Držićeva",45.801971,15.994959,339.1],"114_4":["Držićeva",45.80039,15.995899,151.3],"1150_23":["Gračanska 60",45.854339,15.974635,19.0],"1150_24":["Gračanska 60",45.854516,15.974515,172.2],"1151_23":["Zvečaj",45.857754,15.976324,54.8],"1151_24":["Zvečaj",45.857381,15.975314,191.0],"1152_21":["Bliznec",45.862623,15.987693,85.7],"1152_22":["Bliznec",45.862662,15.987882,250.1],"1153_21":["Jelenčica",45.86458,15.992458,52.1],"1153_22":["Jelenčica",45.864637,15.992711,239.6],"1154_21":["Bačun",45.867195,15.997275,52.0],"1154_22":["Bačun",45.866626,15.99676,234.8],"1155_21":["Kamenarski breg",45.868789,16.000209,55.3],"1155_22":["Kamenarski breg",45.86911,16.0005,226.4],"1156_21":["Markuševečka 106",45.871191,16.00519,56.2],"1156_22":["Markuševečka 106",45.871231,16.005437,238.3],"1157_21":["Markuševečka 140",45.87428,16.011829,54.4],"1157_22":["Markuševečka 140",45.873269,16.011064,242.5],"1158_21":["Sportski centar",45.783368,15.971514,82.4],"1158_22":["Sportski centar",45.783319,15.970529,261.9],"1159_21":["Cimermanova",45.783148,15.966839,86.1],"1159_22":["Cimermanova",45.782972,15.967051,218.4],"115_3":["Držićeva-petlja",45.79662,15.998885,332.9],"115_4":["Držićeva-petlja",45.796873,15.998658,152.0],"1160_23":["Remetinec",45.768334,15.945837,336.1],"1161_22":["Lanište",45.774242,15.947725,null],"1161_26":["Lanište",45.774242,15.947725,224.0],"1163_23":["Đurđekovec",45.878044,16.11521,1.3],"1163_24":["Đurđekovec",45.877567,16.115116,189.6],"1164_23":["Reber, Habeki",45.884968,16.115443,25.2],"1164_24":["Reber, Habeki",45.885595,16.115385,181.3],"1164_28":["Reber, Habeki",45.885786,16.115082,179.8],"1165_23":["Brod-Kuntićeva",45.890513,16.114433,349.3],"1165_24":["Brod-Kuntićeva",45.890885,16.114303,173.9],"1166_23":["Poljaki",45.893478,16.113627,344.4],"1166_24":["Poljaki",45.893682,16.113501,168.7],"1167_23":["Prekvršje-škola",45.899144,16.111361,349.3],"1167_24":["Prekvršje-škola",45.898978,16.111451,164.9],"1168_23":["Gor Prekvršje P.i T.",45.903975,16.110055,337.4],"1168_24":["Gor Prekvršje P.i T.",45.903964,16.110011,168.6],"1169_23":["Kašinska Sopnica",45.908617,16.107277,285.3],"1169_24":["Kašinska Sopnica",45.908765,16.106592,153.6],"1170_23":["Kučilovina 16",45.910185,16.099024,278.7],"1170_24":["Kučilovina 16",45.909977,16.100335,105.6],"1171_23":["Kučilovina 38",45.910768,16.093525,340.3],"1171_24":["Kučilovina 38",45.910872,16.093226,100.3],"1172_23":["Planina Donja 19",45.923047,16.087211,0.6],"1172_24":["Planina Donja 19",45.923084,16.087249,161.2],"1173_23":["Planinarska 16",45.927363,16.087281,99.6],"1173_24":["Planinarska 16",45.927278,16.08702,177.8],"1174_23":["Vatrogasni dom",45.926886,16.091346,65.8],"1174_24":["Vatrogasni dom",45.926922,16.091271,276.9],"1175_23":["Planinska 20",45.928218,16.095608,108.7],"1175_24":["Planinska 20",45.928347,16.095455,243.9],"1176_23":["Planina Donja",45.927078,16.100436,null],"1176_24":["Planina Donja",45.927077,16.100399,290.3],"1177_21":["Kralji",45.892748,16.123747,11.4],"1177_22":["Kralji",45.892688,16.123619,218.9],"1178_23":["Cvjetna cesta",45.897247,16.125055,1.7],"1178_24":["Cvjetna cesta",45.897529,16.124893,190.4],"1179_23":["Škola Kašina",45.905918,16.125324,28.1],"1179_24":["Škola Kašina",45.905971,16.125196,182.3],"117_3":["Most mladosti",45.782336,16.001459,16.8],"117_4":["Most mladosti",45.781892,16.001279,175.4],"1180_23":["Kašina - centar",45.910046,16.124507,352.4],"1180_24":["Kašina - centar",45.909884,16.124439,172.3],"1181_23":["Kašina 110",45.91504,16.123551,340.2],"1181_24":["Kašina 110",45.914933,16.123572,173.2],"1182_23":["Kašina 128",45.918633,16.121692,340.8],"1182_24":["Kašina 128",45.918285,16.121726,159.0],"1183_23":["Kašina 179",45.9222,16.119908,334.3],"1183_24":["Kašina 179",45.922024,16.11995,161.7],"1184_22":["Kašina-okretište",45.926902,16.116425,null],"1184_23":["Kašina-okretište",45.927016,16.116712,309.5],"1184_24":["Kašina-okretište",45.926553,16.116961,155.3],"1184_26":["Kašina-okretište",45.926902,16.116425,153.3],"1185_23":["Kamenolom",45.935367,16.10214,285.6],"1185_24":["Kamenolom",45.935332,16.102136,130.4],"1186_23":["Planina Gornja",45.939793,16.079363,null],"1186_24":["Planina Gornja",45.939793,16.079363,105.7],"1187_23":["Otok, Nežićeva",45.764517,15.981005,357.3],"1187_24":["Otok, Nežićeva",45.764992,15.980889,168.0],"1188_21":["Oreškovićeva",45.760505,15.987694,162.8],"1188_22":["Oreškovićeva",45.760614,15.987747,275.9],"1188_23":["Oreškovićeva",45.760659,15.990468,6.4],"1188_24":["Oreškovićeva",45.759346,15.989958,168.2],"1189_23":["Buzin",45.74871,15.991812,349.4],"1189_24":["Buzin",45.747226,15.99358,136.1],"1190_21":["Odra",45.74277,15.999723,134.6],"1190_22":["Odra",45.744302,15.997997,315.6],"1191_21":["Odra-nadvožnjak",45.738317,16.005889,135.3],"1191_22":["Odra-nadvožnjak",45.739834,16.004264,316.8],"1191_23":["Odra-nadvožnjak",45.739405,16.005945,219.5],"1192_21":["Hrašće Turopolj.",45.734881,16.010725,116.0],"1192_22":["Hrašće Turopolj.",45.735393,16.010487,315.6],"1193_22":["Veliko Polje",45.733574,16.01465,302.0],"1193_23":["Veliko Polje",45.733849,16.016194,355.5],"1194_21":["Velika Mlaka",45.72907,16.028747,114.8],"1194_22":["Velika Mlaka",45.729973,16.026048,294.4],"1194_23":["Velika Mlaka",45.729955,16.026075,326.9],"1194_24":["Velika Mlaka",45.728666,16.026763,209.4],"1195_21":["Ulica Rudolfa Fizira",45.722141,16.050205,126.9],"1195_22":["Ulica Rudolfa Fizira",45.722541,16.049619,294.3],"1195_23":["Ulica Rudolfa Fizira",45.722872,16.051863,30.9],"1196_21":["Zagrebačka",45.720025,16.05424,143.3],"1197_21":["Goričanka",45.716974,16.05732,127.1],"1198_21":["Kolodvorska",45.714748,16.06153,115.7],"1199_21":["Galženica",45.712748,16.067483,93.9],"1200_21":["Velika Gorica",45.712301,16.077603,null],"1200_22":["Velika Gorica",45.712301,16.077603,null],"1200_23":["Velika Gorica",45.712301,16.077603,306.6],"1200_25":["Velika Gorica",45.711452,16.076934,315.5],"1200_43":["Velika Gorica",45.71156,16.077368,312.8],"1200_44":["Velika Gorica",45.71156,16.077368,null],"1200_54":["Velika Gorica",45.711472,16.077579,null],"1200_73":["Velika Gorica",45.711462,16.077511,312.9],"1200_74":["Velika Gorica",45.711464,16.077502,null],"1201_22":["Zagrebačka 42",45.715912,16.070648,294.5],"1202_22":["HBZ-Centar-škola",45.717595,16.065463,294.3],"1203_22":["VG - groblje",45.719064,16.060796,293.8],"1204_22":["Podbrežnica",45.721144,16.054048,303.5],"1205_21":["Vladimira Nazora",45.824619,16.117897,97.7],"1205_22":["Vladimira Nazora",45.825079,16.116442,290.2],"1206_21":["Sesvetska Sela",45.823721,16.131891,79.6],"1206_22":["Sesvetska Sela",45.823813,16.129842,272.7],"1207_21":["Kraljevečki Novaki",45.825428,16.145182,104.6],"1207_22":["Kraljevečki Novaki",45.825708,16.143412,258.8],"1208_21":["Kobiljak-trgovina",45.824077,16.152647,112.8],"1208_22":["Kobiljak-trgovina",45.824414,16.151127,283.5],"1209_21":["Kobiljak 96",45.821473,16.161516,121.1],"1210_21":["Sesvetski Kraljevec",45.817729,16.17043,112.1],"1210_22":["Sesvetski Kraljevec",45.818406,16.169162,300.6],"1211_21":["Školska",45.816084,16.176252,106.9],"1211_22":["Školska",45.816511,16.174782,295.8],"1212_21":["Put za Cerje",45.814889,16.181901,108.9],"1212_22":["Put za Cerje",45.815282,16.180171,288.1],"1213_21":["Mladena Halape",45.813833,16.186325,244.7],"1214_21":["Ivana Granđe 6",45.858763,16.158826,141.8],"1214_22":["Ivana Granđe 6",45.858796,16.158856,325.2],"1215_21":["Šašinovec",45.854164,16.164026,169.3],"1215_22":["Šašinovec",45.854268,16.16398,321.8],"1216_21":["Šašinovec-vatr. dom",45.849966,16.165162,200.6],"1216_22":["Šašinovec-vatr. dom",45.849935,16.165297,348.0],"1217_21":["Šijavrh",45.845736,16.162874,145.9],"1217_22":["Šijavrh",45.845953,16.162913,22.6],"1218_21":["Budenec-Stančira",45.839265,16.169153,127.2],"1218_22":["Budenec-Stančira",45.839284,16.169204,326.7],"1219_21":["Budenečka 14",45.836562,16.174255,118.6],"1219_22":["Budenečka 14",45.83659,16.174287,307.3],"1220_21":["Cerje",45.830387,16.189464,48.4],"1220_22":["Cerje",45.830349,16.189688,300.5],"1221_21":["Drenčec",45.837808,16.20146,36.8],"1221_22":["Drenčec",45.837654,16.201131,227.5],"1223_21":["Laktec",45.858211,16.229453,null],"1223_22":["Laktec",45.858176,16.229483,230.5],"1224_22":["Ante Starčevića 45 A",45.824543,16.096974,225.9],"1225_23":["Sopnička - škola",45.821846,16.092985,143.4],"1225_24":["Sopnička - škola",45.821846,16.092985,null],"1226_24":["Sopnička 37",45.819283,16.095715,132.6],"1227_23":["Sopnička-kod 10D",45.817058,16.099184,72.0],"1228_21":["Ranci",45.793099,16.122209,98.6],"1228_22":["Ranci",45.79311,16.122424,332.9],"1229_23":["Dumovec",45.799681,16.150783,50.3],"1229_24":["Dumovec",45.800143,16.151613,232.0],"122_1":["Sheraton",45.808056,15.984272,59.3],"122_3":["Sheraton",45.808222,15.983731,360.0],"122_4":["Sheraton",45.806865,15.983806,226.8],"1230_21":["Sajam Jakuševec",45.772733,16.018408,145.0],"1230_22":["Sajam Jakuševec",45.772733,16.018408,null],"1231_23":["Ulica Badema",45.818723,16.064511,344.9],"1231_24":["Ulica Badema",45.81769,16.064691,164.8],"1232_22":["Zelena tržnica",45.799833,16.052529,257.2],"1233_21":["Građevinska škola",45.771559,15.981728,81.7],"1233_23":["Građevinska škola",45.772456,15.980519,1.0],"1233_24":["Građevinska škola",45.77101,15.980405,180.4],"1234_23":["Slanovečka cesta",45.872236,16.056432,358.7],"1234_24":["Slanovečka cesta",45.871905,16.056375,192.1],"1236_21":["Glavničica",45.849119,16.213603,50.5],"1236_22":["Glavničica",45.848905,16.213333,217.1],"1237_23":["Lukoranska",45.767638,15.956021,325.2],"1237_24":["Lukoranska",45.767433,15.956563,116.3],"1238_23":["Franje Malnara",45.765131,15.963145,296.8],"1238_24":["Franje Malnara",45.764891,15.963945,136.2],"1239_23":["Čavoglavska",45.76226,15.967744,311.8],"1239_24":["Čavoglavska",45.762219,15.967624,136.1],"123_3":["Traumatologija",45.810406,15.983729,356.8],"123_4":["Traumatologija",45.809997,15.983602,177.4],"1240_23":["Mrkšina",45.758441,15.972799,317.3],"1240_24":["Mrkšina",45.758525,15.972712,211.2],"1241_23":["Mrkšina 65-crkva",45.756065,15.970234,37.0],"1241_24":["Mrkšina 65-crkva",45.756394,15.970864,223.7],"1242_23":["Mrkšina 67C",45.754162,15.967878,40.8],"1242_24":["Mrkšina 67C",45.753707,15.967183,300.5],"1243_22":["Čehi-nadvožnjak",45.7493,15.965652,289.5],"1243_23":["Čehi-nadvožnjak",45.749678,15.966,332.3],"1244_23":["Remetinečkih žrtava",45.750771,15.960281,105.3],"1244_24":["Remetinečkih žrtava",45.750684,15.960062,179.3],"1245_23":["Čorova",45.746342,15.960202,0.7],"1245_24":["Čorova",45.746893,15.960133,205.3],"1246_23":["Čehi - društveni dom",45.742645,15.957672,25.5],"1246_24":["Čehi - društveni dom",45.74256,15.9572,157.9],"1247_23":["Lucmanova",45.73995,15.958589,18.6],"1247_24":["Lucmanova",45.739738,15.958931,110.9],"1248_23":["Čehi - Bulićeva",45.736886,15.962938,315.3],"1248_24":["Čehi - Bulićeva",45.736742,15.962942,null],"1248_27":["Čehi - Bulićeva",45.736886,15.962938,315.6],"1248_28":["Čehi - Bulićeva",45.736886,15.962938,109.0],"124_3":["Draškovićeva",45.813353,15.983496,46.7],"124_4":["Draškovićeva",45.812828,15.983432,241.0],"1250_21":["Hrašće-centar",45.730942,16.003693,186.7],"1250_22":["Hrašće-centar",45.730906,16.004252,298.1],"1250_24":["Hrašće-centar",45.73126,16.00412,189.6],"1251_23":["Arbanasova 44",45.726209,16.003078,9.9],"1251_24":["Arbanasova 44",45.725846,16.002811,205.6],"1252_23":["Put za G. Lomnicu",45.716138,15.996166,25.6],"1252_24":["Put za G. Lomnicu",45.716082,15.996127,194.7],"1253_23":["Lomnica, šljunčara",45.720311,16.018298,29.4],"1253_24":["Lomnica, šljunčara",45.719454,16.019327,195.1],"1254_23":["Lomnica, Deverić. 4",45.716724,16.01829,0.1],"1254_24":["Lomnica, Deverić. 4",45.716697,16.018264,204.3],"1255_23":["Lomnica,Stepanska 72",45.714225,16.016533,26.1],"1255_24":["Lomnica,Stepanska 72",45.71416,16.016625,129.1],"1256_21":["Lomnica,Step.6 okret",45.712077,16.0203,43.1],"1256_22":["Lomnica,Step.6 okret",45.712638,16.019768,305.1],"1257_23":["Lomnica-dom zdravlja",45.714029,16.022916,112.8],"1257_24":["Lomnica-dom zdravlja",45.71453,16.023049,230.4],"1258_21":["Lomnica - Odranska 6",45.71242,16.028403,120.2],"1258_22":["Lomnica - Odranska 6",45.712708,16.027781,298.9],"1259_21":["Gradići, K.Tomis. 85",45.709307,16.036056,113.0],"1259_22":["Gradići, K.Tomis. 85",45.709497,16.035488,300.8],"125_3":["Grškovićeva",45.820142,15.97942,7.3],"125_4":["Grškovićeva",45.819783,15.979251,157.3],"1261_23":["Gradići društveni d.",45.704584,16.037808,38.5],"1261_24":["Gradići društveni d.",45.704599,16.03784,187.1],"1262_23":["Gradići novo naselje",45.700767,16.037211,6.2],"1262_24":["Gradići novo naselje",45.700857,16.037174,192.8],"1263_23":["Petrovina 6",45.696458,16.036185,9.4],"1263_24":["Petrovina 6",45.696182,16.035648,220.7],"1264_23":["Petrovina,društ. dom",45.692703,16.03137,41.8],"1264_24":["Petrovina,društ. dom",45.692703,16.03137,null],"1265_23":["Hrašće, mljekara",45.735632,16.007826,330.1],"1265_24":["Hrašće, mljekara",45.735402,16.007616,210.5],"1266_21":["Lukavec-Dolens. d.d.",45.70452,15.989874,175.3],"1266_22":["Lukavec-Dolens. d.d.",45.704846,15.98991,39.5],"1266_23":["Lukavec-Dolens. d.d.",45.704661,15.989248,43.3],"1266_24":["Lukavec-Dolens. d.d.",45.704626,15.989241,203.8],"1267_23":["Peršinovec",45.657483,15.973872,10.9],"1267_24":["Peršinovec",45.657328,15.973715,224.7],"1268_24":["Peršinovec 72",45.652487,15.966873,193.0],"1269_23":["Hudobička 36",45.707578,15.893918,31.6],"1269_24":["Hudobička 36",45.707035,15.893393,175.1],"126_3":["Belostenčeva",45.822331,15.979824,357.4],"126_4":["Belostenčeva",45.822549,15.979861,188.7],"1270_23":["Dubranec, spomenik",45.627107,15.958738,13.7],"1270_24":["Dubranec, spomenik",45.627119,15.95849,181.6],"1271_23":["Dubranec,vikend nas.",45.619875,15.96023,351.8],"1271_24":["Dubranec,vikend nas.",45.620106,15.960255,156.7],"1272_23":["Dubranec, centar",45.611829,15.965428,335.7],"1272_24":["Dubranec, centar",45.61174,15.965412,166.4],"1273_23":["Dubranec,put za Gust",45.606344,15.967375,346.1],"1273_24":["Dubranec,put za Gust",45.60627,15.967305,193.4],"1274_23":["Prvonožina",45.598592,15.96462,14.0],"1274_24":["Prvonožina",45.598509,15.964663,186.8],"1275_23":["Jerebić",45.58755,15.96301,5.8],"1275_24":["Jerebić",45.587405,15.962783,237.3],"1276_23":["Cerovski - škola",45.583161,15.953397,56.9],"1276_24":["Cerovski - škola",45.583093,15.953186,220.8],"1277_23":["Cerovski - selo",45.575368,15.943638,41.2],"1277_24":["Cerovski - selo",45.575327,15.943599,171.4],"1278_23":["Žužić Brdo",45.567115,15.94548,351.1],"1278_24":["Žužić Brdo",45.567085,15.945371,null],"127_3":["Gupčeva zvijezda",45.828057,15.979454,345.3],"127_4":["Gupčeva zvijezda",45.827645,15.979567,177.7],"1286_23":["Vukomerić I",45.620208,15.95057,39.6],"1286_24":["Vukomerić I",45.620151,15.950509,196.9],"1287_23":["Vukomerić, okretište",45.615571,15.94852,17.2],"1287_24":["Vukomerić, okretište",45.615571,15.94852,null],"1288_23":["Sisačka-nadv.-sjever",45.75445,15.960887,322.9],"1288_24":["Sisačka-nadv.-sjever",45.753878,15.962116,151.7],"1289_23":["Gradska-Malomlačka",45.733669,15.976288,181.8],"1289_24":["Gradska-Malomlačka",45.733938,15.976028,287.9],"128_3":["Radić. šetalište",45.831824,15.978034,355.1],"128_4":["Radić. šetalište",45.831967,15.977997,165.8],"1290_23":["Malomlačka-Igrališna",45.72944,15.976912,356.9],"1290_24":["Malomlačka-Igrališna",45.730025,15.976127,136.4],"1291_23":["Malomlačka 30",45.726697,15.980633,316.6],"1291_24":["Malomlačka 30",45.72653,15.980898,46.0],"1291_25":["Malomlačka 30",45.726704,15.980637,316.5],"1292_21":["Odra-Malomlačka",45.729994,15.986005,92.5],"1292_23":["Odra-Malomlačka",45.730036,15.986194,229.3],"1292_24":["Odra-Malomlačka",45.730001,15.986056,150.9],"1293_21":["Odra-Svetog Izidora",45.729773,15.993341,22.7],"1293_22":["Odra-Svetog Izidora",45.729874,15.992315,271.7],"1293_23":["Odra-Svetog Izidora",45.72992,15.992351,271.5],"1293_24":["Odra-Svetog Izidora",45.729816,15.993328,65.1],"1294_23":["Odranska - Đačka",45.731088,15.996933,288.8],"1294_24":["Odranska - Đačka",45.731224,15.997683,93.8],"1295_21":["Lukav.-put za Dubra.",45.702401,15.990123,117.2],"1295_22":["Lukav.-put za Dubra.",45.702425,15.990176,355.6],"1296_21":["Lukav.-Školska-Lužec",45.699903,15.997088,null],"1296_22":["Lukav.-Školska-Lužec",45.700148,15.996599,296.9],"1297_21":["Kolodvorska 48",45.713498,16.06043,98.7],"1297_22":["Kolodvorska 48",45.713866,16.060799,250.0],"131_1":["Gračanske stube",45.84938,15.975135,345.3],"131_2":["Gračanske stube",45.849088,15.975274,180.4],"132_1":["Grač. Mihaljevac",45.85434,15.973266,9.0],"132_2":["Grač. Mihaljevac",45.853578,15.973232,162.4],"1331_23":["Ščitarjevo III",45.773145,16.117163,311.0],"1331_24":["Ščitarjevo III",45.772994,16.117173,184.9],"1333_23":["Kalamiri",45.876284,15.796182,43.1],"1333_24":["Kalamiri",45.876907,15.796755,205.8],"1334_23":["Kupljenska",45.875498,15.79578,19.6],"1334_24":["Kupljenska",45.874089,15.794798,179.8],"1335_23":["Trg dr. Tuđmana",45.86898,15.79423,282.2],"1335_24":["Trg dr. Tuđmana",45.86927,15.794235,194.4],"1337_23":["Gajeva",45.865969,15.793529,9.2],"1337_24":["Gajeva",45.865221,15.79274,212.2],"133_1":["Gračani",45.858365,15.974179,66.0],"133_2":["Gračani",45.858211,15.973936,186.0],"1345_23":["Miroševečka 137",45.867699,16.037313,340.4],"1345_24":["Miroševečka 137",45.867921,16.037168,170.1],"1347_23":["Knežija",45.788807,15.945608,349.6],"1347_24":["Knežija",45.787297,15.946516,110.1],"1348_23":["Blaža Trogiranina",45.791676,15.94485,350.6],"1348_24":["Blaža Trogiranina",45.790753,15.944862,161.5],"134_1":["Gračansko dolje",45.860664,15.981601,null],"134_2":["Gračansko dolje",45.860247,15.980952,247.4],"1350_21":["Zrak. tehnička škola",45.734279,16.069914,57.6],"1350_22":["Zrak. tehnička škola",45.734462,16.070726,257.9],"1351_23":["Oborovo-Brezinska",45.908621,15.879501,62.2],"1351_24":["Oborovo-Brezinska",45.908759,15.879721,228.4],"1355_24":["Ljubijska-Hrv.Prolj.",45.827188,16.043899,241.6],"1355_32":["Ljubijska-Hrv.Prolj.",45.827163,16.043975,334.6],"135_21":["Vrapčanska",45.812739,15.90748,94.8],"135_22":["Vrapčanska",45.813021,15.905129,266.0],"135_23":["Vrapčanska",45.813455,15.906092,359.3],"135_24":["Vrapčanska",45.812627,15.906257,214.2],"135_26":["Vrapčanska",45.8143,15.905975,119.9],"1363_21":["Petrova 116",45.81985,16.003754,69.3],"136_21":["Vrapčanska aleja",45.812436,15.895898,87.2],"136_22":["Vrapčanska aleja",45.812619,15.895237,274.4],"136_26":["Vrapčanska aleja",45.812969,15.898559,84.7],"136_27":["Vrapčanska aleja",45.812578,15.897055,332.7],"136_28":["Vrapčanska aleja",45.812821,15.896984,null],"136_30":["Vrapčanska aleja",45.812587,15.897882,323.2],"136_32":["Vrapčanska aleja",45.812619,15.895237,274.4],"1375_1":["Sveučilišna al.",45.799814,15.971155,85.4],"1375_2":["Sveučilišna al.",45.799789,15.969352,268.6],"1376_24":["Zelengaj 53",45.830901,15.965987,177.0],"1377_24":["Zelengaj,bolnica",45.826266,15.96633,75.9],"137_21":["Dubravica",45.813826,15.870128,94.0],"137_22":["Dubravica",45.814002,15.869509,272.1],"1383_22":["Vikend naselje",45.660765,15.915299,200.9],"1383_23":["Vikend naselje",45.66123,15.915945,46.6],"1384_23":["Čakovica",45.656692,15.913068,23.9],"1384_24":["Čakovica",45.656386,15.912908,203.1],"1385_23":["G.Trpuci,okretište",45.649756,15.909155,21.5],"1385_24":["G.Trpuci,okretište",45.649822,15.90891,null],"1387_23":["Sv. Leopolda Mandića",45.830657,16.041589,347.9],"1387_24":["Sv. Leopolda Mandića",45.829878,16.042134,155.4],"1388_23":["Gornja Kustošija",45.83628,15.920811,318.7],"1388_24":["Gornja Kustošija",45.836978,15.919376,162.0],"1389_21":["Trg Dr. Tuđmana",45.869631,15.794963,93.6],"1389_22":["Trg Dr. Tuđmana",45.869669,15.794819,279.5],"1389_25":["Trg Dr. Tuđmana",45.869669,15.794819,94.0],"138_21":["Podsused",45.815889,15.834987,95.4],"138_22":["Podsused",45.815987,15.835733,341.5],"1390_23":["Štuglenica",45.854119,16.081217,334.9],"1391_24":["Senščak II. odvojak",45.856625,16.079532,204.4],"1392_24":["Senščak I. odvojak",45.854598,16.07821,108.0],"1393_21":["Novoselečki put",45.853937,16.081137,156.6],"1395_23":["Glavna",45.824698,16.131593,6.6],"1396_23":["Letnička",45.830294,16.132518,82.9],"139_24":["Jarek",45.83735,15.824439,161.1],"1400_23":["Trnava I-trgovina",45.8122,16.060585,354.6],"1400_24":["Trnava I-trgovina",45.811702,16.060459,119.7],"1401_21":["Ljudevita Posavskog",45.821106,16.103338,99.4],"1401_23":["Ljudevita Posavskog",45.822041,16.101144,11.4],"1401_24":["Ljudevita Posavskog",45.821965,16.101089,174.1],"1402_21":["Jelkovečka",45.819471,16.117484,127.0],"1402_22":["Jelkovečka",45.819514,16.120101,186.5],"1402_26":["Jelkovečka",45.819521,16.116846,283.0],"1403_21":["Ivice Lovinčića",45.819144,16.12491,105.2],"1403_22":["Ivice Lovinčića",45.818988,16.125885,275.3],"1404_23":["Ferde Kocha",45.818315,16.129803,283.8],"1404_24":["Ferde Kocha",45.818178,16.130006,128.0],"1405_21":["Sel.-Puđak Kate okr.",45.815817,16.134339,308.3],"1406_23":["Nova cesta",45.813554,16.119161,350.7],"1406_24":["Nova cesta",45.814353,16.119257,185.8],"1407_23":["Pirinova",45.810544,16.118488,8.9],"1407_24":["Pirinova",45.810095,16.118637,172.4],"1408_23":["Savska - Metro",45.80481,16.119288,354.4],"1408_24":["Savska - Metro",45.805202,16.11957,191.0],"1409_23":["Đačka - Nova",45.735635,15.996847,51.0],"1409_24":["Đačka - Nova",45.734744,15.996223,190.5],"140_23":["Željeznička stanica",45.845773,15.813986,329.5],"140_24":["Željeznička stanica",45.843761,15.815181,134.8],"1411_23":["Lukavec - Kanal",45.707252,15.992746,15.0],"1411_24":["Lukavec - Kanal",45.707296,15.992815,220.3],"1412_23":["Markuševec",45.658917,15.96496,19.7],"1412_24":["Markuševec",45.658901,15.964248,281.9],"1413_21":["Turopolj.-Markulini",45.659959,15.956443,94.0],"1413_22":["Turopolj.-Markulini",45.659979,15.956957,278.7],"1414_21":["Dragonožec-kapela",45.660921,15.948639,100.0],"1414_22":["Dragonožec-kapela",45.660767,15.949612,294.4],"1416_23":["Dobrodolska",45.854354,16.111641,278.3],"1417_23":["Dobrodol-Šimunč.",45.854682,16.108417,343.9],"1417_24":["Dobrodol-Šimunč.",45.854579,16.108569,108.3],"1418_23":["Grahovec",45.858175,16.106968,321.0],"1418_24":["Grahovec",45.858139,16.106966,162.6],"1419_23":["Šiletići",45.866482,16.097321,348.3],"1419_24":["Šiletići",45.866165,16.097175,139.6],"141_23":["Crkva",45.850447,15.810039,335.6],"141_24":["Crkva",45.850229,15.810043,110.3],"1420_23":["Mudifaji",45.87007,16.096255,338.7],"1420_24":["Mudifaji",45.869925,16.096023,168.0],"1421_23":["Šimunčevec-druš. dom",45.878178,16.09172,null],"1421_24":["Šimunčevec-druš. dom",45.878182,16.091729,160.1],"1422_23":["Žukčićeva 19",45.84932,16.082657,353.6],"1422_24":["Žukčićeva 19",45.84901,16.082906,157.0],"1424_21":["Mije Haleuša",45.80173,16.101581,102.4],"1424_22":["Mije Haleuša",45.801566,16.100767,262.0],"1426_23":["Vugrovečka-Vukasi",45.891721,16.098832,286.7],"1426_24":["Vugrovečka-Vukasi",45.89173,16.098452,106.2],"1428_23":["Veslačka",45.788886,15.955104,74.7],"1428_24":["Veslačka",45.788497,15.954769,207.0],"142_23":["Devčićeva",45.852007,15.809023,325.5],"143_23":["Kodrmanova",45.855114,15.805954,319.3],"143_24":["Kodrmanova",45.854854,15.805822,147.6],"144_21":["Dom zdravlja",45.85771,15.802778,143.4],"144_22":["Dom zdravlja",45.858151,15.802201,326.8],"1464_23":["Sarajev.-Vatikanska",45.769325,16.005381,333.8],"1464_24":["Sarajev.-Vatikanska",45.767603,16.005751,164.8],"1465_22":["Sarajev.-Ukrajinska",45.773268,16.002605,355.2],"1465_24":["Sarajev.-Ukrajinska",45.772531,16.003828,164.8],"1466_23":["Miroševečka 218",45.87859,16.033263,353.9],"1466_24":["Miroševečka 218",45.878918,16.033075,161.3],"1466_28":["Miroševečka 218",45.878918,16.033075,77.0],"147_24":["Kruge",45.794204,15.992696,124.8],"1495_22":["Tomislavov dom",45.897966,15.946613,null],"1495_26":["Tomislavov dom",45.897966,15.946613,240.8],"1501_24":["Zelengaj 65",45.83303,15.965143,164.6],"1502_23":["Tumbri",45.677709,15.867649,30.4],"1502_24":["Tumbri",45.677586,15.86703,317.4],"150_21":["Prisavlje",45.79037,15.996203,95.8],"150_22":["Prisavlje",45.790582,15.995691,348.5],"1518_23":["Međašni klanac",45.834445,15.892167,314.3],"1519_23":["Donji Borčec",45.83683,15.888657,null],"1519_24":["Donji Borčec",45.83683,15.888657,141.3],"1520_21":["Letnička - škola",45.830595,16.135979,null],"1520_25":["Letnička - škola",45.830595,16.135979,106.4],"1521_24":["Leskovec - Primorska",45.829335,16.142141,40.6],"1522_24":["Popovečka -Leskovec",45.828565,16.144915,200.1],"1525_21":["Budenečka 34",45.834699,16.179151,121.0],"1525_22":["Budenečka 34",45.83485,16.17871,299.5],"1526_23":["Treščak",45.841349,15.935961,6.5],"1526_24":["Treščak",45.841428,15.935919,182.4],"1527_23":["Vida Ročića 117",45.882067,16.028602,61.1],"1527_24":["Vida Ročića 117",45.882066,16.028378,249.7],"153_21":["Farkašička",45.783359,16.008951,88.8],"154_23":["Kuševačka",45.783413,16.012571,30.5],"1552_21":["Kampus fakultet",45.81122,16.042063,350.3],"1552_22":["Kampus fakultet",45.81122,16.042063,null],"1553_22":["Kampus - restoran",45.813257,16.041561,212.5],"1554_24":["Getaldićeva-Gospića",45.803408,16.027733,125.2],"1555_23":["Čavićeva-Gospića",45.801525,16.031568,31.3],"1557_23":["Vrhovec 196",45.831004,15.948421,189.5],"1557_24":["Vrhovec 196",45.831178,15.948578,13.8],"1559_23":["Kosirnikova-Jelenov.",45.818716,15.954392,350.7],"1559_24":["Kosirnikova-Jelenov.",45.818823,15.954327,187.5],"155_22":["I. gardijske brigade",45.787668,16.015331,293.7],"155_23":["I. gardijske brigade",45.787391,16.015932,13.2],"1560_23":["Jelenovac 8",45.823831,15.953187,353.5],"1561_23":["Jelenovac-Šercerova",45.829761,15.952569,129.7],"1562_24":["Šercerova 84",45.828147,15.955359,146.4],"1563_21":["Šercerova-Šer.prečac",45.825698,15.957695,136.0],"1564_23":["Šercerova 31",45.825201,15.958384,202.4],"1565_24":["Kosirnikova-SRC Jel",45.821571,15.956238,205.9],"1567_24":["Žensko sedlo",45.895544,15.940398,214.9],"156_23":["Savica I.",45.792629,16.017696,218.4],"156_24":["Savica I.",45.792366,16.017397,197.0],"1571_23":["Radnička 182",45.794708,16.022804,306.9],"1571_24":["Radnička 182",45.794074,16.023307,126.0],"158_21":["Borovje",45.788923,16.011224,271.6],"158_22":["Borovje",45.788923,16.011224,null],"159_24":["Ulica grada Chicaga",45.788981,16.008225,225.9],"160_21":["Miševečka",45.785804,16.004337,127.2],"160_24":["Miševečka",45.787095,16.005433,331.1],"1615_21":["Staro okretište",45.716029,15.822521,303.7],"1615_24":["Staro okretište",45.716785,15.822071,230.5],"1616_21":["Željeznička stanica",45.713794,15.816907,60.3],"1616_22":["Željeznička stanica",45.713772,15.816828,240.1],"1617_24":["Kosirnikova 9",45.817042,15.953991,159.2],"1618_22":["Čileanska-Peruanska",45.818402,15.876893,73.3],"1619_21":["Park 101.Brigade",45.817457,15.875281,null],"1619_23":["Park 101.Brigade",45.817457,15.875281,49.9],"161_21":["Terminal",45.861714,15.800237,13.5],"161_22":["Terminal",45.860994,15.799585,145.9],"161_25":["Terminal",45.861058,15.799751,null],"161_26":["Terminal",45.860895,15.799619,30.3],"161_31":["Terminal",45.861924,15.800223,33.7],"1634_22":["Bol. Jankomir",45.806001,15.875075,110.2],"1634_23":["Bol. Jankomir",45.806001,15.875075,34.1],"1634_24":["Bol. Jankomir",45.806001,15.875075,null],"1639_21":["Samostan",45.870723,15.782208,99.8],"1639_22":["Samostan",45.871089,15.780201,288.1],"163_1":["Šubićeva",45.810534,15.994285,77.7],"163_2":["Šubićeva",45.810259,15.992275,264.9],"163_3":["Šubićeva",45.810915,15.993859,30.6],"163_4":["Šubićeva",45.810019,15.992974,200.2],"1640_21":["Bregovita",45.871888,15.773276,100.6],"1640_22":["Bregovita",45.872716,15.773058,17.5],"1641_22":["Groblje Zaprešić",45.875639,15.774381,191.6],"1642_23":["Remetinečki gaj",45.770422,15.945212,13.0],"1643_24":["Arena Zagreb",45.772007,15.944633,172.9],"1643_53":["Arena Zagreb",45.772334,15.944799,22.5],"1644_21":["Klanjec",45.732376,15.883536,127.3],"1644_22":["Klanjec",45.73166,15.883976,29.9],"1645_21":["Demerje - škola",45.731103,15.885931,48.2],"1645_22":["Demerje - škola",45.730607,15.885398,316.7],"164_21":["Roginina",45.811621,15.917806,73.8],"164_22":["Roginina",45.811601,15.9172,279.4],"1655_23":["Horvatovac 40",45.820032,15.99256,326.7],"1656_23":["Horvatovac-trgovina",45.82182,15.990874,342.4],"1657_23":["Horvatovac-Zelenjak",45.823754,15.989993,331.5],"1658_23":["Horvatovac - PMF",45.826262,15.988035,232.8],"1659_24":["Voćarska-sjemenište",45.822132,15.986093,160.7],"165_21":["Gajnice",45.813646,15.873781,94.5],"165_22":["Gajnice",45.813781,15.87342,274.6],"1660_21":["Voćarska-društveni d",45.818656,15.987837,125.0],"1661_21":["Voćarska-Babonićeva",45.817454,15.99442,58.7],"1662_21":["Kozari put 1-odv.5",45.792,16.043171,76.1],"1662_22":["Kozari put 1-odv.5",45.791481,16.041873,326.7],"1663_21":["Kozari Putevi",45.792681,16.047121,null],"1663_22":["Kozari Putevi",45.792681,16.047121,251.8],"1664_21":["Gračansko dolje",45.861121,15.983182,56.3],"1664_22":["Gračansko dolje",45.861172,15.982757,233.8],"1664_26":["Gračansko dolje",45.861607,15.983143,null],"1664_30":["Gračansko dolje",45.861607,15.983143,72.2],"1665_32":["Sesvete-ukrcaj",45.825935,16.107881,319.1],"1665_42":["Sesvete-ukrcaj",45.825864,16.108209,316.4],"1665_52":["Sesvete-ukrcaj",45.825864,16.108209,316.4],"1665_62":["Sesvete-ukrcaj",45.825922,16.10793,303.4],"1665_72":["Sesvete-ukrcaj",45.826093,16.107175,350.3],"1665_92":["Sesvete-ukrcaj",45.825935,16.107881,319.1],"1666_23":["Lj.Posavsk.-Kelekova",45.817688,16.101961,352.5],"1666_24":["Lj.Posavsk.-Kelekova",45.820573,16.101294,171.5],"1667_21":["144 brigade-Lj.Posav",45.812851,16.102944,90.8],"1668_21":["Jelkovec-vrtić",45.812794,16.108915,97.2],"1668_22":["Jelkovec-vrtić",45.812912,16.107286,230.0],"1669_24":["Jelkovec-tržnica",45.812274,16.114813,null],"1669_28":["Jelkovec-tržnica",45.812872,16.114021,217.0],"1670_22":["Rim.put-dj.igralište",45.809764,16.112755,271.3],"1670_23":["Rim.put-dj.igralište",45.810427,16.114843,null],"1670_27":["Rim.put-dj.igralište",45.81046,16.114849,346.5],"1671_21":["Rimski put-bazen",45.809829,16.105898,84.5],"1671_22":["Rimski put-bazen",45.80985,16.107282,271.1],"1672_22":["Lj.Posav.-Rimski put",45.80992,16.101963,360.0],"1672_24":["Lj.Posav.-Rimski put",45.809257,16.101029,202.9],"1673_21":["Vrapče-želj.stanica",45.811755,15.895267,92.6],"1673_22":["Vrapče-želj.stanica",45.811983,15.897261,266.2],"1674_23":["Hipodrom",45.785578,15.964325,251.1],"1675_21":["Stari Savski most",45.783262,15.955702,63.5],"1675_22":["Stari Savski most",45.783616,15.956102,197.6],"1676_21":["Južna obala 4",45.785208,15.961288,118.0],"1694_23":["Hercegov gaj",45.877067,16.018609,46.6],"1694_24":["Hercegov gaj",45.87698,16.018216,242.1],"1695_21":["Laskočica 2",45.73365,15.977115,116.3],"1696_21":["Laskočica 42",45.73189,15.982221,125.7],"1697_23":["Manterovčak 46",45.822025,15.902716,307.1],"1698_23":["Manterovčak 78",45.82409,15.900157,240.7],"1699_24":["Jačkovina 53",45.81984,15.897714,143.3],"169_1":["Britanski trg",45.812327,15.963088,78.1],"169_2":["Britanski trg",45.812417,15.964733,278.8],"1700_21":["Jačkovina 46",45.817512,15.900204,128.6],"1701_23":["Vidovčica",45.833688,15.94949,195.5],"1701_24":["Vidovčica",45.833469,15.949386,26.0],"1702_23":["Vidovčica I.",45.840534,15.952281,195.9],"1702_24":["Vidovčica I.",45.839657,15.952263,6.8],"1703_22":["Puškarićeva-škola",45.76146,15.878908,256.2],"1704_21":["Voćarska 47",45.81718,15.990857,83.7],"1705_21":["Veliki dol 30",45.833294,15.999021,14.0],"1706_23":["Rim 14a",45.835435,15.999788,310.0],"1707_23":["Rim 60",45.837886,15.995595,305.0],"1708_24":["Gorice 69",45.840499,15.990238,174.8],"1709_24":["Gorice 45",45.837724,15.990598,158.4],"170_23":["Folnegovićevo",45.792092,16.002746,36.6],"170_24":["Folnegovićevo",45.790911,16.00298,185.0],"1710_24":["Gorice - Korito",45.834552,15.992405,158.4],"1711_23":["Medpotoki 30",45.822225,15.881461,26.3],"1712_23":["Orešje 2 a",45.824162,15.882832,24.9],"1713_23":["Borovina",45.827639,15.885149,348.5],"1713_24":["Borovina",45.827425,15.885098,205.1],"1714_22":["Orešje 47c",45.831797,15.88394,null],"1714_26":["Orešje 47c",45.831797,15.88394,169.5],"1715_21":["Arena centar",45.769173,15.940826,87.6],"1715_22":["Arena centar",45.769438,15.943593,264.9],"1716_21":["Jaruščica",45.76892,15.935903,85.8],"1716_22":["Jaruščica",45.768977,15.936238,232.9],"1717_24":["Orešje 3",45.824384,15.883054,190.8],"1718_21":["Gospodska 108",45.8203,15.881933,104.1],"1718_23":["Gospodska 108",45.820376,15.881654,355.8],"171_3":["Folnegovićevo",45.791976,16.002444,331.9],"171_4":["Folnegovićevo",45.792242,16.002188,159.0],"1722_22":["Podbrežje",45.767403,15.979462,268.1],"1722_23":["Podbrežje",45.768023,15.980772,357.7],"1722_24":["Podbrežje",45.76662,15.980645,174.0],"1723_22":["Zagrebačka 94",45.826471,16.090762,267.8],"1724_23":["Bikčevićeva staza",45.86965,15.97874,334.4],"1725_23":["Šumarske jaslice",45.898437,15.953917,41.6],"1725_24":["Šumarske jaslice",45.899153,15.953648,256.4],"1726_24":["P.D.Grafičar",45.88725,15.932079,129.1],"1727_23":["A.K.Snježna kraljica",45.902498,15.95796,206.9],"1729_3":["Borovje",45.788807,16.004269,338.1],"1729_4":["Borovje",45.788568,16.004211,197.0],"1733_22":["Gospodska 92",45.820109,15.884404,277.9],"1734_21":["Gospodska 59a",45.819699,15.885355,129.3],"1735_22":["Kobiljak 69",45.822376,16.159536,289.2],"1736_22":["Bijenička-bočalište",45.832428,15.993614,172.1],"1737_23":["Manterovčak 66",45.822895,15.901064,332.1],"1738_24":["Jačkovina 105",45.823529,15.89872,190.8],"1739_23":["Put za Bediće",45.859304,16.040069,345.7],"1739_24":["Put za Bediće",45.859635,16.040071,160.9],"1740_23":["Kačićeva-Kolodvorska",45.713151,16.057986,302.4],"1741_21":["Željezn.-Vukomerička",45.714319,16.045442,36.1],"1741_22":["Željezn.-Vukomerička",45.713111,16.044564,205.5],"1742_22":["Gradići,K.Tomis. 46",45.70818,16.039852,293.4],"1743_21":["Gradići,K.Tomis. 57",45.708018,16.040405,189.0],"1744_24":["Gradićka 4",45.70652,16.040067,219.0],"1757_22":["Žitnjak",45.798099,16.035373,262.3],"175_3":["Jandrićeva",45.836471,15.977467,340.2],"175_4":["Jandrićeva",45.836858,15.977365,174.9],"1760_23":["Savišće",45.78917,16.033671,307.3],"1760_24":["Savišće",45.788036,16.035297,125.8],"1764_23":["Granešina-groblje",45.849999,16.048786,317.2],"1764_24":["Granešina-groblje",45.849619,16.04925,138.7],"176_24":["Mihaljevac",45.841963,15.974896,null],"176_27":["Mihaljevac",45.841886,15.975311,15.9],"176_28":["Mihaljevac",45.84149,15.975079,319.4],"176_29":["Mihaljevac",45.841772,15.975202,167.7],"176_34":["Mihaljevac",45.841798,15.974822,18.1],"1771_22":["Mrkšina-raskrižje",45.755106,15.963779,223.4],"1771_23":["Mrkšina-raskrižje",45.754961,15.962828,102.8],"1772_21":["Hrušćica",45.790457,16.136733,51.4],"1772_22":["Hrušćica",45.78993,16.135493,289.2],"1774_22":["Slavon.-Lj.Posavskog",45.806573,16.099399,261.2],"1774_23":["Slavon.-Lj.Posavskog",45.807914,16.101073,60.3],"1775_21":["Slavonska-Čulinečka",45.803813,16.076833,79.7],"1775_22":["Slavonska-Čulinečka",45.803404,16.072248,258.8],"177_1":["Mihaljevac",45.842561,15.97522,359.5],"177_2":["Mihaljevac",45.842686,15.975202,201.0],"177_3":["Mihaljevac",45.841661,15.974786,18.6],"177_4":["Mihaljevac",45.84165,15.974632,158.3],"177_5":["Mihaljevac",45.841683,15.974721,159.1],"1780_11":["Zapruđe",45.778054,16.000903,null],"1780_18":["Zapruđe",45.778054,16.000903,null],"1781_11":["Žitnjak",45.798842,16.034778,null],"1782_23":["Mokrička 8",45.863348,15.790697,37.0],"1782_24":["Mokrička 8",45.862839,15.790582,245.0],"1783_11":["Park Maksimir",45.819034,16.014094,null],"1784_23":["Micani",45.760896,15.833522,337.2],"1784_24":["Micani",45.761466,15.832773,169.7],"1785_21":["Stupnički Obrež",45.766095,15.830388,null],"1785_22":["Stupnički Obrež",45.766095,15.830388,160.2],"1786_24":["Botinka",45.756413,15.834093,140.5],"1787_4":["Mandlova",45.823816,16.035699,null],"1788_21":["Desprimska 34",45.726705,15.900404,171.4],"1789_24":["Drežnik",45.722665,15.901282,122.8],"178_21":["Sopot",45.777615,15.98654,101.0],"178_22":["Sopot",45.777858,15.984608,277.4],"1790_22":["Brezovica škola",45.72459,15.907008,null],"1790_26":["Brezovica škola",45.72459,15.907008,333.0],"1791_22":["Golobreška-1.odvojak",45.730277,15.902863,307.9],"1792_23":["Jarek",45.838373,15.82431,315.8],"1794_12":["Sopot",45.77772,15.984625,null],"1799_22":["Ježdovečka 110",45.778278,15.839344,310.6],"179_1":["Sopot",45.77769,15.986807,87.0],"179_2":["Sopot",45.777676,15.98457,268.5],"180_21":["Središće",45.777698,15.991608,88.6],"180_22":["Središće",45.777954,15.989332,268.3],"180_24":["Središće",45.777043,15.990388,178.2],"181_1":["Središće",45.777866,15.991554,88.6],"181_2":["Središće",45.777818,15.989334,267.8],"1826_21":["Bijenička 134",45.832421,15.992463,79.2],"1827_24":["Pavlići",45.674911,15.823561,185.5],"1828_23":["Kosirnikova 12",45.816861,15.953931,9.8],"1829_21":["Prevendari",45.707599,15.804884,47.0],"1829_22":["Prevendari",45.707356,15.804617,221.2],"182_21":["Utrina",45.777808,15.997877,90.8],"182_22":["Utrina",45.778141,15.995839,267.6],"1830_23":["Mavračići",45.702633,15.798402,42.3],"1830_24":["Mavračići",45.702328,15.798316,286.8],"1831_22":["Derdići",45.704239,15.789245,226.4],"1831_24":["Derdići",45.704016,15.789949,103.2],"1832_23":["Komari",45.70044,15.783529,51.4],"1832_24":["Komari",45.70044,15.783529,null],"1833_22":["Novoselečki put 81",45.848075,16.067783,285.9],"1834_21":["Novoselečki put 83",45.84788,16.068214,67.9],"183_1":["Utrina",45.777974,15.997863,87.8],"183_2":["Utrina",45.777977,15.995805,268.0],"1840_23":["Garaža Tuškanac",45.815922,15.969813,null],"1840_24":["Garaža Tuškanac",45.815889,15.969725,110.3],"1842_22":["Markov trg",45.81667,15.973925,255.4],"1843_21":["Veliko Polje",45.732449,16.017317,112.9],"1844_21":["Mate Lovraka",45.840081,16.056924,122.5],"1844_22":["Mate Lovraka",45.84023,16.05781,285.3],"1845_23":["Srebrnjak 132",45.829106,15.991472,330.6],"1846_23":["Gradićka 5",45.70655,16.040051,2.3],"1847_23":["Peršinovec 68",45.652713,15.967668,42.3],"1849_23":["Trg bana J. Jelačića",45.813655,15.976084,352.8],"1849_24":["Trg bana J. Jelačića",45.813655,15.976084,null],"184_21":["Zapruđe",45.777784,16.000377,6.6],"184_22":["Zapruđe",45.778957,16.001482,258.3],"184_24":["Zapruđe",45.77689,16.002166,null],"184_28":["Zapruđe",45.776723,16.002194,164.8],"184_31":["Zapruđe",45.781688,16.003167,130.1],"184_32":["Zapruđe",45.781876,16.002674,null],"1850_21":["Katarinin trg",45.814772,15.974068,27.4],"1851_23":["Habdelićeva",45.815687,15.974748,0.7],"1852_22":["Muzej grada Zagreba",45.818077,15.974542,197.0],"1852_23":["Muzej grada Zagreba",45.818299,15.974793,11.4],"1853_23":["Kamenita vrata",45.816384,15.975586,356.1],"1853_24":["Kamenita vrata",45.81534,15.975555,167.7],"1854_23":["Vinogradska 88 a",45.819928,15.951702,319.8],"1856_24":["Vinogradska 75",45.819886,15.952029,163.5],"1857_22":["Goli Breg - groblje",45.732916,15.896303,307.5],"1858_22":["Palčići-odvojak",45.731915,15.899844,292.0],"1859_21":["Fakultetsko dobro",45.855955,16.001462,132.0],"1859_22":["Fakultetsko dobro",45.855163,16.003024,317.3],"185_1":["Zapruđe",45.778054,16.000903,20.6],"185_14":["Zapruđe",45.778185,16.000339,266.2],"185_2":["Zapruđe",45.778119,16.000346,267.4],"185_3":["Zapruđe",45.779576,16.001724,356.2],"185_4":["Zapruđe",45.77895,16.001836,231.4],"185_8":["Zapruđe",45.778577,16.00103,4.6],"1860_22":["Jazbina 166",45.860391,15.996088,322.3],"1861_21":["Jazbina 159",45.861115,15.995262,140.1],"1864_23":["Havidić Selo",45.623258,15.934245,307.9],"1864_24":["Havidić Selo",45.623258,15.934245,null],"1870_21":["K.Hruševec-škola",45.945178,15.790721,113.5],"1870_22":["K.Hruševec-škola",45.945062,15.79101,299.6],"1871_21":["Matije Gupca",45.941488,15.802918,102.8],"1871_22":["Matije Gupca",45.941565,15.802877,293.0],"1872_21":["K.Hruševec-okret.",45.946094,15.788398,null],"1872_22":["K.Hruševec-okret.",45.946094,15.788398,119.6],"1874_23":["Kosirnikova",45.816525,15.953554,339.2],"1874_24":["Kosirnikova",45.816421,15.953506,150.0],"1875_23":["Vinogradi 24 b",45.821532,15.949756,341.6],"1876_23":["Vinogradi-okretište",45.824654,15.948266,161.0],"1877_24":["Vinogradi 27",45.821347,15.949898,134.5],"1878_23":["Naletilićeva 43",45.754166,15.940702,39.8],"1879_24":["Vrhovec 233",45.836389,15.95143,10.1],"187_1":["Žitnjak",45.798857,16.034779,135.5],"187_2":["Žitnjak",45.799166,16.034334,305.8],"1880_24":["Naletilićeva 54",45.754379,15.940785,221.6],"1882_23":["Aleja tišine",45.838768,16.046603,317.4],"1883_21":["Bedekovićeva",45.754208,16.05878,59.1],"1883_22":["Bedekovićeva",45.754254,16.058632,260.0],"1884_21":["Otok",45.761262,15.982025,100.8],"1884_22":["Otok",45.76089,15.983895,330.9],"1885_21":["Sirkovina",45.628643,15.924227,127.5],"1885_22":["Sirkovina",45.628647,15.924361,321.6],"1886_23":["Radnička 173",45.787336,16.037653,303.4],"1887_21":["Kačićeva-Željeznička",45.71714,16.048387,118.2],"1887_24":["Kačićeva-Željeznička",45.716922,16.046977,203.9],"1888_21":["Kačićeva-Vukomerička",45.715672,16.052302,111.0],"1888_22":["Kačićeva-Vukomerička",45.716478,16.05048,280.3],"1889_23":["IKEA",45.793235,16.155842,331.3],"188_1":["HNK 2 - Adžijina",45.807816,15.961581,122.0],"188_2":["HNK 2 - Adžijina",45.807564,15.962047,294.7],"1892_23":["Čulinečka 119",45.815081,16.06604,343.7],"1892_24":["Čulinečka 119",45.813958,16.066147,199.2],"189_1":["Aleja javora",45.828572,16.069705,100.0],"189_2":["Aleja javora",45.828839,16.067959,272.8],"1900_23":["Naletilićeva 122",45.732023,15.928855,20.9],"1900_24":["Naletilićeva 122",45.732254,15.92902,210.2],"1903_21":["Markovo P.mrtvačnica",45.858389,16.120129,100.5],"1904_22":["M.Polje parkiralište",45.858247,16.121727,307.5],"1905_21":["M.Polje istočni ulaz",45.857759,16.124986,45.3],"1905_22":["M.Polje istočni ulaz",45.85775,16.125842,279.8],"1906_23":["M.Polje-okretište",45.860514,16.12899,218.4],"1907_23":["Ive Dulčića",45.82942,16.097806,26.9],"1908_23":["Vinogorska 49",45.832734,16.100216,201.9],"1909_22":["Rebro 5",45.831827,16.099692,231.5],"190_1":["Badalićeva",45.801701,15.959307,67.8],"190_2":["Badalićeva",45.801955,15.959667,243.0],"1916_21":["Hruševečka",45.940109,15.811658,164.5],"1916_22":["Hruševečka",45.940114,15.810892,284.6],"1917_24":["Šestinski lagvić",45.857477,15.949055,130.7],"1918_24":["Kraljičin zdenac",45.881626,15.942024,193.3],"1919_21":["Branim.-Škrnjugova",45.82361,16.078682,351.1],"1919_22":["Branim.-Škrnjugova",45.823555,16.076966,256.1],"1920_22":["Tišinska",45.769362,16.021794,205.6],"1923_24":["Tišinska ul. III odv",45.763583,16.017819,208.9],"192_22":["Borongaj",45.814786,16.018651,null],"192_32":["Borongaj",45.8147,16.018378,123.8],"192_42":["Borongaj",45.814667,16.017922,314.4],"1930_21":["Blage Zadre",45.823819,16.126437,88.1],"1930_22":["Blage Zadre",45.823981,16.124719,280.8],"193_1":["Borongaj",45.814181,16.018415,null],"193_2":["Borongaj",45.814551,16.018831,282.6],"194_1":["Botanički vrt",45.805617,15.973661,95.9],"194_2":["Botanički vrt",45.805499,15.974166,270.1],"1958_21":["Zelengaj",45.869735,15.789258,91.5],"1958_22":["Zelengaj",45.869735,15.789258,null],"1962_21":["Odranski Obrež",45.7144,15.950801,286.8],"1963_23":["Vicebani-Mataki",45.71495,15.948196,279.4],"1963_24":["Vicebani-Mataki",45.714551,15.948173,94.7],"1965_21":["Ivana Šturlića 15",45.82904,16.098464,103.4],"1966_23":["Lukavec-Buverke",45.697895,15.984994,23.7],"1966_24":["Lukavec-Buverke",45.697258,15.984579,194.9],"1967_22":["Kanfanarska",45.807557,16.04083,249.4],"1968_21":["Savudrijska",45.80792,16.042287,118.1],"1971_21":["Gimn.L.Vranjanin",45.811594,15.891385,86.6],"1971_22":["Gimn.L.Vranjanin",45.811759,15.892435,270.2],"1972_24":["Hercegovačka 21",45.814247,15.956759,6.7],"1973_23":["Bosanska",45.81848,15.957471,151.7],"1974_21":["Buntićeva",45.816995,15.958616,208.2],"1975_23":["Velika Kosnica",45.767687,16.076121,306.9],"1975_24":["Velika Kosnica",45.767334,16.078276,174.9],"1976_23":["Petina",45.756868,16.099547,303.5],"1977_21":["Zračna luka",45.740001,16.082836,34.7],"1977_22":["Zračna luka",45.739598,16.081806,236.4],"1978_21":["Ivana Pavla II",45.727685,16.05599,39.1],"1978_22":["Ivana Pavla II",45.7266,16.054794,183.4],"1979_24":["Vugrovečka 73",45.853679,16.112469,195.2],"197_1":["Park Maksimir",45.819034,16.014094,72.2],"197_2":["Park Maksimir",45.81862,16.012153,252.5],"1980_21":["Stari terminal",45.733405,16.062656,80.2],"1980_22":["Stari terminal",45.733223,16.062413,218.8],"1981_23":["Srebrnjak 10",45.818111,15.996308,342.1],"1981_24":["Srebrnjak 10",45.817659,15.996367,165.9],"1982_23":["Dumovec okretište",45.804698,16.159454,null],"1982_24":["Dumovec okretište",45.804698,16.159454,230.2],"1983_21":["Puntijarka",45.904273,15.969675,19.9],"1983_22":["Puntijarka",45.904101,15.969189,266.0],"1984_23":["Hunjka",45.914092,15.974792,201.3],"1985_23":["Snježna kraljica",45.904236,15.963336,89.5],"1985_24":["Snježna kraljica",45.90381,15.963155,234.9],"1988_24":["Klake",45.849087,15.81447,174.7],"1989_24":["Bukovačka 23",45.822114,16.012364,173.3],"198_1":["Čavićeva",45.801075,16.030538,126.9],"198_2":["Čavićeva",45.800822,16.031046,306.4],"1991_23":["Goranska",45.73925,16.015586,346.6],"1991_24":["Goranska",45.738392,16.015872,190.0],"1992_23":["Galijska",45.743563,16.014108,null],"1992_24":["Galijska",45.742869,16.014347,166.6],"1995_23":["Skradnička",45.74108,15.889902,350.1],"1995_24":["Skradnička",45.740553,15.889865,195.8],"1996_22":["Markuševečka 18",45.863569,15.992567,254.5],"1998_24":["Žarka Dolinara",45.778309,15.966151,229.8],"1999_23":["ZG Velesajam",45.778408,15.966078,6.4],"2001_21":["Podbrežje okretište",45.767264,15.973458,null],"2001_25":["Podbrežje okretište",45.767264,15.973458,81.5],"200_23":["Čulinečka",45.827725,16.063081,5.6],"200_24":["Čulinečka",45.828145,16.062978,171.0],"201_1":["Čulinečka",45.828663,16.063821,91.3],"201_2":["Čulinečka",45.829037,16.062087,274.3],"2022_22":["Dubečka 94",45.834921,16.07777,320.8],"2023_21":["Jazbina 120",45.851502,16.008571,146.7],"2023_22":["Jazbina 120",45.85189,16.008054,313.1],"2024_24":["Branovečka 143",45.866685,16.076394,198.6],"2025_24":["Branim.-Zagrebačka",45.826019,16.082847,239.0],"2026_24":["Vinogradska 3",45.813502,15.955922,208.2],"2027_24":["Mikulići",45.852374,15.932752,null],"2027_28":["Mikulići",45.852374,15.932752,211.2],"2028_23":["Ul. Kaktusa 34",45.829502,16.086731,102.3],"2029_23":["MO N.Brestje",45.828985,16.090948,283.3],"2029_24":["MO N.Brestje",45.828824,16.091205,105.0],"202_1":["Dankovečka",45.829613,16.056817,101.0],"202_2":["Dankovečka",45.829435,16.054483,249.9],"2030_22":["Delec",45.834803,16.095946,221.4],"2031_24":["Ul. Kaktusa 47",45.829643,16.086943,255.8],"2032_24":["Dubje",45.833164,15.892868,161.0],"2035_23":["Branovečina 151",45.841734,16.079008,182.7],"2036_23":["P.D. Runolist",45.88988,15.964786,318.5],"2037_24":["Put za Medvedgrad",45.875636,15.939998,160.8],"2038_22":["Peršinci",45.832362,15.917749,304.0],"2039_21":["Završje III. odvojak",45.833126,15.915875,113.6],"2039_22":["Završje III. odvojak",45.83368,15.914941,297.7],"203_1":["Donje Svetice",45.803021,16.014691,76.7],"203_2":["Donje Svetice",45.803115,16.015322,256.4],"2040_22":["Trdice 56",45.835618,15.909641,213.9],"2042_23":["Trdice 52",45.835349,15.909394,116.2],"2043_23":["Pantovčak 178b",45.832001,15.962236,3.3],"2044_23":["Remetinečka 15",45.780209,15.954552,null],"2044_27":["Remetinečka 15",45.780312,15.954609,14.5],"2045_23":["Pršaki-ambulanta",45.871819,16.054467,324.8],"2046_21":["Šiprunec",45.878449,16.04766,140.8],"2046_22":["Šiprunec",45.878564,16.04763,308.7],"2047_21":["Šafrani",45.880642,16.043796,129.2],"2047_22":["Šafrani",45.881172,16.042957,251.9],"2048_24":["Slanovečka-škola",45.872712,16.054382,108.4],"2051_21":["Goli Breg-Groblje",45.73283,15.89655,145.3],"2054_22":["Iver",45.812683,16.182832,null],"2054_26":["Iver",45.812683,16.182832,324.5],"2056_21":["Resnik III",45.804837,16.084894,74.7],"2056_22":["Resnik III",45.8047,16.082103,259.3],"2057_23":["Odvojak Reber",45.901199,16.125225,0.8],"2057_24":["Odvojak Reber",45.900622,16.12489,180.0],"2058_24":["Zadvorska 4",45.725701,15.915105,220.6],"2059_24":["Kašinci",45.720781,15.909073,207.2],"205_21":["Dubec",45.827758,16.075979,102.6],"205_22":["Dubec",45.827926,16.077644,271.2],"205_24":["Dubec",45.827135,16.076435,244.3],"205_25":["Dubec",45.827519,16.077276,90.0],"205_31":["Dubec",45.828008,16.077699,null],"205_42":["Dubec",45.828248,16.078277,112.6],"205_44":["Dubec",45.828251,16.077515,64.1],"205_51":["Dubec",45.828388,16.077315,94.3],"205_61":["Dubec",45.827907,16.078459,109.2],"205_71":["Dubec",45.827958,16.078045,120.1],"205_82":["Dubec",45.828248,16.078277,100.7],"2060_24":["Zadvorska 54",45.715852,15.905446,219.0],"2061_24":["Zadvorska 58B",45.713616,15.902852,190.5],"2062_24":["Hudobička I.odvojak",45.709318,15.901707,188.0],"2063_24":["Hudobička IV.odvojak",45.70531,15.900904,174.4],"2065_23":["Zelena mag.-Rušiščak",45.824617,15.873675,22.2],"2065_24":["Zelena mag.-Rušiščak",45.82488,15.873275,196.4],"2066_22":["Aleja Matije Ljubeka",45.785223,15.917955,null],"2067_21":["Jarun",45.782959,15.926565,81.4],"2067_23":["Jarun",45.783932,15.926192,33.8],"2067_24":["Jarun",45.783464,15.925684,null],"2067_27":["Jarun",45.783932,15.926192,null],"2068_22":["Dom veslača",45.787609,15.912524,null],"2069_24":["Veliko jezero",45.782358,15.909252,null],"206_11":["Dubec",45.827847,16.0777,null],"206_14":["Dubec",45.827847,16.0777,278.7],"206_4":["Dubec",45.827847,16.0777,null],"2070_24":["Savski n. Park&Ride",45.779613,15.907846,null],"2071_21":["Jarun-skate park",45.778362,15.912392,null],"2072_21":["Kajakaški prilaz",45.776115,15.921495,null],"2073_21":["Ribički prilaz",45.774441,15.932135,null],"2074_23":["Malo jezero",45.776345,15.937697,null],"2075_23":["Jarunska obala",45.780736,15.937241,null],"2076_22":["Petrine",45.781235,15.932469,null],"2078_23":["Lipovac I.",45.828956,15.995803,7.2],"2079_24":["Vodosprema Lašćina",45.828011,15.996352,118.9],"2080_23":["Lašćinski Borovec",45.829701,15.995201,314.9],"2080_24":["Lašćinski Borovec",45.830216,15.994056,144.0],"2084_23":["Jelenovac 38D",45.826887,15.952691,358.3],"208_21":["Dubrava",45.82469,16.037267,null],"208_22":["Dubrava",45.824559,16.036352,null],"208_23":["Dubrava",45.824727,16.036756,350.1],"208_24":["Dubrava",45.82448,16.037084,60.8],"208_33":["Dubrava",45.824891,16.036696,66.9],"208_34":["Dubrava",45.824571,16.037459,73.2],"208_43":["Dubrava",45.825036,16.03682,343.5],"208_44":["Dubrava",45.824635,16.037786,62.7],"208_53":["Dubrava",45.825074,16.036643,67.6],"208_54":["Dubrava",45.824594,16.036757,65.7],"208_63":["Dubrava",45.825244,16.036587,68.3],"2099_21":["Augusta Piazze",45.783521,15.931869,null],"2099_22":["Augusta Piazze",45.783521,15.931869,275.9],"209_1":["Dubrava",45.824855,16.040008,67.6],"209_12":["Dubrava",45.824437,16.037388,null],"209_13":["Dubrava",45.824386,16.037146,251.8],"209_14":["Dubrava",45.824452,16.037098,251.1],"209_2":["Dubrava",45.824329,16.037137,252.2],"209_7":["Dubrava",45.824502,16.03734,null],"2100_23":["Pakračka",45.798987,15.930346,358.2],"2100_24":["Pakračka",45.798519,15.930306,184.0],"2101_23":["Marice Barić",45.793524,15.93053,41.0],"2101_24":["Marice Barić",45.793177,15.92977,174.3],"2102_24":["Pliva",45.812636,15.931442,209.4],"2103_21":["Pr. b. Filipovića",45.811767,15.941137,147.8],"2106_24":["Popovečka 51",45.832541,16.146087,191.6],"2112_21":["Borongaj - jug",45.813631,16.020665,75.9],"2113_23":["Šišićeva",45.776963,16.001041,null],"2115_24":["Soblinečka 22",45.903967,16.130337,7.4],"211_21":["Elka",45.797448,16.038771,75.6],"211_22":["Elka",45.797308,16.036382,270.0],"211_25":["Elka",45.797251,16.036338,137.8],"212_3":["Elka",45.797167,16.03739,313.2],"212_4":["Elka",45.796787,16.037695,170.8],"213_1":["Ferenščica",45.80434,16.023261,119.0],"213_2":["Ferenščica",45.804338,16.023652,261.6],"214_1":["Getaldićeva",45.802962,16.026821,126.1],"214_2":["Getaldićeva",45.802719,16.027349,302.1],"215_1":["Grižanska",45.82888,16.052451,76.5],"215_2":["Grižanska",45.828775,16.0519,245.5],"217_1":["Harambašićeva",45.814707,16.00804,78.0],"217_2":["Harambašićeva",45.815021,16.008621,238.1],"219_23":["Heinzelova",45.803865,16.009522,322.2],"219_24":["Heinzelova",45.801846,16.011331,142.3],"220_1":["Heinzelova-sjever",45.812071,16.001288,63.4],"220_2":["Heinzelova-sjever",45.811531,15.99934,250.3],"221_1":["Heinzelova",45.80231,16.010506,76.3],"221_2":["Heinzelova",45.802454,16.011394,259.1],"222_1":["Hondlova",45.820979,16.022782,71.4],"222_2":["Hondlova",45.820976,16.022082,251.2],"223_1":["Horvati",45.788152,15.942234,89.4],"223_2":["Horvati",45.788248,15.940176,269.0],"224_1":["Vodnikova",45.805357,15.967644,86.5],"224_2":["Vodnikova",45.805509,15.967109,246.4],"224_3":["Vodnikova",45.806234,15.966945,25.1],"224_4":["Vodnikova",45.805964,15.966605,210.4],"225_1":["Ivanićgradska",45.803882,16.019926,78.9],"225_2":["Ivanićgradska",45.804035,16.0207,256.2],"226_3":["Savski gaj-rotor",45.778053,15.95283,354.8],"226_4":["Savski gaj-rotor",45.777673,15.952814,101.4],"227_2":["Jagićeva",45.809019,15.957513,358.2],"229_23":["Jarun",45.783942,15.926081,35.1],"229_24":["Jarun",45.78398,15.925851,null],"230_1":["Jarun-zapad",45.789582,15.92061,105.2],"230_2":["Jarun-zapad",45.789897,15.920025,291.5],"231_1":["Jordanovac",45.817623,16.008165,71.1],"231_2":["Jordanovac",45.817612,16.007574,251.7],"232_1":["Jukićeva",45.805175,15.965897,223.1],"232_2":["Jukićeva",45.805263,15.965681,312.3],"233_1":["Kapucinska",45.827598,16.048725,63.7],"233_2":["Kapucinska",45.827587,16.048156,242.7],"234_1":["Knežija",45.788176,15.945426,114.6],"234_2":["Knežija",45.788246,15.944686,270.0],"235_1":["Kruge",45.800555,15.984929,85.7],"235_2":["Kruge",45.800628,15.98542,265.7],"236_1":["Kvaternikov trg",45.814575,15.995921,69.2],"236_14":["Kvaternikov trg",45.814723,15.996434,205.0],"236_2":["Kvaternikov trg",45.815284,15.997631,236.5],"238_23":["Lisinski",45.799405,15.979561,344.7],"238_24":["Lisinski",45.799333,15.978566,174.8],"239_1":["Lisinski",45.800285,15.980145,85.4],"239_2":["Lisinski",45.800231,15.977867,264.5],"241_22":["Ljubijska",45.825895,16.04376,255.1],"241_32":["Ljubijska",45.825895,16.04376,64.4],"242_1":["Ljubijska",45.826396,16.045377,62.7],"242_2":["Ljubijska",45.825981,16.04369,250.1],"244_21":["Ljubljanica",45.797063,15.936965,null],"244_24":["Ljubljanica",45.79642,15.936608,199.0],"244_34":["Ljubljanica",45.796184,15.93669,202.3],"244_44":["Ljubljanica",45.795814,15.936707,206.8],"244_54":["Ljubljanica",45.795559,15.93672,210.9],"245_1":["Ljubljanica",45.797226,15.938571,81.1],"245_12":["Ljubljanica",45.797255,15.937654,null],"245_2":["Ljubljanica",45.797227,15.937619,null],"246_1":["Marijane Radev",45.793013,15.902372,100.8],"246_2":["Marijane Radev",45.793219,15.901911,295.8],"247_1":["Mašićeva",45.816591,16.00354,72.2],"247_2":["Mašićeva",45.816521,16.002854,251.2],"248_1":["Miramarska",45.800058,15.975462,86.0],"248_2":["Miramarska",45.799954,15.973722,266.9],"249_3":["Munja",45.792574,16.038158,353.4],"249_4":["Munja",45.793125,16.038541,209.2],"250_1":["Nehajska",45.798837,15.948454,74.9],"250_2":["Nehajska",45.798424,15.947032,258.0],"251_1":["Olipska",45.801316,15.999837,85.9],"251_2":["Olipska",45.800954,15.999838,277.7],"253_21":["Petrova",45.817609,15.997179,5.8],"253_22":["Petrova",45.817538,15.996747,167.9],"254_1":["Petrova",45.813843,15.991697,76.0],"254_2":["Petrova",45.813844,15.99106,269.6],"255_1":["Petrovaradinska",45.7924,15.906999,98.2],"255_2":["Petrovaradinska",45.792615,15.905252,284.5],"256_1":["Poljanice IV",45.828168,16.072994,95.6],"256_2":["Poljanice IV",45.828404,16.072487,277.9],"259_1":["Prečko",45.794367,15.893481,92.9],"259_2":["Prečko",45.794268,15.892597,null],"262_3":["Prisavlje",45.791573,15.956958,25.4],"262_4":["Prisavlje",45.79039,15.956037,205.4],"263_1":["Radnička",45.80152,16.003927,80.2],"263_2":["Radnička",45.801552,16.004682,260.0],"264_1":["Ravnice",45.822082,16.027492,71.8],"264_2":["Ravnice",45.822356,16.028295,252.3],"265_1":["Vrbani",45.791625,15.914753,116.6],"265_2":["Vrbani",45.791855,15.91291,278.1],"266_3":["Savišće",45.7894,16.034918,38.2],"266_4":["Savišće",45.78908,16.034463,null],"268_21":["Savski gaj",45.776843,15.956925,85.6],"268_22":["Savski gaj",45.777388,15.956558,295.7],"269_1":["Savski gaj",45.777115,15.956777,89.9],"269_2":["Savski gaj",45.777162,15.956305,290.2],"271_21":["Savski most",45.784882,15.952645,315.4],"271_23":["Savski most",45.785322,15.953327,303.6],"271_24":["Savski most",45.785847,15.952836,null],"271_27":["Savski most",45.785282,15.95273,281.9],"271_33":["Savski most",45.78541,15.953104,179.7],"271_43":["Savski most",45.7852,15.952845,290.8],"271_53":["Savski most",45.78523,15.952774,305.0],"271_63":["Savski most",45.785408,15.95294,297.9],"272_3":["Savski most",45.786295,15.953329,337.6],"272_4":["Savski most",45.78508,15.952444,null],"274_23":["Selska",45.799051,15.943096,3.9],"274_24":["Selska",45.798438,15.943011,171.0],"275_1":["Selska",45.797828,15.944096,71.6],"275_2":["Selska",45.79772,15.942279,261.6],"277_21":["Muzej suv.umjetnosti",45.777402,15.981796,86.3],"277_22":["Muzej suv.umjetnosti",45.77782,15.978596,266.7],"277_23":["Muzej suv.umjetnosti",45.778613,15.980671,355.9],"277_24":["Muzej suv.umjetnosti",45.776513,15.979798,165.5],"278_1":["Muzej suv.umjetnosti",45.77753,15.979599,88.2],"278_2":["Muzej suv.umjetnosti",45.777607,15.980858,267.5],"281_1":["Slavenskoga-jug",45.794171,15.898965,116.0],"281_2":["Slavenskoga-jug",45.794373,15.898484,268.5],"282_1":["Srednjaci",45.788105,15.936814,89.3],"282_2":["Srednjaci",45.788215,15.937466,265.3],"283_1":["Hrgovići",45.787901,15.929473,87.7],"283_2":["Hrgovići",45.787792,15.930068,286.7],"284_1":["Strojarska",45.800764,15.988889,81.5],"284_2":["Strojarska",45.800796,15.989582,266.7],"286_21":["St. dom S. Radić",45.786213,15.95076,170.0],"286_22":["St. dom S. Radić",45.786505,15.950506,304.0],"287_1":["St. dom S. Radić",45.786398,15.950995,49.1],"287_2":["St. dom S. Radić",45.786772,15.952371,226.9],"287_3":["St. dom S. Radić",45.786351,15.951744,110.4],"288_3":["Studentski centar",45.802951,15.964678,15.2],"288_4":["Studentski centar",45.802432,15.964205,201.1],"290_23":["Svetice",45.817683,16.012967,3.6],"290_24":["Svetice",45.819307,16.01284,138.1],"290_33":["Svetice",45.817874,16.013033,3.2],"290_43":["Svetice",45.818011,16.01302,323.3],"291_1":["Svetice",45.815414,16.012794,107.5],"291_2":["Svetice",45.815406,16.01333,263.3],"292_1":["Šulekova",45.813211,16.004558,58.3],"292_2":["Šulekova",45.813341,16.004747,244.3],"293_4":["Talovčeva",45.809666,15.957094,153.9],"294_1":["Tehnički muzej",45.803327,15.964311,40.8],"294_2":["Tehnički muzej",45.803401,15.963518,241.7],"295_1":["Trešnjevački trg",45.800039,15.95484,61.9],"295_2":["Trešnjevački trg",45.800109,15.954479,252.0],"296_1":["Trg hr. velikana",45.811524,15.984472,133.4],"296_2":["Trg hr. velikana",45.811804,15.984228,283.3],"297_3":["Trg P. Krešimira",45.808111,15.991701,28.2],"297_4":["Trg P. Krešimira",45.807594,15.991697,160.5],"298_3":["Trg Rep. Hrvatske",45.808776,15.968655,10.0],"298_4":["Trg Rep. Hrvatske",45.80845,15.968335,205.9],"299_1":["Trg žrt. fašizma",45.809444,15.987632,75.7],"299_2":["Trg žrt. fašizma",45.810016,15.988373,268.4],"301_21":["Trnsko",45.77691,15.964189,87.3],"301_22":["Trnsko",45.777332,15.964491,270.6],"302_1":["Trnsko",45.77713,15.96522,87.9],"302_2":["Trnsko",45.777128,15.964731,270.3],"303_3":["Tržnica Kvatrić",45.814055,15.996525,62.6],"303_4":["Tržnica Kvatrić",45.812272,15.994793,211.7],"304_1":["Tuškanova",45.811023,15.997512,68.3],"304_2":["Tuškanova",45.811126,15.997721,257.1],"305_3":["Učit. fakultet",45.797336,15.960876,28.8],"305_4":["Učit. fakultet",45.796511,15.960194,205.4],"307_21":["Velesajam",45.777197,15.973007,88.0],"307_22":["Velesajam",45.777504,15.970685,267.7],"308_1":["Velesajam",45.777288,15.971466,87.6],"308_2":["Velesajam",45.777305,15.970888,267.6],"309_3":["Veslačka",45.788899,15.955138,25.4],"309_4":["Veslačka",45.788493,15.954746,219.6],"310_3":["Vjesnik",45.794911,15.959232,25.3],"310_4":["Vjesnik",45.793392,15.95807,205.3],"311_1":["Vončinina",45.813733,15.986755,88.2],"311_2":["Vončinina",45.813822,15.986536,245.3],"312_1":["Vrbik",45.7997,15.967661,87.3],"313_3":["Koledovčina",45.790724,16.036411,33.4],"313_4":["Koledovčina",45.791411,16.037166,219.0],"314_1":["Zagrepčanka",45.799343,15.96322,83.4],"314_3":["Zagrepčanka",45.800099,15.96284,24.2],"314_4":["Zagrepčanka",45.798713,15.961714,205.7],"316_21":["Zapadni kolodvor",45.809494,15.953928,14.8],"317_1":["Zapadni kolodvor",45.809332,15.955796,22.2],"317_2":["Zapadni kolodvor",45.80948,15.954827,null],"319_23":["Varaždinska-Selčina",45.831696,16.1173,40.2],"319_24":["Varaždinska-Selčina",45.830592,16.115725,221.4],"320_23":["Popovec-gostiona",45.844547,16.132891,41.5],"320_24":["Popovec-gostiona",45.843929,16.131913,220.2],"321_23":["Vugrovečka",45.850094,16.139925,36.2],"321_24":["Vugrovečka",45.849619,16.139267,222.0],"322_23":["Soblinec",45.857798,16.148022,34.5],"322_24":["Soblinec",45.85732,16.147427,216.4],"323_21":["Soblinec-rask.-škola",45.864067,16.154944,153.0],"323_23":["Soblinec-rask.-škola",45.864319,16.154248,33.8],"323_24":["Soblinec-rask.-škola",45.863963,16.153699,213.3],"324_23":["Žerjavinec",45.871678,16.161318,39.8],"324_24":["Žerjavinec",45.870692,16.16016,213.8],"325_21":["Belovar",45.882082,16.174856,54.2],"325_23":["Belovar",45.882191,16.173499,12.7],"325_24":["Belovar",45.881511,16.173164,219.9],"326_23":["Mokrička",45.886381,16.174856,331.9],"326_24":["Mokrička",45.886248,16.174694,192.7],"327_23":["Adamovec-Šoštarići",45.894691,16.168472,333.3],"327_24":["Adamovec-Šoštarići",45.894386,16.168799,153.2],"328_23":["Antolkovići",45.898193,16.165946,344.1],"328_24":["Antolkovići",45.897998,16.166043,152.0],"329_22":["Adamovec-centar",45.904517,16.163168,289.0],"329_23":["Adamovec-centar",45.904605,16.163403,10.6],"329_24":["Adamovec-centar",45.904209,16.163338,163.1],"330_23":["Beštaki",45.905677,16.158338,328.1],"330_24":["Beštaki",45.905682,16.158145,112.2],"331_23":["Jesenovec-Balšićeva",45.907764,16.156472,334.5],"331_24":["Jesenovec-Balšićeva",45.907739,16.156487,150.7],"332_23":["Jesenovečka 29",45.914221,16.152051,307.0],"332_24":["Jesenovečka 29",45.914216,16.152043,154.5],"333_23":["Jesenovec-okretište",45.917533,16.145725,null],"333_24":["Jesenovec-okretište",45.917533,16.145721,127.0],"334_22":["Put za Moravče",45.909132,16.164393,334.9],"334_23":["Put za Moravče",45.909084,16.164855,33.4],"334_24":["Put za Moravče",45.908541,16.164428,189.9],"335_23":["Zenki",45.915958,16.159797,334.9],"335_24":["Zenki",45.915964,16.159756,156.2],"336_23":["Pilati",45.922503,16.155382,337.7],"336_24":["Pilati",45.922415,16.155372,154.7],"337_23":["Lozaki",45.927926,16.15219,343.7],"337_24":["Lozaki",45.927852,16.152213,158.0],"338_23":["Čergari",45.935007,16.14921,306.6],"338_24":["Čergari",45.934963,16.149253,163.9],"339_23":["Glavnica Donja okr.",45.937863,16.143688,null],"339_24":["Glavnica Donja okr.",45.937863,16.143688,126.8],"340_23":["Filipčići",45.912255,16.167862,11.1],"340_24":["Filipčići",45.912242,16.167757,212.0],"341_23":["Bastalićeva II.",45.918712,16.169685,8.1],"341_24":["Bastalićeva II.",45.919016,16.169922,192.5],"342_23":["Prajzov brijeg",45.924064,16.170774,357.0],"342_24":["Prajzov brijeg",45.923933,16.170746,186.6],"343_23":["Bahlenova",45.929606,16.170352,345.1],"343_24":["Bahlenova",45.929713,16.170287,176.8],"344_23":["Moravče-Benkova",45.936547,16.167689,null],"344_24":["Moravče-Benkova",45.936557,16.167667,165.1],"345_22":["Ninska",45.826533,16.110713,217.5],"345_24":["Ninska",45.826662,16.110753,215.4],"345_32":["Ninska",45.826502,16.110878,221.9],"345_42":["Ninska",45.826502,16.110878,221.9],"345_52":["Ninska",45.826502,16.110878,221.9],"346_22":["Sesvete-izlaz",45.825442,16.109511,288.5],"354_24":["Put za Kašinu",45.904248,16.130473,295.1],"355_23":["Frljur-Blaguška",45.908724,16.13122,24.4],"355_24":["Frljur-Blaguška",45.908727,16.131234,186.7],"356_23":["Pustički",45.911692,16.133151,353.2],"356_24":["Pustički",45.911611,16.133126,204.5],"357_23":["Blaguša 12",45.920471,16.131644,354.3],"357_24":["Blaguša 12",45.920222,16.131742,173.6],"358_23":["Blaguša-kapela",45.924278,16.131097,354.5],"358_24":["Blaguša-kapela",45.924147,16.131096,173.5],"359_23":["Blaguša - centar",45.929691,16.13035,null],"359_24":["Blaguša - centar",45.929625,16.130349,174.6],"360_21":["Ulica Kaktusa",45.826422,16.084565,93.9],"360_22":["Ulica Kaktusa",45.826338,16.08586,286.3],"361_21":["Zagrebačka 103",45.826167,16.089982,75.8],"362_21":["Brestovečka",45.82757,16.097914,91.7],"362_22":["Brestovečka",45.827647,16.097482,258.2],"363_23":["Anke Krizmanić",45.830051,16.096483,341.1],"363_24":["Anke Krizmanić",45.829799,16.097034,160.7],"365_23":["Brestovečka 100",45.837037,16.089683,350.4],"365_24":["Brestovečka 100",45.836663,16.089756,145.0],"366_23":["Brestovečka 128",45.839594,16.089065,335.3],"366_24":["Brestovečka 128",45.838965,16.089021,167.5],"368_21":["Lužan",45.888784,16.188223,68.9],"368_22":["Lužan",45.888971,16.188378,234.8],"369_21":["Grgati 8",45.890102,16.193131,152.8],"369_22":["Grgati 8",45.890139,16.193142,250.6],"370_21":["Lužan-Zeleni vijenac",45.885707,16.196382,null],"370_22":["Lužan-Zeleni vijenac",45.885721,16.196373,333.0],"371_23":["Kašinska-rasadnik",45.841754,16.1091,8.8],"371_24":["Kašinska-rasadnik",45.842126,16.10896,187.0],"372_23":["Vugrovečka 21",45.848411,16.110574,13.2],"372_24":["Vugrovečka 21",45.8485,16.110558,189.9],"373_23":["Vugrovečka 42",45.851519,16.111617,11.5],"373_24":["Vugrovečka 42",45.851517,16.111626,193.9],"374_23":["Vugrovečka 70",45.854855,16.112701,11.6],"375_21":["Aleja mira",45.861768,16.115555,136.7],"375_22":["Aleja mira",45.86135,16.11592,197.4],"375_23":["Aleja mira",45.862712,16.114912,352.1],"375_24":["Aleja mira",45.863001,16.114899,190.3],"376_23":["Mark.polje-raskrižje",45.870491,16.113363,5.6],"376_24":["Mark.polje-raskrižje",45.87029,16.113348,171.6],"377_23":["Škola Vugrovec",45.876708,16.111469,337.8],"377_24":["Škola Vugrovec",45.877118,16.111321,165.7],"378_23":["Vugrovec kod crkve",45.881289,16.108784,332.8],"378_24":["Vugrovec kod crkve",45.881529,16.108595,156.7],"379_23":["Vugrovec D.-groblje",45.884689,16.106272,330.8],"379_24":["Vugrovec D.-groblje",45.884546,16.106281,151.9],"380_23":["Vugrovečka-Grljakova",45.891264,16.100992,286.9],"380_24":["Vugrovečka-Grljakova",45.891207,16.101034,151.3],"381_23":["Gornji Vugrovec 58",45.892447,16.095364,285.5],"381_24":["Gornji Vugrovec 58",45.892412,16.095374,107.7],"382_23":["Židaki",45.893545,16.089675,298.6],"382_24":["Židaki",45.893571,16.089629,106.2],"383_23":["Rožići",45.895365,16.084881,293.5],"383_24":["Rožići",45.895311,16.085086,118.8],"384_23":["Goranec",45.897248,16.078668,null],"384_24":["Goranec",45.89719,16.078601,112.6],"385_24":["Bistrička - O.Š.",45.830495,16.106914,149.9],"386_23":["Pavlinovićeva",45.817178,15.961011,351.5],"386_24":["Pavlinovićeva",45.81686,15.96103,144.5],"387_23":["Pantovčak 82",45.81943,15.960527,352.1],"387_24":["Pantovčak 82",45.819639,15.960486,172.2],"388_23":["OŠ Pantovčak",45.821835,15.96005,14.6],"388_24":["OŠ Pantovčak",45.822706,15.960141,175.5],"389_23":["Goljak",45.824615,15.961087,3.5],"389_24":["Goljak",45.825084,15.961262,198.2],"390_23":["Pantovčak 156",45.828047,15.961392,8.5],"390_24":["Pantovčak 156",45.828213,15.961302,180.5],"391_24":["Pantovčak 180",45.832245,15.962282,189.6],"392_23":["Zelengaj",45.835247,15.962508,45.4],"392_24":["Zelengaj",45.834961,15.962467,182.7],"393_23":["Predsjednički dvori",45.837799,15.961562,329.5],"393_24":["Predsjednički dvori",45.837431,15.961769,168.9],"394_23":["Pantovčak 241",45.840419,15.959346,350.7],"394_24":["Pantovčak 241",45.840444,15.959235,149.6],"395_21":["Pantovčak",45.845719,15.957804,148.8],"395_23":["Pantovčak",45.845558,15.958134,303.5],"396_23":["Zamenhofova",45.815959,15.96706,351.1],"396_24":["Zamenhofova",45.815867,15.967106,228.2],"397_23":["Dječji dom Nazorova",45.817719,15.966666,26.4],"397_24":["Dječji dom Nazorova",45.817748,15.966596,169.3],"398_23":["Tuškanac",45.821267,15.969195,15.7],"398_24":["Tuškanac",45.821209,15.968836,204.3],"399_23":["Paunovac",45.825292,15.970814,7.2],"399_24":["Paunovac",45.824719,15.970363,196.9],"400_23":["Vijenac",45.829353,15.971548,357.6],"400_24":["Vijenac",45.827964,15.972176,201.3],"401_23":["Davor",45.831377,15.971427,357.6],"401_24":["Davor",45.830451,15.971154,164.0],"402_23":["Cmrok",45.835293,15.971193,36.8],"402_24":["Cmrok",45.835631,15.971194,180.3],"403_23":["Gornje Prekrižje",45.840097,15.96903,331.9],"403_24":["Gornje Prekrižje",45.840053,15.968961,160.6],"404_23":["CO Prekrižje",45.843868,15.966135,252.6],"404_24":["CO Prekrižje",45.843874,15.966149,152.9],"405_23":["Donje Prekrižje",45.84309,15.962565,308.6],"405_24":["Donje Prekrižje",45.842933,15.962766,68.2],"406_23":["Šestinski vrh",45.846916,15.955194,330.5],"406_24":["Šestinski vrh",45.846688,15.955494,121.1],"407_23":["Šestinski vijenac",45.848987,15.953511,322.3],"407_24":["Šestinski vijenac",45.848713,15.953574,146.6],"408_23":["Šestine-centar",45.851966,15.950208,46.6],"408_24":["Šestine-centar",45.852435,15.949955,145.9],"409_23":["Potočani",45.855006,15.954817,139.5],"409_24":["Potočani",45.855026,15.954891,233.0],"410_23":["Grebenščica",45.851501,15.959115,135.0],"410_24":["Grebenščica",45.852585,15.958394,315.0],"411_24":["Mlinovi gornji",45.850252,15.960288,330.5],"412_23":["Mlinovi",45.846983,15.965608,122.0],"412_24":["Mlinovi",45.847069,15.965745,309.9],"413_23":["Snježničke stube",45.844431,15.97147,136.0],"413_24":["Snježničke stube",45.844642,15.971205,302.5],"414_23":["Bolnica Goljak",45.818393,15.963832,23.7],"414_24":["Bolnica Goljak",45.818592,15.964,179.8],"415_23":["Park Zelengaj",45.821473,15.965768,18.0],"415_24":["Park Zelengaj",45.820879,15.965358,202.5],"416_23":["II. Kraljevec",45.826971,15.968331,4.8],"416_24":["II. Kraljevec",45.82662,15.96836,200.0],"417_23":["Kraljevec",45.830592,15.968771,null],"417_24":["Kraljevec",45.830592,15.968771,184.1],"418_23":["Jandrićeva",45.836969,15.976707,323.3],"418_24":["Jandrićeva",45.836981,15.976569,346.8],"419_23":["Dom Ksaver",45.841659,15.971686,null],"419_24":["Dom Ksaver",45.841659,15.971686,144.0],"420_23":["Kaptol",45.815748,15.978558,7.8],"420_24":["Kaptol",45.815174,15.978513,null],"420_25":["Kaptol",45.815754,15.978558,7.8],"420_27":["Kaptol",45.815765,15.97857,3.0],"421_23":["Nova ves",45.82027,15.978057,354.6],"422_23":["Znikina",45.824659,15.977467,11.4],"422_24":["Znikina",45.824119,15.977617,191.7],"423_23":["Zdravs. veleučilište",45.827649,15.978332,199.8],"423_24":["Zdravs. veleučilište",45.827657,15.978316,187.8],"424_23":["Mlinarska",45.822338,15.975564,9.8],"424_24":["Mlinarska",45.822313,15.975582,185.2],"425_21":["Ilirski trg",45.819228,15.975062,174.9],"425_23":["Ilirski trg",45.819391,15.97529,201.6],"425_24":["Ilirski trg",45.819243,15.975181,4.9],"426_23":["Becićeve stube",45.8272,15.975505,358.2],"426_24":["Becićeve stube",45.827042,15.975642,180.5],"427_23":["Jurjevska 64",45.830836,15.975339,358.7],"427_24":["Jurjevska 64",45.830533,15.975411,177.4],"428_23":["Jurjevska 77",45.832803,15.975274,314.9],"428_24":["Jurjevska 77",45.832597,15.975368,179.2],"429_24":["KAPTOL CENTAR",45.820333,15.976493,164.7],"430_21":["Medveščak",45.818815,15.979157,23.2],"430_22":["Medveščak",45.81934,15.979236,186.9],"431_23":["Rockefellerova",45.822758,15.981579,42.5],"431_24":["Rockefellerova",45.823466,15.982106,205.9],"432_23":["Bijenička",45.825463,15.985141,6.4],"432_24":["Bijenička",45.824606,15.984907,232.2],"433_23":["Inst. R.Bošković",45.829286,15.98576,356.7],"433_24":["Inst. R.Bošković",45.828798,15.98526,183.4],"434_23":["Mirogoj-Arkade",45.832734,15.983861,359.7],"434_24":["Mirogoj-Arkade",45.831759,15.984145,165.3],"435_23":["Mirogoj",45.835515,15.983843,341.9],"435_24":["Mirogoj",45.835037,15.983837,176.3],"436_23":["Remetska 19",45.838403,15.982489,357.2],"436_24":["Remetska 19",45.838473,15.98245,164.3],"437_23":["Krematorij",45.845463,15.982,32.2],"437_24":["Krematorij",45.845217,15.98171,175.6],"438_21":["RT Jankomir",45.798837,15.875003,101.4],"438_22":["RT Jankomir",45.798824,15.875,null],"439_21":["Savska Opatovina",45.796985,15.888171,90.3],"439_22":["Savska Opatovina",45.797528,15.886598,273.1],"440_21":["Svilkovići",45.79695,15.893599,99.9],"440_22":["Svilkovići",45.797337,15.890807,273.7],"440_24":["Svilkovići",45.797038,15.893678,116.0],"441_21":["Slavenskog",45.796547,15.901332,93.5],"441_22":["Slavenskog",45.79716,15.898627,271.9],"442_21":["Zagrebačka",45.795977,15.909984,97.7],"442_22":["Zagrebačka",45.796448,15.907295,282.4],"442_23":["Zagrebačka",45.796951,15.90937,44.1],"442_24":["Zagrebačka",45.795545,15.908087,202.9],"443_21":["Rudeška",45.794957,15.920848,96.1],"443_22":["Rudeška",45.795577,15.918521,275.4],"444_21":["Hrvatskog sokola",45.79472,15.924017,96.8],"444_22":["Hrvatskog sokola",45.795246,15.921547,278.9],"445_21":["Dragutina Golika",45.794005,15.932644,54.1],"445_22":["Dragutina Golika",45.79453,15.929975,277.0],"446_21":["Fallerovo",45.793707,15.938225,86.5],"446_22":["Fallerovo",45.794088,15.935459,274.0],"447_21":["Ujevićeva",45.794226,15.950475,92.3],"447_22":["Ujevićeva",45.794359,15.94815,268.3],"448_21":["Vjesnik",45.793949,15.960508,87.6],"448_22":["Vjesnik",45.794053,15.960237,272.1],"449_21":["Marohnićeva",45.794219,15.969869,86.0],"449_22":["Marohnićeva",45.794312,15.967945,267.2],"450_21":["N.S.knjižnica",45.794656,15.98075,87.3],"450_22":["N.S.knjižnica",45.795006,15.978192,262.6],"450_23":["N.S.knjižnica",45.795537,15.979747,358.1],"450_24":["N.S.knjižnica",45.793979,15.979006,178.3],"451_21":["Tr. Savica",45.795378,15.992213,87.3],"451_22":["Tr. Savica",45.795424,15.989348,269.4],"452_21":["Rakušina",45.795862,16.006766,85.9],"452_22":["Rakušina",45.796336,16.006263,255.4],"453_21":["Radnička",45.796539,16.020484,80.8],"453_22":["Radnička",45.796652,16.014301,266.8],"453_23":["Radnička",45.797682,16.017114,319.4],"453_24":["Radnička",45.796089,16.019183,125.0],"454_21":["Končar",45.796919,16.023855,94.3],"454_22":["Končar",45.797157,16.023357,270.0],"455_21":["Čavićeva",45.796663,16.028761,83.6],"455_22":["Čavićeva",45.797307,16.027023,266.6],"457_21":["Kozari Bok",45.798312,16.043606,67.9],"457_22":["Kozari Bok",45.798347,16.043166,257.6],"457_23":["Kozari Bok",45.798784,16.044554,70.6],"457_25":["Kozari Bok",45.798242,16.043615,49.8],"457_26":["Kozari Bok",45.79863,16.044873,null],"458_21":["Zelena tržnica",45.800137,16.050067,83.4],"458_23":["Zelena tržnica",45.801321,16.048836,7.0],"458_26":["Zelena tržnica",45.800077,16.048221,253.1],"459_21":["RTerminali Žitnjak",45.800614,16.057598,73.7],"459_22":["RTerminali Žitnjak",45.800587,16.057171,256.9],"460_23":["Ciglanska",45.814643,15.927179,353.5],"460_24":["Ciglanska",45.814323,15.927283,76.5],"461_23":["Graberje",45.817797,15.926665,347.3],"461_24":["Graberje",45.817725,15.926614,172.2],"462_23":["Šuma Grmoščica",45.819566,15.922956,311.9],"462_24":["Šuma Grmoščica",45.819721,15.922831,127.1],"463_23":["Kotoripska",45.822685,15.917974,337.9],"463_24":["Kotoripska",45.822612,15.917934,130.3],"464_23":["Millerova",45.824771,15.916759,318.6],"464_24":["Millerova",45.824824,15.916593,157.1],"465_23":["Graberje-okretište",45.826798,15.914193,null],"465_24":["Graberje-okretište",45.826778,15.91426,140.2],"467_21":["Kustošijanska",45.813851,15.929201,67.4],"467_22":["Kustošijanska",45.81377,15.928246,254.6],"467_32":["Kustošijanska",45.81377,15.928246,254.6],"467_52":["Kustošijanska",45.81377,15.928246,254.6],"467_62":["Kustošijanska",45.81377,15.928246,254.6],"468_21":["MUP",45.812477,15.922028,74.6],"468_22":["MUP",45.812205,15.920109,253.6],"469_21":["Samoborska",45.812225,15.861391,94.9],"469_22":["Samoborska",45.812608,15.860074,284.6],"469_23":["Samoborska",45.812912,15.861898,80.9],"469_24":["Samoborska",45.811795,15.860202,191.1],"470_21":["Vučak",45.813881,15.85263,108.5],"470_22":["Vučak",45.814456,15.849874,275.2],"471_21":["ZET-garaža Pod.",45.814539,15.846921,99.4],"471_22":["ZET-garaža Pod.",45.81477,15.84495,274.3],"472_21":["Podsused - most",45.815152,15.836132,94.7],"472_22":["Podsused - most",45.815206,15.83669,null],"473_21":["Medpotoki",45.813386,15.878548,94.9],"473_22":["Medpotoki",45.813631,15.876575,273.9],"475_21":["Bolnica Vrapče",45.814952,15.895295,110.9],"475_22":["Bolnica Vrapče",45.815101,15.895184,298.7],"476_21":["Dudovec",45.816766,15.890496,118.5],"476_22":["Dudovec",45.816888,15.89051,300.3],"477_21":["Bolnička-Gospodska",45.817963,15.885889,141.8],"477_22":["Bolnička-Gospodska",45.818071,15.885463,287.7],"478_21":["Karažnik",45.819116,15.880308,106.5],"478_22":["Karažnik",45.819027,15.881163,274.1],"479_22":["Čileanska",45.819318,15.875383,224.3],"480_23":["Manterovčak",45.819145,15.905991,348.8],"480_24":["Manterovčak",45.819281,15.905956,179.8],"481_23":["Jalšina",45.8231,15.90663,346.4],"481_24":["Jalšina",45.822849,15.906612,187.3],"482_23":["Margalići",45.826218,15.905551,355.7],"482_24":["Margalići",45.826758,15.905296,166.8],"484_23":["Horvatnica",45.832635,15.903592,343.3],"484_24":["Horvatnica",45.832802,15.903549,168.6],"485_23":["Vrapčanska 269",45.838487,15.901064,349.4],"485_24":["Vrapčanska 269",45.838499,15.900916,162.2],"486_23":["Gornje Vrapče",45.842992,15.899857,null],"486_24":["Gornje Vrapče",45.842952,15.899685,169.1],"487_23":["Divoselska",45.819844,15.927202,337.6],"487_24":["Divoselska",45.82008,15.927023,186.9],"488_23":["Skočilovići",45.822238,15.925785,321.9],"488_24":["Skočilovići",45.82158,15.92598,154.1],"489_23":["Kustošijski venec",45.825049,15.922618,358.1],"489_24":["Kustošijski venec",45.825465,15.922289,146.5],"490_23":["Završje",45.83116,15.922333,348.3],"490_24":["Završje",45.831301,15.922031,191.8],"491_23":["Krvarić",45.841442,15.914307,null],"491_24":["Krvarić",45.841442,15.914307,141.7],"492_23":["Ulica Črnomerec 46",45.820084,15.935201,354.4],"492_24":["Ulica Črnomerec 46",45.819504,15.935496,200.7],"493_23":["Strma cesta",45.823521,15.934718,330.8],"493_24":["Strma cesta",45.824036,15.934099,167.9],"494_23":["Josipa Šabana",45.827957,15.931164,352.0],"494_24":["Josipa Šabana",45.828553,15.930959,154.2],"495_23":["Fraterščica",45.832233,15.930297,352.1],"495_24":["Fraterščica",45.832161,15.930214,171.8],"496_23":["Miroslava Vaupotića",45.835831,15.929576,347.8],"496_24":["Miroslava Vaupotića",45.835824,15.929536,172.7],"497_23":["Lubenjaki",45.840101,15.928246,347.7],"497_24":["Lubenjaki",45.840631,15.92794,167.0],"498_23":["Gorenci",45.843909,15.927053,19.4],"498_24":["Gorenci",45.843595,15.926926,166.6],"499_23":["Talani",45.847415,15.928822,28.9],"499_24":["Talani",45.847735,15.928721,196.8],"500_23":["Bolnica Sveti Duh",45.819858,15.937881,6.9],"500_24":["Bolnica Sveti Duh",45.819735,15.937722,215.3],"501_23":["Orahovac",45.823457,15.938506,354.7],"501_24":["Orahovac",45.823905,15.938214,184.6],"502_23":["Čukovići",45.827018,15.938032,9.5],"502_24":["Čukovići",45.826997,15.93809,178.4],"503_23":["Trsje",45.830827,15.938949,353.8],"503_24":["Trsje",45.830096,15.9387,187.8],"504_23":["Bijenik - crkva",45.833272,15.938568,327.0],"504_24":["Bijenik - crkva",45.833099,15.938614,178.9],"505_23":["Čičkovina",45.834644,15.937288,345.4],"505_24":["Čičkovina",45.834762,15.937244,150.1],"506_23":["Viktora Vide",45.838604,15.935803,2.3],"506_24":["Viktora Vide",45.838259,15.935727,163.2],"507_23":["Selišće",45.843927,15.936382,25.8],"507_24":["Selišće",45.8443,15.93636,186.1],"508_23":["Trpučev breg",45.847408,15.938793,357.2],"508_24":["Trpučev breg",45.847233,15.938747,209.6],"509_23":["Lukšić",45.850194,15.938595,320.5],"509_24":["Lukšić",45.850139,15.938568,177.5],"510_23":["Lukšić-okretište",45.853048,15.935213,null],"510_24":["Lukšić-okretište",45.853048,15.935213,141.2],"511_21":["Stare Gajnice",45.81904,15.871915,89.3],"511_22":["Stare Gajnice",45.819077,15.870776,17.4],"512_23":["Gajnički vidikovac",45.8207,15.872077,15.9],"512_24":["Gajnički vidikovac",45.820438,15.871398,165.5],"513_21":["Rušiščak",45.830529,15.877139,52.2],"513_22":["Rušiščak",45.830465,15.876994,204.9],"514_21":["Borčec",45.832287,15.880386,null],"514_22":["Borčec",45.832224,15.880598,235.0],"515_24":["Gospodska",45.813691,15.886617,101.0],"516_23":["Bukoščak",45.821063,15.85007,41.9],"516_24":["Bukoščak",45.820369,15.849368,176.2],"517_23":["Bizek I",45.824354,15.854311,49.0],"517_24":["Bizek I",45.824514,15.854432,220.4],"518_23":["Bizek III",45.827408,15.859353,124.3],"518_24":["Bizek III",45.827388,15.859358,230.1],"519_23":["Bizek",45.826288,15.861707,null],"519_24":["Bizek",45.826295,15.861704,303.8],"520_21":["Gustava Krkleca",45.797927,15.900566,14.2],"520_22":["Gustava Krkleca",45.798162,15.90102,172.3],"521_21":["Antuna Šoljana",45.801309,15.902994,203.6],"521_22":["Antuna Šoljana",45.801929,15.902019,272.5],"522_21":["Tržnica Špansko",45.801935,15.898515,101.3],"522_22":["Tržnica Špansko",45.80208,15.89699,272.5],"522_23":["Tržnica Špansko",45.802674,15.897952,4.6],"523_21":["Matije Vlačića",45.802054,15.894972,84.7],"523_22":["Matije Vlačića",45.802195,15.893198,273.4],"524_21":["Špansko",45.802291,15.889258,93.4],"524_22":["Špansko",45.802335,15.889837,289.6],"524_25":["Špansko",45.802257,15.889662,93.1],"526_23":["Remetinečka os.škola",45.774903,15.95331,6.1],"526_24":["Remetinečka os.škola",45.774645,15.953179,205.2],"527_23":["Savski gaj XII.",45.77208,15.951603,22.9],"527_24":["Savski gaj XII.",45.772015,15.951402,213.2],"528_21":["Naletilićeva",45.76716,15.947098,32.6],"528_22":["Naletilićeva",45.767165,15.945491,253.7],"528_24":["Naletilićeva",45.765393,15.946002,178.3],"529_24":["Brezovička 28",45.76451,15.937115,199.3],"530_21":["Bašćanske ploče",45.757125,15.933938,121.0],"530_23":["Bašćanske ploče",45.757471,15.932644,46.1],"530_24":["Bašćanske ploče",45.757583,15.932593,220.9],"531_21":["Botinec",45.755224,15.938467,null],"531_22":["Botinec",45.755224,15.938467,58.4],"532_21":["Zlatareva zlata",45.757435,15.943622,26.7],"532_23":["Zlatareva zlata",45.75724,15.94437,16.8],"532_24":["Zlatareva zlata",45.757221,15.944384,221.5],"533_23":["Lukoranska",45.760339,15.945712,8.1],"534_21":["Karlovačka 18",45.766662,15.931974,79.1],"534_22":["Karlovačka 18",45.766696,15.931916,246.1],"535_21":["Karlovačka 97",45.765152,15.927131,65.9],"535_22":["Karlovačka 97",45.764805,15.9258,256.0],"536_21":["Karlovačka 157",45.763395,15.917708,75.0],"536_22":["Karlovačka 157",45.763289,15.917115,232.9],"537_23":["Petlja - ulaz",45.759629,15.910932,51.5],"537_24":["Petlja - ulaz",45.759608,15.910148,278.2],"538_23":["Petlja - izlaz",45.759768,15.896273,89.3],"538_24":["Petlja - izlaz",45.760707,15.899192,257.8],"539_23":["Hrastovička",45.758339,15.892605,60.8],"539_24":["Hrastovička",45.75783,15.89232,230.8],"540_21":["Put za Leskovac",45.75426,15.886049,168.4],"540_23":["Put za Leskovac",45.754072,15.885751,48.3],"541_23":["Dolenica",45.752941,15.883799,50.3],"541_24":["Dolenica",45.752428,15.882818,228.7],"542_23":["MERCATONE",45.750056,15.879128,48.5],"542_24":["MERCATONE",45.74958,15.878168,228.7],"543_21":["Stupnik-crkva",45.745025,15.870923,48.7],"543_22":["Stupnik-crkva",45.745016,15.870715,282.9],"544_21":["Donjostupnička",45.745304,15.867389,96.5],"544_22":["Donjostupnička",45.745612,15.866993,293.4],"545_21":["Meglajci",45.749761,15.854272,116.0],"545_22":["Meglajci",45.749999,15.852455,294.6],"546_21":["Stupnik-škola",45.751627,15.847171,110.6],"546_22":["Stupnik-škola",45.751596,15.847445,295.6],"548_21":["Lučko-centar",45.761257,15.882351,98.7],"548_22":["Lučko-centar",45.760938,15.885313,302.8],"549_25":["Lučko",45.769845,15.884047,null],"549_26":["Lučko",45.769845,15.884047,187.8],"550_23":["Tržnica Jarun",45.789896,15.930184,3.8],"550_24":["Tržnica Jarun",45.789884,15.930239,201.5],"551_23":["Crkva S.Mati Slobode",45.786518,15.928677,17.3],"551_24":["Crkva S.Mati Slobode",45.78606,15.928082,208.7],"552_23":["Sveti Duh",45.812533,15.94213,293.7],"553_21":["Zagorska",45.806993,15.943901,63.3],"553_22":["Zagorska",45.807082,15.941756,282.7],"553_23":["Zagorska",45.807774,15.942512,356.8],"553_24":["Zagorska",45.80631,15.942814,176.0],"554_23":["Baštijanova",45.801854,15.943368,354.2],"554_24":["Baštijanova",45.800804,15.943368,186.0],"556_24":["Kazalište Trešnja",45.79334,15.944173,169.5],"565_21":["Islandska",45.772439,15.98883,93.4],"565_22":["Islandska",45.772688,15.989916,268.0],"565_23":["Islandska",45.773265,15.990918,346.7],"565_24":["Islandska",45.771935,15.990624,168.6],"566_21":["Vatikanska",45.767766,15.992178,119.1],"566_23":["Vatikanska",45.768711,15.991183,356.4],"566_24":["Vatikanska",45.767079,15.990959,196.6],"567_21":["Vatikanska-Sv.Mateja",45.767983,15.998913,148.2],"567_22":["Vatikanska-Sv.Mateja",45.768283,15.998494,274.8],"568_21":["Kauzlarićev prilaz",45.76425,16.002236,null],"568_22":["Kauzlarićev prilaz",45.76425,16.002236,239.5],"568_23":["Kauzlarićev prilaz",45.765205,16.002383,347.9],"568_27":["Kauzlarićev prilaz",45.765171,16.002383,319.9],"569_21":["R.Terminali Jankomir",45.797328,15.875996,92.3],"569_22":["R.Terminali Jankomir",45.797522,15.871717,263.3],"570_23":["KING CROSS",45.797704,15.857841,1.1],"570_24":["KING CROSS",45.797947,15.857404,92.7],"571_23":["Okt. Miletića",45.802738,15.857976,10.5],"571_24":["Okt. Miletića",45.800311,15.857017,173.5],"572_23":["Kovinska",45.807263,15.859183,12.2],"572_24":["Kovinska",45.805436,15.858419,190.8],"573_21":["Josipa Lončara",45.811719,15.869931,99.8],"573_22":["Josipa Lončara",45.812023,15.868657,275.6],"574_21":["Mokrovićeva",45.811317,15.873257,87.0],"574_22":["Mokrovićeva",45.8114,15.873093,281.4],"575_21":["Jankomir",45.81158,15.880488,87.0],"575_22":["Jankomir",45.811518,15.878728,268.3],"575_24":["Jankomir",45.809941,15.878456,210.9],"576_21":["Stenjevec",45.811725,15.884518,123.4],"576_22":["Stenjevec",45.811781,15.883581,251.8],"577_25":["Trg Mažuranića",45.808305,15.969442,264.6],"577_26":["Trg Mažuranića",45.807681,15.969265,null],"578_21":["HNK 2 - Adžijina",45.80774,15.96087,285.8],"581_21":["Desinička",45.807858,15.935984,98.9],"581_22":["Desinička",45.807921,15.936414,280.4],"582_23":["Tomislavova",45.808968,15.93005,95.5],"582_24":["Tomislavova",45.808748,15.92993,178.8],"583_23":["Hanamanova",45.805146,15.930127,359.2],"583_24":["Hanamanova",45.805544,15.93003,178.5],"584_23":["Baštijanova",45.801396,15.930236,358.8],"584_24":["Baštijanova",45.802005,15.930165,232.2],"585_21":["Voltino",45.800463,15.925805,73.2],"585_22":["Voltino",45.800517,15.925874,null],"587_24":["Dom športova",45.808158,15.953724,111.5],"588_21":["Petračićeva",45.80731,15.956806,85.4],"589_21":["HNK 2 - Adžijina",45.807501,15.960206,88.4],"600_23":["Dom  Svetog Josipa",45.819609,15.941147,null],"600_24":["Dom  Svetog Josipa",45.819609,15.941147,232.1],"608_22":["Dore Pejačević",45.790901,15.901405,292.6],"609_22":["DVD Prečko",45.791833,15.898198,295.7],"610_22":["Paljetkova",45.793058,15.894551,62.5],"611_23":["Prečko-terminal",45.794759,15.899611,33.9],"611_24":["Prečko-terminal",45.794759,15.899611,null],"611_27":["Prečko-terminal",45.794993,15.899685,6.7],"612_24":["Hatzeova",45.791541,15.905657,257.8],"614_21":["Gospodska",45.812924,15.886312,94.2],"614_22":["Gospodska",45.813054,15.887202,290.0],"615_21":["Prigornica",45.81502,15.848134,94.4],"615_22":["Prigornica",45.815232,15.848165,275.9],"615_23":["Prigornica",45.815649,15.849831,1.8],"615_24":["Prigornica",45.815646,15.849814,97.3],"617_23":["Seljačke bune",45.819621,15.833149,33.7],"617_24":["Seljačke bune",45.819456,15.832981,138.9],"618_23":["Kamenolom",45.823558,15.836911,77.0],"618_24":["Kamenolom",45.823195,15.836686,214.6],"619_23":["Sutinska vrela",45.824069,15.840096,64.5],"619_24":["Sutinska vrela",45.82406,15.840446,251.7],"620_23":["Prigornica-sjever",45.826128,15.846295,29.6],"620_24":["Prigornica-sjever",45.825975,15.846037,243.8],"621_23":["Bengezi",45.82958,15.84911,32.0],"621_24":["Bengezi",45.829427,15.848928,210.3],"622_23":["Podsusedsko Dolje",45.833427,15.85256,null],"622_24":["Podsusedsko Dolje",45.833302,15.85233,211.5],"623_21":["Podsused-centar",45.816799,15.836304,102.2],"623_22":["Podsused-centar",45.816816,15.835277,332.1],"624_23":["Mesekov put",45.821206,15.871113,350.9],"624_24":["Mesekov put",45.821154,15.871025,163.6],"625_23":["Kancelak",45.8257,15.870079,1.0],"625_24":["Kancelak",45.825191,15.870056,170.5],"626_23":["Kudekov put",45.830155,15.870195,352.5],"626_24":["Kudekov put",45.830572,15.869926,179.0],"627_23":["Gornji Stenjevec",45.833294,15.869604,null],"627_24":["Gornji Stenjevec",45.832991,15.869818,178.2],"628_23":["Trg S. Severa",45.830857,15.905053,340.9],"628_24":["Trg S. Severa",45.830857,15.905053,null],"629_22":["Zastavn.-nadvožnjak",45.750446,15.890148,319.8],"629_24":["Zastavn.-nadvožnjak",45.749832,15.890156,220.0],"630_23":["Zastavnice 1",45.748468,15.888602,28.6],"630_24":["Zastavnice 1",45.748457,15.888503,174.2],"631_23":["Hrvatski Leskovac",45.743989,15.889177,354.9],"631_24":["Hrvatski Leskovac",45.743854,15.889177,171.7],"632_23":["Gornjodemerska",45.737239,15.888571,13.6],"632_24":["Gornjodemerska",45.737156,15.888487,215.9],"633_21":["Demerska 3",45.734372,15.891167,112.3],"633_22":["Demerska 3",45.73517,15.892096,225.7],"634_24":["Goli Breg",45.731349,15.89802,160.3],"635_23":["Jadranska av.-Arena",45.773802,15.942138,246.4],"635_24":["Jadranska av.-Arena",45.773416,15.942627,29.8],"636_21":["Kockica",45.791397,15.968656,16.7],"636_22":["Kockica",45.791523,15.968264,258.0],"637_21":["Boćarski dom",45.790396,15.963006,75.7],"637_22":["Boćarski dom",45.790496,15.961318,246.4],"638_23":["Vrhovec",45.843144,15.952861,188.8],"638_24":["Vrhovec",45.843144,15.952861,null],"639_23":["Vinogradi",45.825168,15.947013,174.6],"639_24":["Vinogradi",45.82544,15.947164,9.7],"641_23":["Vrhovec 62",45.820732,15.947612,178.8],"641_24":["Vrhovec 62",45.820723,15.947595,356.4],"642_23":["Zatišje",45.817831,15.947699,167.0],"642_24":["Zatišje",45.817576,15.947978,355.2],"643_23":["Mandaličina",45.813655,15.949086,311.2],"643_24":["Mandaličina",45.813657,15.949114,348.6],"644_23":["Kuniščak",45.816156,15.944984,353.5],"644_24":["Kuniščak",45.815256,15.945336,null],"644_27":["Kuniščak",45.816156,15.944984,null],"644_28":["Kuniščak",45.815256,15.945336,121.3],"645_23":["Šestinski dol 58",45.821188,15.944155,356.2],"645_24":["Šestinski dol 58",45.820625,15.944067,170.6],"646_23":["Šestin. dol odvojak",45.824888,15.943805,15.0],"646_24":["Šestin. dol odvojak",45.823831,15.943178,169.1],"647_23":["Kestenovac-Drage",45.827674,15.944876,5.7],"647_24":["Kestenovac-Drage",45.827593,15.944949,198.2],"648_23":["Podfuščak",45.831483,15.945419,358.6],"648_24":["Podfuščak",45.832085,15.945168,181.9],"649_23":["Šestinski dol",45.834021,15.945329,null],"649_24":["Šestinski dol",45.834021,15.945329,183.3],"650_23":["Tomislavova",45.808749,15.927313,57.1],"650_24":["Tomislavova",45.809094,15.927594,224.1],"651_23":["Sokolska",45.805718,15.923006,44.7],"651_24":["Sokolska",45.806227,15.923608,228.0],"652_23":["Medarska",45.804292,15.920701,48.4],"652_24":["Medarska",45.804125,15.920257,228.2],"653_23":["Čepelovački put",45.802411,15.917698,48.1],"653_24":["Čepelovački put",45.801938,15.916751,229.5],"654_23":["Ratarska",45.800025,15.913646,49.8],"654_24":["Ratarska",45.799795,15.913158,219.8],"655_21":["Kožinčev put",45.811428,15.90574,42.8],"655_22":["Kožinčev put",45.81154,15.905196,218.0],"656_23":["Švarčanska",45.809278,15.903876,31.1],"656_24":["Švarčanska",45.809647,15.903965,206.9],"657_21":["I.Brlić Mažuranić",45.806428,15.901773,27.2],"657_22":["I.Brlić Mažuranić",45.806531,15.901693,270.2],"658_21":["Nikole Gučetića",45.806467,15.898391,90.9],"658_22":["Nikole Gučetića",45.80654,15.898096,227.5],"659_24":["Matije Divkovića",45.804284,15.897184,183.5],"660_23":["Gornje Padine",45.820419,15.890035,4.4],"660_24":["Gornje Padine",45.819779,15.889884,171.9],"661_23":["Perjavica",45.826945,15.890763,31.5],"661_24":["Perjavica",45.826762,15.890351,182.7],"662_23":["Dominika Mandića",45.830675,15.894042,340.9],"662_24":["Dominika Mandića",45.830966,15.893952,210.8],"663_23":["Reljkovićeva",45.81248,15.955139,327.6],"663_27":["Reljkovićeva",45.812277,15.954981,null],"664_24":["Jablanovac",45.822155,15.938011,184.8],"665_21":["Stenjevečka",45.807188,15.889239,98.8],"665_22":["Stenjevečka",45.807256,15.889219,319.0],"666_21":["Marina Tartaglie",45.806574,15.894949,92.6],"666_22":["Marina Tartaglie",45.806739,15.893652,279.5],"667_21":["Tekstilno-teh. f.",45.812081,15.934697,90.9],"668_23":["Institut za bilje",45.751121,15.936757,42.1],"668_24":["Institut za bilje",45.751119,15.936638,200.3],"669_23":["Naletilićeva 88",45.74419,15.932832,21.6],"669_24":["Naletilićeva 88",45.743389,15.93253,183.3],"670_23":["Naletilićeva 104",45.738074,15.932161,4.4],"670_24":["Naletilićeva 104",45.738023,15.932091,200.4],"671_21":["Obrež - škola",45.72093,15.925507,123.5],"671_23":["Obrež - škola",45.721529,15.924841,14.9],"672_23":["Novoselci",45.716677,15.920806,30.1],"673_23":["Strmec-centar",45.710214,15.918186,15.8],"674_23":["Buhini",45.706124,15.913701,37.4],"675_23":["Celići",45.701389,15.906947,44.9],"676_23":["Strmec-Regelji",45.699387,15.901729,61.2],"676_24":["Strmec-Regelji",45.699391,15.901738,null],"677_21":["Milekanska-Orsagi",45.718126,15.931569,109.4],"677_22":["Milekanska-Orsagi",45.71819,15.931554,305.5],"678_21":["Društveni dom",45.715597,15.942448,104.7],"678_22":["Društveni dom",45.715756,15.942242,288.1],"678_23":["Društveni dom",45.715907,15.941753,289.1],"678_24":["Društveni dom",45.715579,15.941592,194.1],"679_23":["Brezje",45.707651,15.938654,14.7],"679_24":["Brezje",45.706827,15.938453,172.4],"680_23":["Čret",45.667849,15.946189,352.5],"680_24":["Čret",45.667424,15.945932,208.3],"681_22":["Dragonožec-škola",45.663056,15.942096,308.4],"681_23":["Dragonožec-škola",45.662972,15.942659,26.8],"681_24":["Dragonožec-škola",45.662997,15.942523,225.4],"681_27":["Dragonožec-škola",45.662715,15.942727,113.5],"682_23":["Đurakov breg",45.657522,15.940865,12.8],"682_24":["Đurakov breg",45.65702,15.940976,164.1],"683_23":["Pučki",45.652673,15.942835,344.1],"683_24":["Pučki",45.652436,15.942844,228.1],"684_23":["Goljački put",45.649794,15.938996,43.0],"684_24":["Goljački put",45.649522,15.9382,201.7],"685_23":["Gornjodr.-Stari dom",45.646962,15.93679,28.6],"685_24":["Gornjodr.-Stari dom",45.647035,15.936781,190.8],"686_23":["Vikend naselje",45.641206,15.935214,10.8],"686_24":["Vikend naselje",45.641361,15.935227,195.6],"687_23":["Gornjodrag.-spomenik",45.638115,15.933902,16.5],"687_24":["Gornjodrag.-spomenik",45.638165,15.933948,260.7],"688_23":["Žapci",45.637403,15.924516,83.8],"688_24":["Žapci",45.637044,15.924155,195.8],"689_23":["Staro okretište",45.633019,15.922557,17.4],"689_24":["Staro okretište",45.633006,15.922517,188.2],"690_23":["Lipnica",45.630692,15.92204,8.8],"690_24":["Lipnica",45.630699,15.92204,143.4],"691_23":["Brezovička 80",45.752767,15.926646,41.7],"691_24":["Brezovička 80",45.752729,15.92656,216.7],"692_23":["Brezovička-ekonomija",45.745712,15.919127,36.6],"692_24":["Brezovička-ekonomija",45.745671,15.919009,210.9],"693_23":["AGROKOKA",45.743078,15.916875,30.8],"693_24":["AGROKOKA",45.743044,15.916753,199.7],"694_23":["Brez.- pod kestenima",45.733236,15.912039,18.9],"694_24":["Brez.- pod kestenima",45.7328,15.911496,185.5],"695_23":["Golobreška",45.728085,15.910906,8.7],"695_24":["Golobreška",45.727705,15.910797,213.9],"696_23":["Brezovička-ambulanta",45.724163,15.907737,29.4],"696_24":["Brezovička-ambulanta",45.723852,15.907083,231.4],"697_23":["Desprimska",45.721743,15.903333,47.6],"697_24":["Desprimska",45.721468,15.902803,200.1],"698_23":["Pekarska",45.714969,15.899392,22.1],"698_24":["Pekarska",45.714503,15.89916,204.7],"699_23":["Hudobička 1",45.711164,15.897072,23.1],"699_24":["Hudobička 1",45.710727,15.896668,211.8],"700_23":["Grančarska 22",45.704187,15.893665,3.0],"700_24":["Grančarska 22",45.70384,15.893782,195.6],"701_23":["Šolići",45.697866,15.891615,12.8],"701_24":["Šolići",45.697356,15.891185,215.1],"702_23":["Hladnjača",45.691469,15.885234,34.9],"702_24":["Hladnjača",45.690952,15.884753,206.5],"703_23":["Kraljevečka cesta",45.684406,15.880144,26.7],"703_24":["Kraljevečka cesta",45.684551,15.880177,230.7],"704_23":["K.Brijegi-IIIodvojak",45.6796,15.876193,29.9],"704_24":["K.Brijegi-IIIodvojak",45.679096,15.875659,195.5],"705_23":["K.Brijegi-VI odvojak",45.675825,15.874241,19.9],"705_24":["K.Brijegi-VI odvojak",45.67507,15.874065,196.3],"706_23":["Kup.Kraljevec-škola",45.672197,15.873109,12.3],"706_24":["Kup.Kraljevec-škola",45.671934,15.872755,189.4],"707_23":["Kralj.Brijegi-Lojeni",45.66445,15.871158,10.0],"707_24":["Kralj.Brijegi-Lojeni",45.663926,15.870862,174.9],"708_23":["Kral.Brijegi-Starjak",45.660197,15.871398,357.7],"708_24":["Kral.Brijegi-Starjak",45.660107,15.871352,184.8],"709_23":["K.Brijegi-Vodosprema",45.656484,15.871115,3.0],"709_24":["K.Brijegi-Vodosprema",45.656633,15.870934,313.1],"710_21":["Štrpet",45.66402,15.859786,133.6],"710_22":["Štrpet",45.664081,15.859563,327.4],"711_21":["Štrpet-okretište",45.666811,15.857064,145.7],"711_22":["Štrpet-okretište",45.666811,15.857064,145.7],"712_23":["Put za Tumbre",45.6845,15.873356,91.1],"712_24":["Put za Tumbre",45.684225,15.873248,215.2],"713_23":["Pandaki",45.682125,15.861004,133.6],"713_24":["Pandaki",45.682187,15.860981,313.9],"714_23":["Harabajsi",45.684657,15.857287,134.3],"714_24":["Harabajsi",45.684685,15.85727,313.3],"715_23":["Potočko",45.687274,15.852336,127.1],"715_24":["Potočko",45.68797,15.852271,297.0],"716_23":["Matički",45.692357,15.839738,null],"716_24":["Matički",45.692425,15.839759,337.6],"717_21":["Put za Ašpergere",45.696466,15.837275,null],"717_22":["Put za Ašpergere",45.696508,15.837349,221.8],"718_23":["Ašpergeri",45.690829,15.830237,196.3],"718_24":["Ašpergeri",45.690834,15.830088,null],"719_24":["Gajani",45.67065,15.822971,55.0],"725_21":["Ferki",45.665209,15.937611,122.4],"725_22":["Ferki",45.665522,15.937639,287.7],"726_21":["Gata",45.667225,15.930383,111.8],"726_22":["Gata",45.667294,15.929684,246.1],"727_22":["Donji Trpuci",45.664743,15.921467,227.3],"727_23":["Donji Trpuci",45.665111,15.921816,70.5],"728_21":["Ježdovečka",45.760485,15.873842,82.6],"728_22":["Ježdovečka",45.760562,15.873653,288.5],"729_23":["Gradek",45.758484,15.861878,76.5],"729_24":["Gradek",45.758607,15.862245,259.5],"730_23":["Domovićeva",45.757319,15.852538,79.9],"730_24":["Domovićeva",45.757167,15.851102,262.6],"731_21":["Gornjostupnička",45.755018,15.835744,113.0],"731_23":["Gornjostupnička",45.75574,15.837948,81.2],"731_24":["Gornjostupnička",45.755708,15.835118,293.8],"732_23":["Put za Kerestinec",45.751367,15.80881,77.9],"732_24":["Put za Kerestinec",45.750911,15.808296,202.7],"733_23":["Horvati I",45.735072,15.79857,23.7],"733_24":["Horvati I",45.734904,15.798718,156.5],"734_23":["Kralji",45.729956,15.801805,336.2],"734_24":["Kralji",45.729463,15.802107,130.1],"735_23":["Nabrežje",45.726966,15.806298,313.6],"735_24":["Nabrežje",45.726789,15.806648,138.6],"736_23":["Pipići",45.723172,15.811063,318.8],"736_24":["Pipići",45.723415,15.810903,147.0],"737_23":["Bencekovići",45.719918,15.814162,326.4],"737_24":["Bencekovići",45.71974,15.814324,118.6],"738_22":["Horvati-Hercegi",45.711193,15.810402,226.5],"738_24":["Horvati-Hercegi",45.711193,15.810402,60.2],"746_21":["Ježdovečka 16",45.770803,15.858201,133.4],"746_22":["Ježdovečka 16",45.770973,15.857683,295.2],"747_21":["Ježdovec-vojarna",45.772323,15.853674,115.7],"747_22":["Ježdovec-vojarna",45.772425,15.853262,307.6],"748_21":["Studeni II.",45.774495,15.849305,125.5],"748_22":["Studeni II.",45.775087,15.8483,307.7],"749_21":["Vukasi",45.776751,15.845504,130.4],"749_22":["Vukasi",45.776997,15.844756,288.7],"750_21":["Ježdovečka 69 A",45.778252,15.838865,108.0],"751_21":["Ježdovec-nadvožnjak",45.782131,15.832722,132.2],"751_22":["Ježdovec-nadvožnjak",45.782485,15.832312,64.0],"752_23":["Milače",45.682841,15.845802,45.8],"753_23":["Put za Franje",45.678902,15.839863,46.5],"754_23":["Stadion",45.864072,15.802281,343.0],"754_24":["Stadion",45.864229,15.802106,208.5],"756_22":["Inker",45.877606,15.800449,254.8],"756_23":["Inker",45.879324,15.800263,345.6],"757_23":["Veliki Vrh",45.892873,15.795258,20.5],"757_24":["Veliki Vrh",45.891355,15.794677,163.7],"758_23":["Cvjetna ulica",45.899107,15.798611,24.6],"758_24":["Cvjetna ulica",45.898958,15.798418,198.9],"759_23":["Pri mlinu",45.904032,15.801858,42.6],"759_24":["Pri mlinu",45.904345,15.80177,203.4],"760_23":["Pojatno-centar",45.907994,15.807093,10.0],"760_24":["Pojatno-centar",45.907779,15.80672,225.1],"761_23":["Pri Špoljaru",45.912841,15.808317,355.6],"761_24":["Pri Špoljaru",45.912605,15.808248,192.4],"762_23":["Nadlug",45.918088,15.807741,15.3],"762_24":["Nadlug",45.918695,15.8075,175.1],"763_23":["Kružna ulica",45.924158,15.810126,22.4],"763_24":["Kružna ulica",45.924143,15.809823,196.5],"764_23":["Kupljenovo-centar",45.932246,15.814912,340.4],"764_24":["Kupljenovo-centar",45.932109,15.814841,203.7],"771_23":["D. Bistra-centar",45.904009,15.854466,103.3],"771_24":["D. Bistra-centar",45.904115,15.854397,166.3],"772_23":["Polj.-kod škole",45.901865,15.86748,50.6],"772_24":["Polj.-kod škole",45.902372,15.868127,280.3],"773_23":["Kulturni centar",45.906907,15.876305,52.4],"773_24":["Kulturni centar",45.906044,15.87532,233.7],"775_23":["Kod Cohe",45.915134,15.8904,43.3],"775_24":["Kod Cohe",45.915305,15.890634,218.0],"776_23":["Sljemenska",45.91916,15.895858,65.2],"776_24":["Sljemenska",45.918933,15.893861,211.8],"777_23":["G.Bistra-okretište",45.920548,15.900183,null],"777_24":["G.Bistra-okretište",45.920712,15.900123,247.8],"778_22":["Petračićeva",45.808447,15.957288,274.8],"779_21":["Vodovodna",45.80885,15.949202,102.4],"779_22":["Vodovodna",45.808931,15.948942,249.7],"780_23":["Stubička 16",45.837959,15.826646,33.3],"781_23":["Pintarićeva",45.845343,15.833606,4.6],"781_24":["Pintarićeva",45.845171,15.833435,218.7],"782_23":["Ivanec-centar",45.849222,15.834053,8.8],"782_24":["Ivanec-centar",45.849591,15.834105,186.0],"783_23":["Ivanečka",45.854864,15.835305,26.7],"783_24":["Ivanečka",45.854726,15.83519,188.4],"785_23":["Pri školi",45.872512,15.845568,39.2],"785_24":["Pri školi",45.872455,15.845463,192.4],"786_23":["Pri Saiću",45.879238,15.853455,31.8],"786_24":["Pri Saiću",45.878848,15.852765,218.5],"787_23":["Pri Kolaru",45.883243,15.857028,4.1],"787_24":["Pri Kolaru",45.884278,15.857275,210.0],"788_23":["Bukovje-Mihanovićeva",45.890355,15.856846,357.9],"788_24":["Bukovje-Mihanovićeva",45.890012,15.857047,178.4],"789_23":["Kod benzinske",45.898536,15.856408,346.1],"789_24":["Kod benzinske",45.898428,15.856396,176.9],"790_23":["Kod Škalića",45.910836,15.885546,38.2],"790_24":["Kod Škalića",45.911281,15.886119,232.3],"791_23":["Bana Josipa Jelačića",45.885881,15.85953,75.3],"791_24":["Bana Josipa Jelačića",45.885925,15.859491,223.1],"792_23":["Novaki - Selska",45.886793,15.864524,46.2],"792_24":["Novaki - Selska",45.886845,15.864466,255.1],"793_23":["Kovačevićeva",45.888968,15.867778,42.0],"793_24":["Kovačevićeva",45.889029,15.867888,227.5],"794_23":["Šoštarići",45.894615,15.87509,55.6],"794_24":["Šoštarići",45.89461,15.87503,221.7],"795_23":["Poljanica-Zeleni br.",45.898035,15.88227,34.0],"795_24":["Poljanica-Zeleni br.",45.898044,15.88218,235.4],"796_23":["Brezaki",45.901758,15.885884,2.1],"796_24":["Brezaki",45.901701,15.885544,212.6],"797_23":["Kod Ileniča",45.905786,15.886097,355.7],"797_24":["Kod Ileniča",45.906001,15.885948,183.7],"798_22":["Stadion",45.864332,15.80114,215.1],"799_21":["Savska",45.861044,15.795681,89.7],"799_22":["Savska",45.861008,15.795985,282.7],"800_21":["Konzum",45.862023,15.787738,100.0],"800_22":["Konzum",45.861475,15.786383,270.4],"801_21":["Dvorac Lužnica",45.861392,15.778135,84.6],"801_22":["Dvorac Lužnica",45.861512,15.777793,302.3],"802_21":["Šibice - dom",45.863149,15.774076,121.9],"802_22":["Šibice - dom",45.863149,15.774076,null],"806_21":["Mažuranićeva",45.869385,15.800599,169.4],"806_22":["Mažuranićeva",45.869485,15.799904,273.0],"808_23":["Stubička I.odvojak",45.86629,15.843555,12.7],"808_24":["Stubička I.odvojak",45.866711,15.843646,206.2],"918_23":["Sarajevska - Hrelić",45.76522,16.006752,346.9],"918_24":["Sarajevska - Hrelić",45.765359,16.006626,166.6],"919_23":["Sarajev.-Jakuševečka",45.760863,16.00888,325.0],"919_24":["Sarajev.-Jakuševečka",45.761238,16.008029,100.8],"920_21":["Jakuševec, škola",45.760835,16.011062,95.5],"920_22":["Jakuševec, škola",45.760873,16.01085,269.6],"921_21":["Jakuševec, centar",45.760517,16.015808,128.0],"921_22":["Jakuševec, centar",45.760495,16.015379,276.8],"922_21":["Jakuševec, groblje",45.757765,16.020848,102.7],"922_22":["Jakuševec, groblje",45.758232,16.020482,302.4],"923_21":["Mičevec, nadvožnjak",45.753817,16.045945,95.9],"923_22":["Mičevec, nadvožnjak",45.753847,16.045874,283.9],"924_21":["Mičevec, centar",45.753272,16.053487,75.8],"924_22":["Mičevec, centar",45.753442,16.052033,275.4],"926_21":["Nova Kosnica 66",45.759928,16.072505,39.7],"926_22":["Nova Kosnica 66",45.759608,16.072324,240.7],"927_21":["Kosnica-izbjeg. nas.",45.764079,16.077451,109.8],"927_22":["Kosnica-izbjeg. nas.",45.764095,16.077613,219.4],"928_21":["Kosnica, nadvožnjak",45.763028,16.081624,152.6],"928_22":["Kosnica, nadvožnjak",45.762973,16.081961,290.3],"929_21":["Kosnica",45.756481,16.086479,129.0],"929_22":["Kosnica",45.75658,16.08646,333.9],"930_21":["Kosnica, Petina",45.753653,16.091475,124.2],"930_22":["Kosnica, Petina",45.753678,16.091475,309.7],"931_21":["Selnica",45.751304,16.096423,118.5],"931_22":["Selnica",45.751014,16.096874,305.3],"932_21":["Selnica-put za Bapče",45.749483,16.101224,69.0],"932_22":["Selnica-put za Bapče",45.749562,16.100753,298.2],"933_23":["Črnkovec",45.751727,16.109856,281.1],"933_24":["Črnkovec",45.75171,16.109543,133.7],"933_27":["Črnkovec",45.75171,16.109543,15.4],"933_28":["Črnkovec",45.751883,16.109636,219.8],"934_21":["Črnko. put za Strmec",45.750095,16.111964,84.9],"934_22":["Črnko. put za Strmec",45.750097,16.111851,319.5],"935_21":["Črnkovec, centar",45.750592,16.12,67.8],"935_22":["Črnkovec, centar",45.750645,16.119804,264.4],"936_21":["Lekneno I",45.752898,16.128089,124.3],"936_22":["Lekneno I",45.752973,16.127919,247.7],"937_21":["Lekneno II",45.747997,16.138401,79.8],"937_22":["Lekneno II",45.747999,16.138381,304.3],"938_21":["Strmec Bukevski",45.750293,16.156614,139.4],"938_22":["Strmec Bukevski",45.750367,16.156464,259.4],"939_21":["S. Bukevski, okret.",45.745137,16.162956,null],"939_22":["S. Bukevski, okret.",45.745137,16.162956,319.1],"940_23":["Ščitarjevo I",45.762977,16.113984,18.3],"940_24":["Ščitarjevo I",45.763123,16.113958,195.0],"941_23":["Ščitarjevo II",45.768614,16.116655,4.5],"941_24":["Ščitarjevo II",45.768566,16.116628,198.9],"943_23":["Sasi, okretište",45.780349,16.105274,0.0],"943_24":["Sasi, okretište",45.780349,16.105274,131.5],"945_24":["Rakarje",45.725505,16.085708,225.5],"946_24":["Kobilić",45.731833,16.10119,239.7],"947_24":["Put za Bapče",45.74071,16.106832,203.9],"948_24":["Kralja Zvonimira 9",45.717634,16.074226,159.2],"949_21":["Srebrnjak",45.832091,15.988697,139.0],"949_22":["Srebrnjak",45.832542,15.990161,188.7],"949_23":["Srebrnjak",45.831598,15.989457,192.2],"950_24":["Srebrnjak 131",45.829015,15.991468,166.3],"951_23":["Bolnica Srebrnjak",45.824889,15.992973,346.1],"951_24":["Bolnica Srebrnjak",45.824857,15.992925,160.5],"952_23":["Bolnica Vuk Vrhovac",45.820041,15.995412,340.7],"952_24":["Bolnica Vuk Vrhovac",45.819888,15.995445,163.9],"953_23":["Labudovac",45.823011,15.997963,350.8],"953_24":["Labudovac",45.822741,15.997915,138.9],"954_23":["Jordanovac",45.826858,15.997724,185.1],"954_27":["Jordanovac",45.826576,15.997135,338.7],"954_28":["Jordanovac",45.826124,15.997222,171.9],"956_21":["Kozjak",45.831396,15.998314,null],"956_22":["Kozjak",45.831394,15.998319,210.4],"957_22":["Petrova 47",45.81809,15.99947,253.8],"958_23":["Bukovačka 8",45.824341,16.01149,333.8],"958_24":["Bukovačka 8",45.824364,16.011465,164.4],"959_23":["Bukovačka 68",45.828818,16.00972,328.4],"959_24":["Bukovačka 68",45.828889,16.009628,164.2],"960_23":["Bukovačka-Jurja Ves",45.833462,16.005619,342.0],"960_24":["Bukovačka-Jurja Ves",45.832826,16.005982,147.2],"961_23":["Bukovačka 160",45.835602,16.004619,337.2],"961_24":["Bukovačka 160",45.835938,16.004584,162.6],"962_23":["Kostanjevec",45.839549,16.002234,338.3],"962_24":["Kostanjevec",45.839955,16.001826,154.4],"963_23":["Bukovačka 276",45.843485,15.999982,336.6],"963_24":["Bukovačka 276",45.843508,15.999946,159.8],"964_23":["Gornji Bukovac",45.847629,15.997412,314.2],"964_24":["Gornji Bukovac",45.84752,15.997485,156.9],"965_23":["Vinec",45.850451,15.993249,246.2],"965_24":["Vinec",45.850245,15.993335,133.3],"966_21":["Remete",45.850254,15.993339,193.8],"966_23":["Remete",45.848661,15.99083,323.5],"966_24":["Remete",45.849447,15.989985,323.5],"967_23":["Kameniti stol",45.852201,15.986944,113.6],"967_24":["Kameniti stol",45.85244,15.986808,195.8],"968_23":["Kameniti stol 14",45.8493,15.985474,19.4],"968_24":["Kameniti stol 14",45.848851,15.985353,214.9],"969_24":["Rudolfa Kolaka",45.830226,16.03425,165.5],"969_32":["Rudolfa Kolaka",45.831869,16.033919,351.2],"969_42":["Rudolfa Kolaka",45.831227,16.035135,33.5],"969_52":["Rudolfa Kolaka",45.831869,16.033919,351.2],"970_23":["KB Dubrava",45.834566,16.03332,347.9],"970_24":["KB Dubrava",45.833409,16.033184,166.9],"971_23":["Avenija G.Šuška-MUP",45.839156,16.031902,311.0],"971_24":["Avenija G.Šuška-MUP",45.838027,16.032401,173.3],"972_23":["Svetošimunska",45.840418,16.029821,312.1],"972_24":["Svetošimunska",45.839796,16.030609,144.8],"973_23":["Dotršćina",45.844102,16.02879,349.5],"973_24":["Dotršćina",45.844022,16.02876,163.0],"974_23":["Miroševečina",45.853167,16.026377,341.2],"974_24":["Miroševečina",45.853201,16.026323,169.5],"975_23":["Štefanovec 37",45.861409,16.022356,328.0],"975_24":["Štefanovec 37",45.860881,16.022881,162.7],"976_23":["Štefanovec 70",45.865607,16.018587,344.5],"976_24":["Štefanovec 70",45.866967,16.0172,147.0],"977_23":["Štefanovec 114",45.869883,16.016886,346.3],"977_24":["Štefanovec 114",45.869949,16.016864,175.5],"978_22":["Trg Svetog Šimuna",45.875735,16.014842,114.7],"978_23":["Trg Svetog Šimuna",45.875702,16.014678,226.0],"979_23":["Sinbuk",45.881433,16.025239,74.8],"979_24":["Sinbuk",45.881115,16.024678,227.4],"980_23":["M.Trnava-V.Ročića",45.882552,16.029863,348.8],"980_24":["M.Trnava-V.Ročića",45.882464,16.029819,248.4],"981_23":["Markušev. Trnava 56",45.885504,16.029027,335.5],"981_24":["Markušev. Trnava 56",45.885708,16.028767,167.3],"982_23":["Markušev. Trnava  84",45.88844,16.027104,12.5],"982_24":["Markušev. Trnava  84",45.888438,16.027079,156.7],"983_23":["Bidrovečka 36",45.89289,16.028522,28.9],"983_24":["Bidrovečka 36",45.893021,16.028512,192.3],"984_23":["Bidrovec-brana",45.89507,16.030251,null],"984_24":["Bidrovec-brana",45.895045,16.030248,210.8],"985_21":["Grižanska",45.828815,16.052488,53.4],"985_22":["Grižanska",45.82982,16.052192,240.2],"985_32":["Grižanska",45.82982,16.052192,335.5],"986_23":["Malekova",45.832831,16.050221,343.3],"986_24":["Malekova",45.833239,16.049955,155.5],"987_23":["Hammova",45.835939,16.048886,330.7],"987_24":["Hammova",45.835054,16.049188,163.6],"988_21":["Kolakova-Grižanska",45.838399,16.048093,58.6],"988_22":["Kolakova-Grižanska",45.837681,16.046774,224.9],"988_24":["Kolakova-Grižanska",45.837688,16.047605,157.3],"989_22":["Miroševec",45.840781,16.043949,null],"989_26":["Miroševec",45.840783,16.043954,140.6],"98_1":["Črnomerec",45.815002,15.934932,107.5],"98_11":["Črnomerec",45.815127,15.934536,107.8],"98_2":["Črnomerec",45.815398,15.933924,null],"990_21":["Vile Velebita",45.834331,16.057038,40.1],"990_22":["Vile Velebita",45.834196,16.056348,176.9],"990_23":["Vile Velebita",45.834785,16.05604,6.1],"990_24":["Vile Velebita",45.834505,16.055871,180.6],"991_23":["Grana",45.837938,16.056527,348.2],"991_24":["Grana",45.839004,16.056439,185.0],"992_22":["Stara Oporovečka",45.840942,16.05408,244.3],"992_23":["Stara Oporovečka",45.841947,16.055327,346.2],"992_24":["Stara Oporovečka",45.842685,16.054689,161.7],"993_23":["Sunekova 12",45.844288,16.054503,6.7],"993_24":["Sunekova 12",45.844437,16.054535,176.5],"994_23":["Granešina-škola",45.846542,16.053271,317.9],"994_24":["Granešina-škola",45.846742,16.052874,153.3],"995_23":["Grad mladih",45.85172,16.046495,320.1],"995_24":["Grad mladih",45.851662,16.046403,135.9],"996_23":["Novaki",45.856068,16.041273,345.5],"996_24":["Novaki",45.854331,16.042705,136.0],"997_23":["Žigulići",45.865054,16.037958,350.4],"997_24":["Žigulići",45.864186,16.0381,163.2],"998_23":["Čepini",45.871191,16.03553,351.0],"998_24":["Čepini",45.871161,16.035466,159.9],"999_23":["Miroševečka 190",45.875857,16.034474,342.9],"999_24":["Miroševečka 190",45.876041,16.034473,171.9],"99_23":["Črnomerec",45.815318,15.933231,null],"99_26":["Črnomerec",45.814933,15.933877,168.7],"99_31":["Črnomerec",45.816087,15.933219,40.7],"99_32":["Črnomerec",45.815666,15.933689,239.0],"99_36":["Črnomerec",45.814943,15.93414,254.1],"99_42":["Črnomerec",45.815739,15.93391,11.7],"99_52":["Črnomerec",45.8158,15.934131,256.6],"99_62":["Črnomerec",45.815837,15.934329,262.4],"99_75":["Črnomerec",45.815703,15.933606,242.6],"99_82":["Črnomerec",45.814943,15.93414,46.3],"99_85":["Črnomerec",45.815799,15.933997,243.2]}}
+ALLC_STATIONS_SEED
+  mv -f "$APPDIR/stations.json.tmp" "$APPDIR/stations.json"
+fi
+done_
+
 step "installing the station indexer"
 cat > "$APPDIR/update_all.py" << 'ALLC_UPDATE_PY'
 #!/usr/bin/env python3
@@ -10014,6 +9986,7 @@ import urllib.error
 APPDIR = os.environ.get("ALLC_DIR", os.path.expanduser("~/.all.commute"))
 DB_PATH = os.path.join(APPDIR, "network.db")
 CACHE_ZIP = os.path.join(APPDIR, "zet_gtfs.zip")
+STATIONS_PATH = os.path.join(APPDIR, "stations.json")
 META_PATH = CACHE_ZIP + ".meta.json"
 GTFS_URLS = [
     "https://www.zet.hr/gtfs-scheduled/latest",
@@ -10041,6 +10014,26 @@ def _save_meta(m):
         pass
 
 
+def load_stations():
+    """The permanent stations: {stop_id: [name, lat, lon, bearing]}."""
+    try:
+        with open(STATIONS_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        st = d.get("stops") if isinstance(d, dict) else None
+        return st if isinstance(st, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_stations(st):
+    """Whole file or nothing: written beside it and renamed over it."""
+    tmp = STATIONS_PATH + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump({"updated": int(time.time()), "count": len(st), "stops": st},
+                  f, ensure_ascii=False, separators=(",", ":"))
+    os.replace(tmp, STATIONS_PATH)
+
+
 def db_fresh_for(ymd):
     try:
         con = sqlite3.connect(DB_PATH)
@@ -10052,44 +10045,7 @@ def db_fresh_for(ymd):
         return False
 
 
-
-def _maha_gtfs():
-    """MAHA COMMUTE v21: the one GTFS the family shares, if the umbrella is here."""
-    try:
-        import importlib.util
-        p = os.path.join(os.path.expanduser("~"), ".maha.commute", "gtfs", "gtfs.py")
-        if not os.path.isfile(p):
-            return None
-        spec = importlib.util.spec_from_file_location("maha_gtfs", p)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
-    except Exception:
-        return None
-
-
-def _maha_drop_own(paths):
-    """The shared copy is the copy: an app's own old zip is only disk."""
-    for p in paths:
-        try:
-            if os.path.isfile(p):
-                os.remove(p)
-        except OSError:
-            pass
-
 def get_gtfs(force=False):
-    g = _maha_gtfs()
-    if g is not None:
-        try:
-            data, changed = g.fetch(force=force, who="all", log=log)
-            _maha_drop_own([CACHE_ZIP, META_PATH])
-            return data
-        except Exception as e:
-            log("  the shared GTFS did not answer (%r), fetching our own" % (e,))
-    return _own_get_gtfs(force)
-
-
-def _own_get_gtfs(force=False):
     meta = _load_meta()
     cached = None
     if os.path.isfile(CACHE_ZIP):
@@ -10242,9 +10198,15 @@ def main():
                     list(route_name.items()))
 
     coord = {}
+    not_platform = set()
     for r in rows(zf, "stops.txt"):
+        if (r.get("location_type") or "0").strip() != "0":
+            not_platform.add(r.get("stop_id"))
         try:
-            coord[r["stop_id"]] = (float(r["stop_lat"]), float(r["stop_lon"]))
+            _la, _lo = float(r["stop_lat"]), float(r["stop_lon"])
+            if not (45.3 < _la < 46.3 and 15.3 < _lo < 16.7):
+                raise ValueError("outside the Zagreb area")
+            coord[r["stop_id"]] = (_la, _lo)
         except (KeyError, ValueError):
             continue
         name[r["stop_id"]] = (r.get("stop_name") or "").strip()
@@ -10306,16 +10268,40 @@ def main():
 
     served = {r[0] for r in con.execute("select distinct stop_id from dep")}
     log("%d stops actually see a departure today" % len(served))
-    srows = []
-    for sid in served:
-        la, lo = coord[sid]
+    # v21: stations are permanent. What the feed knows is merged into the
+    # file and nothing is ever taken out of it; the schedule is rebuilt
+    # around it. A stop with nothing leaving it today is still a station.
+    perm = load_stations()
+    if not perm:
+        # the first rebuild after the update: keep what the old index knew
+        try:
+            old = sqlite3.connect(DB_PATH)
+            for sid, nm, la, lo, br in old.execute(
+                    "select stop_id, name, lat, lon, bearing from stops"):
+                perm[str(sid)] = [nm, la, lo, br]
+            old.close()
+        except Exception:
+            pass
+    for sid, (la, lo) in coord.items():
+        if sid in not_platform and sid not in served:
+            continue                # a parent station is not somewhere you stand
         s_, c_ = sin_sum.get(sid), cos_sum.get(sid)
         brg = None
         if s_ is not None and (abs(s_) > 1e-9 or abs(c_) > 1e-9):
             brg = (math.degrees(math.atan2(s_, c_)) + 360.0) % 360.0
-        srows.append((sid, name.get(sid, ""), la, lo, brg))
+        prev = perm.get(sid)
+        if brg is None and prev:
+            brg = prev[3]          # keep the way it faced on the last day it could be told
+        nm = name.get(sid, "") or (prev[0] if prev else "")
+        perm[sid] = [nm, la, lo, brg]
+    srows = [(sid, v[0], v[1], v[2], v[3]) for sid, v in perm.items()]
+    try:
+        save_stations(perm)
+    except Exception as e:
+        log("could not write stations.json: %r" % (e,))
     con.executemany("insert or replace into stops values(?,?,?,?,?)", srows)
     nstops = len(srows)
+    log("%d stations kept for good, %d with a departure today" % (nstops, len(served)))
 
     con.execute("create table trips(trip_id text primary key, route text, head text,"
                 " origin text, dest text, start_t int, end_t int)")
@@ -10440,12 +10426,18 @@ cat > "$APPDIR/all.html" << 'ALLC_STAR_HTML'
   .pin.armed .pinid span{box-shadow:0 0 0 2px #fff,0 0 10px rgba(255,255,255,.55);}
   /* v20: the label is centred on the station and is itself the tap target,
      with a margin of extra reach around it for a thumb */
-  .pin{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  .pin{position:absolute;left:50%;top:50%;
+    transform:translate(calc(-50% + var(--dx,0px)),calc(-50% + var(--dy,0px)));
     cursor:pointer;touch-action:manipulation;}
   .pin::before{content:"";position:absolute;inset:-12px -10px;}
   .pinchip{position:absolute;left:37px;top:50%;transform:translateY(-50%);
     pointer-events:none;}
-  .pinid{position:relative;display:block;pointer-events:auto;}
+  .pinid{position:relative;display:block;pointer-events:auto;z-index:1;}
+  .pinlead{position:absolute;left:50%;top:50%;height:2px;margin-top:-1px;opacity:.85;
+    transform-origin:0 50%;pointer-events:none;z-index:0;}
+  .pinlead::after{content:"";position:absolute;right:-4px;top:50%;width:8px;height:8px;
+    margin-top:-4px;border-radius:50%;background:currentColor;
+    box-shadow:0 0 0 1.5px rgba(0,0,0,.7);}
   .pinid span{display:inline-block;padding:7px 9px;border-radius:7px;
     font:800 .71rem/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     color:var(--c,#fff);background:rgba(13,17,23,.72);
@@ -11002,6 +10994,13 @@ let map = null, tiles = null, names = null;      // free engine
 let gmap = null, HtmlMarker = null;              // detailed engine
 let gPins = [], gMe = null, gRing = null;
 let ME = null, meMk = null, meRing = null;
+let CENTRED = false;          // true once the map has really been moved to you
+// The map moves to you ONLY when you press the locate button (WANT_CENTRE), or
+// once on the very first run, before there is any view of yours to keep. The
+// dot moves by itself; the map never follows it and never changes zoom.
+let WANT_CENTRE = false, HAD_VIEW = !!LS.get("view", null);
+let STOPSEQ = 0;              // the newest stations request; an older answer is dropped
+
 let STOPS = [];                       // the stations around you, nearest first
 let COLOUR = {};                      // stop_id -> colour, kept steady as you walk
 let MARKS = {};                       // stop_id -> leaflet marker
@@ -11038,6 +11037,7 @@ function initFreeMap(){
   map.getPane("names").style.pointerEvents = "none";
   names = L.layerGroup();
   map.on("moveend", saveView);
+  map.on("zoomend", layoutPins);
   map.on("click", (e) => { if (PINMODE) pinAt(e.latlng.lat, e.latlng.lng); });
 }
 
@@ -11162,6 +11162,7 @@ function buildGoogleMap(g){
   });
   makeMarkerClass(g);
   gmap.addListener("idle", saveView);
+  gmap.addListener("idle", layoutPins);
   gmap.addListener("click", onMapClick);
 }
 
@@ -11303,6 +11304,90 @@ function clearStars(){
   gPins.forEach(p => { try { p.setMap(null); } catch (e) {} });
   gPins = [];
 }
+
+/* v21: labels never sit on top of each other. A label is moved off its station,
+   to the side of the street the platform is on (the right of the way the
+   vehicles leave, as they drive on the right), far enough that its edge clears
+   the station; labels that still touch are pushed apart. A thin line and a dot
+   keep the true position visible. Recomputed on every zoom, in screen pixels. */
+function pxOf(s){
+  try {
+    if (usingGoogle()) {
+      const pr = gmap.getProjection(); if (!pr) return null;
+      const q = pr.fromLatLngToPoint(new google.maps.LatLng(s.lat, s.lon));
+      const k = Math.pow(2, gmap.getZoom());
+      return { x: q.x * k, y: q.y * k };
+    }
+    const q = map.latLngToContainerPoint([s.lat, s.lon]);
+    return { x: q.x, y: q.y };
+  } catch (e) { return null; }
+}
+function pinEl(s){
+  if (usingGoogle()) {
+    const p = gPins[STOPS.indexOf(s)];
+    return p && p.div ? p.div.querySelector(".pin") : null;
+  }
+  const m = MARKS[s.stop_id], e = m && m.getElement ? m.getElement() : null;
+  return e ? e.querySelector(".pin") : null;
+}
+function layoutPins(){
+  const it = [];
+  STOPS.forEach(s => {
+    const el = pinEl(s), p = pxOf(s);
+    if (!el || !p) return;
+    const sp = el.querySelector(".pinid span");
+    const r = sp ? sp.getBoundingClientRect() : { width: 60, height: 27 };
+    const w = (r.width || 60) + 6, h = (r.height || 27) + 6;
+    let dx = 0, dy = 0;
+    if (s.bearing != null) {
+      const b = s.bearing * Math.PI / 180;
+      const rx = Math.cos(b), ry = Math.sin(b);          // right of the way it leaves
+      const d = Math.abs(rx) * w / 2 + Math.abs(ry) * h / 2 + 18;
+      dx = rx * d; dy = ry * d;
+    }
+    it.push({ s, el, p, w, h, dx, dy });
+  });
+  // a label must stay on the screen: keep its centre inside the map, with a margin
+  // (the Leaflet map only; the Google pixels have no fixed origin to clamp against)
+  const sz = !usingGoogle() && map ? map.getSize() : null;
+  const clampAll = () => {
+    if (!sz) return false;
+    let c = false;
+    it.forEach(o => {
+      const nx = Math.min(Math.max(o.p.x + o.dx, o.w / 2 + 4), sz.x - o.w / 2 - 4) - o.p.x;
+      const ny = Math.min(Math.max(o.p.y + o.dy, o.h / 2 + 64), sz.y - o.h / 2 - 4) - o.p.y;
+      if (Math.abs(nx - o.dx) > .5 || Math.abs(ny - o.dy) > .5) c = true;
+      o.dx = nx; o.dy = ny;
+    });
+    return c;
+  };
+  for (let k = 0; k < 80; k++) {
+    let moved = false;
+    for (let i = 0; i < it.length; i++) for (let j = i + 1; j < it.length; j++) {
+      const a = it[i], b = it[j];
+      const cx = (b.p.x + b.dx) - (a.p.x + a.dx), cy = (b.p.y + b.dy) - (a.p.y + a.dy);
+      const ox = (a.w + b.w) / 2 - Math.abs(cx), oy = (a.h + b.h) / 2 - Math.abs(cy);
+      if (ox <= 0 || oy <= 0) continue;
+      moved = true;
+      if (ox < oy) { const sg = cx === 0 ? (i < j ? 1 : -1) : Math.sign(cx); a.dx -= sg * ox / 2; b.dx += sg * ox / 2; }
+      else { const sg = cy === 0 ? (i < j ? 1 : -1) : Math.sign(cy); a.dy -= sg * oy / 2; b.dy += sg * oy / 2; }
+    }
+    if (clampAll()) moved = true;
+    if (!moved) break;
+  }
+  it.forEach(o => {
+    const L = Math.hypot(o.dx, o.dy);
+    o.el.style.setProperty("--dx", o.dx.toFixed(1) + "px");
+    o.el.style.setProperty("--dy", o.dy.toFixed(1) + "px");
+    let ld = o.el.querySelector(".pinlead");
+    if (!ld) { ld = document.createElement("i"); ld.className = "pinlead"; o.el.insertBefore(ld, o.el.firstChild); }
+    ld.style.display = L < 6 ? "none" : "block";
+    ld.style.width = L.toFixed(1) + "px";
+    ld.style.background = COLOUR[o.s.stop_id] || "#fff";
+    ld.style.color = COLOUR[o.s.stop_id] || "#fff";
+    ld.style.transform = "rotate(" + (Math.atan2(-o.dy, -o.dx) * 180 / Math.PI).toFixed(1) + "deg)";
+  });
+}
 function drawStars(){
   clearStars();
   if (MODE === "google") return;   // Google draws the stations in that view
@@ -11321,6 +11406,7 @@ function drawStars(){
       MARKS[s.stop_id] = m;
     }
   });
+  layoutPins(); setTimeout(layoutPins, 80);
 }
 let gAcc = null, meAcc = null;
 function meHTML(){
@@ -11401,12 +11487,14 @@ function applyFix(quiet){
   if (ME && ME.pinned) return;
   const f = fuse();
   if (!f) return;
-  const first = !ME;
   const moved = ME ? metres(ME.lat, ME.lng, f.lat, f.lng) : 1e9;
   ME = { lat: f.lat, lng: f.lng, acc: f.acc, n: f.n };
+  // No map yet: the fix is kept (FIXES) and boot calls this again the moment
+  // the map is up. Nothing is drawn onto a map that is not there.
+  if (!map && !gmap) return;
   drawMe();
   updateAccBox(); paintChip();
-  if (first || !inView(ME.lat, ME.lng)) setView(ME, Math.max(17, curZoom()));
+  if (WANT_CENTRE || (!CENTRED && !HAD_VIEW)) { setView(ME, Math.max(17, curZoom())); CENTRED = true; WANT_CENTRE = false; }
   const need = lastStopFetch
     ? metres(lastStopFetch.lat, lastStopFetch.lng, ME.lat, ME.lng) : 1e9;
   if (need > 35 || !STOPS.length) loadStops();
@@ -11501,6 +11589,7 @@ async function loadStops(){
   if (!INDEX_OK) return;
   const at = anchor();
   lastStopFetch = at;
+  const seq = ++STOPSEQ;
   hud("Reading the stations around you…", true);
   try {
     let d = await fetch("stops?lat=" + at.lat + "&lon=" + at.lng + "&r=" + RADIUS + "&widen=0",
@@ -11511,6 +11600,7 @@ async function loadStops(){
         { cache: "no-store" }).then(r => r.json());
       widened = true;
     }
+    if (seq !== STOPSEQ) return;       // a newer request has gone out since
     if (!d.ok) { hud("Server said: " + esc(d.reason || "no reason given")); return; }
     STOPS = (d.stops || []).slice(0, 8);
     assignColours(STOPS);
@@ -12160,7 +12250,8 @@ document.getElementById("btnLocate").addEventListener("click", () => {
     return;
   }
   b.classList.add("busy");
-  if (ME) setView(ME, Math.max(17, curZoom()));
+  WANT_CENTRE = true;          // the button, and only the button, brings the map to you
+  if (ME) { setView(ME, Math.max(17, curZoom())); WANT_CENTRE = false; }
   sharpen();
   setTimeout(() => b.classList.remove("busy"), 30000);
 });
@@ -12371,13 +12462,14 @@ document.getElementById("keyTest").addEventListener("click", async () => {
 async function watchIndex(){
   try {
     const d = await fetch("status", { cache: "no-store" }).then(r => r.json());
+    // The stations are permanent (stations.json), so they are drawn at once
+    // even while the schedule is being rebuilt behind them.
+    if (d.ok || d.stations) { INDEX_OK = true; if (!STOPS.length) loadStops(); }
     if (d.ok) {
-      INDEX_OK = true;
       if (indexTimer) { clearInterval(indexTimer); indexTimer = null; }
-      if (!STOPS.length) loadStops();
       return;
     }
-    hud("Building the station index. This runs once a day…", true);
+    if (!d.stations) hud("Building the station index. This runs once a day…", true);
     if (!indexTimer) indexTimer = setInterval(watchIndex, 4000);
   } catch (e) { /* leave the status line alone */ }
 }
@@ -12391,6 +12483,7 @@ async function watchIndex(){
   setDot(!!API_KEY);
   initFreeMap();
   applyLayers();
+  if (FIXES.length) applyFix(true);     // a fix that beat the map here
   if (WATCH) {
     document.body.classList.add("watching");
     document.getElementById("wbName").textContent = WATCH.name;
@@ -12536,20 +12629,25 @@ maha_emit_menu() {
 # look, it is the way mc lets a pair of panels share one set of keys.
 #
 # FOUR QUADRANTS, one app each. A quadrant is empty when its app is not
-# running. The fourth is the schedule all three share (v21, Marko 7.10.2026):
-# 4 downloads the newest ZET GTFS, checks it, shows it in the terminal and
-# opens the GTFS monitor page. Nothing appears, nothing disappears.
+# running and empty when there is no app for it at all: the fourth is free
+# and stays drawn, because a slot that appears when a fourth app arrives is
+# a screen that moves under the hand. Nothing appears, nothing disappears.
 #
 #   +-----------------+-----------------+
 #   | 1 day.commute   | 2 night.commute |
 #   +-----------------+-----------------+
-#   | 3 all.commute   | 4 GTFS          |
+#   | 3 all.commute   | 4 free          |
 #   +-----------------+-----------------+
 #
-# 1 2 3 4 FILL a quadrant. An empty quadrant is an app that is not running,
-# so pressing its number starts that server and the quadrant fills in front
-# of you. Pressing the number of a quadrant that is already filled opens its
-# page again. The number means one thing in both cases: put me in this app.
+# 1 2 3 4 LIGHT a quadrant. An idle app is started by its number and the
+# quadrant says RUNNING; an app that is already running is only lit, so with
+# two apps up the numbers just swap the light between them. Enter or o opens
+# the page. 0 lights nothing: it is the launcher itself, and the keys that
+# belong to no single app act on all of it.
+#
+# u UPDATES according to what is running. With nothing running it updates the
+# whole launcher. With apps running it updates only the lit one, because an
+# update replaces files that a running server is serving from.
 #
 # The label is drawn whether the quadrant is filled or not, so the number
 # never has to be looked up. 1 is always day.commute, on this phone and on
@@ -12590,7 +12688,7 @@ RUNDIR="$APPHOME/running"; mkdir -p "$RUNDIR"
 # run start clean instead of where you left off.
 RUN=$(date +%s)
 PY="$(command -v python3 || command -v python)"
-SEL=1
+SEL=0     # 0 is the launcher itself; 1 to 4 light an app
 LAST=""
 
 STTY_SAVED=""
@@ -12601,7 +12699,7 @@ STTY_SAVED=$(stty -g 2>/dev/null || true)
 field()   { printf '%s' "$1" | cut -d'|' -f"$2"; }
 app_row() { printf '%s\n' "$MAHA_APPS" | grep "^$1|" || true; }
 app_ids() { printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1; }
-app_at()  { app_ids | sed -n "${1}p"; }
+app_at()  { case "$1" in ''|0|*[!0-9]*) return 0 ;; esac; app_ids | sed -n "${1}p"; }
 n_apps()  { app_ids | wc -l | tr -d ' '; }
 
 is_installed() { local c; c=$(field "$(app_row "$1")" 2); [ -n "$c" ] && [ -x "$BIN/$c" ]; }
@@ -12714,17 +12812,10 @@ start_app() {
   # it cannot compete with this menu for a keypress and it does not die when
   # the menu is quit. Inheriting the terminal is how a backgrounded server
   # ends up eating the key you pressed for something else.
-  # v21: setsid is asked for BEFORE it is used. The old "setsid ... & || nohup"
-  # never reached its fallback: a command not found inside a background job is
-  # not the subshell's failure, so on a phone without setsid (util-linux is not
-  # in Termux by default) nothing was started at all and the wait below ran out.
-  if command -v setsid >/dev/null 2>&1; then
-    ( cd "$HOME" && setsid nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-      echo $! > "$RUNDIR/$id.pid" )
-  else
-    ( cd "$HOME" && nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-      echo $! > "$RUNDIR/$id.pid" )
-  fi
+  ( cd "$HOME" && setsid nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+    echo $! > "$RUNDIR/$id.pid" ) 2>/dev/null ||
+  ( cd "$HOME" && nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+    echo $! > "$RUNDIR/$id.pid" )
 
   # A FIRST start is not a restart. day.commute fetches an eleven megabyte
   # schedule from ZET and builds its caches before it binds anything, which
@@ -12793,84 +12884,8 @@ stop_all() {
   printf "\n"
   local id any=0
   for id in $(app_ids); do running "$id" && { stop_app "$id"; any=1; }; done
-  gtfs_running && { gtfs_stop; any=1; }
   [ "$any" = 0 ] && printf "  ${DIM}nothing was running${OFF}\n"
   anykey
-}
-
-# ---------------------------------------------------------------
-# quadrant 4: the shared GTFS
-#
-# gtfs.py in ~/.maha.commute/gtfs is the one schedule all three apps read.
-# Its status.txt is one line, version|level|date|port, so drawing the
-# quadrant never starts python. The monitor is found by its process AND its
-# answering port, the same rule as the apps.
-# ---------------------------------------------------------------
-GTFSDIR="$APPHOME/gtfs"; GTFS="$GTFSDIR/gtfs.py"
-gtfs_port() { [ -f "$GTFSDIR/port" ] && tr -d ' \n' < "$GTFSDIR/port" 2>/dev/null; }
-gtfs_running() {
-  local p; proc_alive "gtfs.py serve" || return 1
-  p=$(gtfs_port); [ -n "$p" ] && port_live "$p"
-}
-gtfs_cell() {
-  local ver="" lvl="" day="" w
-  q1='4 GTFS'
-  [ -f "$GTFSDIR/status.txt" ] && IFS='|' read -r ver lvl day _ < "$GTFSDIR/status.txt"
-  if [ ! -f "$GTFSDIR/zet_gtfs.zip" ]; then
-    q2='no schedule yet'; q3='4 fetches it'; qstate='absent'
-  else
-    case "$lvl" in ok) w='healthy' ;; warn) w='look' ;; bad) w='BROKEN' ;; *) w='unchecked' ;; esac
-    q2="v${ver:-?} $w ${day}"
-    if gtfs_running; then q3="page on $(gtfs_port)"; qstate='running'
-    else q3='4 fetch check show'; qstate='ready'; fi
-  fi
-}
-gtfs_open() {
-  local i a
-  if gtfs_running; then open_url "http://127.0.0.1:$(gtfs_port)/"; return 0; fi
-  if ! "$PY" -c 'import flask' >/dev/null 2>&1; then
-    printf "\n  ${SAND}the monitor page needs Flask.${OFF}\n"
-    printf "  ${KEY}y${OFF} ${DIM}installs flask and waitress now, any other key skips${OFF}\n  ${AM}>${OFF} "
-    read -rsn1 a 2>/dev/null || read -r a; printf "\n"
-    case "$a" in y|Y) "$PY" -m pip install flask waitress || return 1 ;; *) return 1 ;; esac
-  fi
-  rm -f "$GTFSDIR/port"
-  if command -v setsid >/dev/null 2>&1; then
-    ( cd "$HOME" && setsid nohup "$PY" "$GTFS" serve --no-open </dev/null > "$RUNDIR/gtfs.log" 2>&1 &
-      echo $! > "$RUNDIR/gtfs.pid" )
-  else
-    ( cd "$HOME" && nohup "$PY" "$GTFS" serve --no-open </dev/null > "$RUNDIR/gtfs.log" 2>&1 &
-      echo $! > "$RUNDIR/gtfs.pid" )
-  fi
-  printf "  ${DIM}starting the monitor page${OFF}"
-  for i in $(seq 1 40); do
-    gtfs_running && break
-    printf "."; sleep 0.25
-  done
-  if gtfs_running; then
-    printf " ${OK}up on %s${OFF}\n" "$(gtfs_port)"
-    open_url "http://127.0.0.1:$(gtfs_port)/"
-  else
-    printf " ${BAD}it did not answer${OFF}\n"; tail -4 "$RUNDIR/gtfs.log" 2>/dev/null | sed 's/^/    /'
-  fi
-}
-gtfs_stop() {
-  pkill -f "gtfs.py serve" 2>/dev/null
-  [ -f "$RUNDIR/gtfs.pid" ] && kill "$(cat "$RUNDIR/gtfs.pid")" 2>/dev/null
-  rm -f "$RUNDIR/gtfs.pid"; sleep 1
-  if gtfs_running; then printf "  ${BAD}the monitor would not stop${OFF}\n"
-  else printf "  ${OK}the GTFS monitor stopped${OFF}\n"; fi
-}
-# Key 4: download the newest, check it, show it, then open the page.
-screen_gtfs() {
-  clear 2>/dev/null || true
-  if [ ! -f "$GTFS" ]; then
-    printf "\n  ${BAD}%s is missing. Run the installer again.${OFF}\n" "$GTFS"; anykey; return
-  fi
-  "$PY" "$GTFS" update
-  printf "\n"
-  gtfs_open
-  anykey "any key, back to the quadrants"
 }
 
 # ---------------------------------------------------------------
@@ -12893,6 +12908,32 @@ screen_gtfs() {
 # frame stops being a frame.
 # ---------------------------------------------------------------
 CW=22
+
+# u. What it updates depends on what is running, because an update replaces
+# files a running server is serving from.
+#   nothing running   the whole launcher, every installed app
+#   something running only the lit app (its server is stopped first by the
+#                     installer, nothing else is touched). With no app lit
+#                     there is nothing to aim at, and it says so.
+update_focus() {
+  local n_run=0 id sel_id
+  for id in $(app_ids); do running "$id" && n_run=$((n_run+1)); done
+  printf "\n"
+  if [ "$n_run" = 0 ]; then
+    bash "$APPHOME/update.sh"; anykey; return
+  fi
+  sel_id=$(app_at "$SEL")
+  if [ "$SEL" = 0 ] || [ -z "$sel_id" ]; then
+    printf "  ${SAND}%s running.${OFF} ${DIM}Light one with 1 to 4 and press u to update just that app,${OFF}\n" "$n_run"
+    printf "  ${DIM}or press S to stop them all and update the whole launcher.${OFF}\n"
+    anykey; return
+  fi
+  if ! is_installed "$sel_id"; then
+    printf "  ${DIM}%s is not installed, so there is nothing to update.${OFF}\n" "$(field "$(app_row "$sel_id")" 2)"
+    anykey; return
+  fi
+  bash "$APPHOME/update.sh" --app "$sel_id"; anykey
+}
 
 pad() { printf '%-*.*s' "$CW" "$CW" "$1"; }
 
@@ -12972,18 +13013,18 @@ uptime_of() {
 cell() {
   local slot="$1" id cmd
   id=$(app_at "$slot")
-  if [ -z "$id" ] && [ "$slot" = 4 ]; then gtfs_cell; return; fi
   if [ -z "$id" ]; then
     q1=$(printf '%d free' "$slot"); q2=''; q3='room for a fourth'
     qstate='empty'; return
   fi
   cmd=$(field "$(app_row "$id")" 2)
   q1=$(printf '%d %s' "$slot" "$cmd")
-  q3=$(field "$(app_row "$id")" 8)
+  q3=$(stamped "$id")
   if ! is_installed "$id"; then
     q2='not installed'; qstate='absent'
   elif running "$id"; then
-    q2=$(printf '%s  %s  %s' "$(stamped "$id")" "$(app_port "$id")" "$(uptime_of "$id")")
+    q2=$(printf 'RUNNING %s  %s' "$(app_port "$id")" "$(uptime_of "$id")")
+    [ "$LAST" = "$id" ] && q2="$q2 *"
     qstate='running'
   else
     q2=$(printf '%s  ready' "$(stamped "$id")")
@@ -13032,9 +13073,16 @@ draw() {
   [ -n "$sel_id" ] && { running "$sel_id" && sel_run=1; is_installed "$sel_id" && sel_inst=1; }
   for id in $(app_ids); do running "$id" && any_run=1; done
 
-  # The verbs, which act on whichever quadrant has the focus.
-  if [ -z "$sel_id" ]; then
-    printf "  ${DIM}on ${OFF}${KEY}GTFS${OFF}${DIM}:${OFF}  ${KEY}Enter${OFF}${SAND}=fetch+check${OFF}  ${KEY}o${OFF}${SAND}pen${OFF}  ${KEY}s${OFF}${SAND}top${OFF}  ${KEY}l${OFF}${SAND}og${OFF}\n\n"
+  # The verbs, which act on whichever quadrant has the focus. Focus 0 is the
+  # launcher itself: nothing is lit and the keys below act on all of it.
+  if [ "$SEL" = 0 ]; then
+    if [ "$any_run" = 1 ]; then
+      printf "  ${DIM}on ${OFF}${KEY}launcher${OFF}${DIM}: apps are running, so ${OFF}${KEY}u${OFF}${DIM} needs one lit app${OFF}\n\n"
+    else
+      printf "  ${DIM}on ${OFF}${KEY}launcher${OFF}${DIM}: nothing runs, so ${OFF}${KEY}u${OFF}${DIM} updates all of it${OFF}\n\n"
+    fi
+  elif [ -z "$sel_id" ]; then
+    printf "  ${DIM}quadrant 4 is free. The verbs wait for an app.${OFF}\n\n"
   else
     printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}  " "$(field "$(app_row "$sel_id")" 2)"
     if [ "$sel_inst" != 1 ]; then
@@ -13049,19 +13097,18 @@ draw() {
   # Every label is spelled by its own key: r efresh, c heck, w ipe. A key
   # whose letter does not begin its word has to be read rather than
   # recognised, and this row is meant to be recognised.
-  printf "  "; fkey 1 h "elp" 1; fkey 2 r "efresh" 1; fkey 3 c "heck" 1
-  fkey 4 t "est" 1; fkey 5 i "nstall" 1; printf "\n  "
-  fkey 6 u "pdate" 1; fkey 7 k "ey" 1; fkey 8 S "topAll" "$any_run"
-  fkey 9 w "ipe" 1; fkey 0 q "uit" 1; printf "\n"
-  printf "\n  ${DIM}1 2 3 4 fill a quadrant, arrows move without starting${OFF}\n"
+  printf "  "; fkey "" h "elp " 1; fkey "" r "efresh " 1; fkey "" c "heck " 1
+  fkey "" t "est " 1; fkey "" i "nstall" 1; printf "\n  "
+  fkey "" u "pdate " 1; fkey "" k "ey " 1; fkey "" S "topAll" "$any_run"
+  fkey "" w "ipe " 1; fkey "" q "uit" 1; printf "\n"
+  printf "\n  ${DIM}1-4 light an app (starts it if idle), 0 the launcher${OFF}\n"
   printf "  ${AM}>${OFF} "
 }
 
 screen_log() {
   local id="$1" f="$RUNDIR/$1.log"
   clear 2>/dev/null || true
-  local nm; nm=$(field "$(app_row "$id")" 2); [ -z "$nm" ] && nm="the GTFS monitor"
-  printf "\n  ${KEY}%s${OFF} ${DIM}in its own words${OFF}\n\n" "$nm"
+  printf "\n  ${KEY}%s${OFF} ${DIM}in its own words${OFF}\n\n" "$(field "$(app_row "$id")" 2)"
   if [ -s "$f" ]; then
     tail -20 "$f" | cut -c1-46 | sed 's/^/  /'
   else
@@ -13124,17 +13171,19 @@ screen_help() {
 
   MAHA COMMUTE
 
-  Four quadrants. 1 2 3 are the apps. 4 is the ZET schedule
-  all three share: it downloads the newest, checks every table
-  for damage, shows the data here, and opens the GTFS monitor
-  page (health, lines, stops and their departures, raw tables).
+  Four quadrants, one app each. The fourth is free and stays
+  drawn, so the screen does not move when a fourth app arrives.
 
-  1 2 3 4 fill a quadrant. An empty quadrant is a server that
-  is not running, so its number starts it and the quadrant
-  fills. If it is already filled, the number opens its page.
+  1 2 3 4 light an app. If it is idle its number starts it. If it
+  is already running the number only moves the light, so with
+  two apps up, 1 and 3 swap between them and nothing reopens.
+  Every running app says RUNNING in its quadrant, with its port.
 
-  Arrows move between quadrants without starting anything,
-  for when you want to look before you press.
+  0 is the launcher itself: nothing is lit and the keys below
+  that belong to no single app act on all of it.
+
+  Arrows move the light without starting anything, for when
+  you want to look before you press.
 
   The verbs are the same for every quadrant and act on the
   focused one, which is the whole point: one set of keys.
@@ -13158,7 +13207,8 @@ screen_help() {
       c  check the streams without refreshing
       t  test every key this phone holds
       i  install or remove an app
-      u  update from a newer installer file
+      u  update. Nothing running: the whole launcher. Apps
+         running: only the lit one, and 0 or S first for all
       k  the shared google key
       S  stop all of them
       x  uninstall, which asks twice
@@ -13211,22 +13261,6 @@ screen_install() {
   done
 }
 
-# v21: the shared key is handed to every installed app, in the file that app
-# reads (day and all google-api.txt, night gmaps-api.txt). Before, a key only
-# reached an app when that app was installed, so a key added later sat in the
-# store and no app ever saw it (found on the Pixel 7 emulator, 7.10.2026).
-share_key() {
-  local k f n=0
-  [ -s "$KEYFILE" ] || return 0
-  k=$(grep -v '^[[:space:]]*$' "$KEYFILE" | head -1 | tr -cd 'A-Za-z0-9_-' | head -c 200)
-  [ -n "$k" ] || return 0
-  for f in "$HOME/.commute/google-api.txt" "$HOME/.nightcommute/gmaps-api.txt" "$HOME/.all.commute/google-api.txt"; do
-    [ -d "$(dirname "$f")" ] || continue
-    printf '%s\n' "$k" > "$f.new" && chmod 600 "$f.new" && mv -f "$f.new" "$f" && n=$((n+1))
-  done
-  printf '%s' "$n"
-}
-
 screen_key() {
   local a k
   clear 2>/dev/null || true
@@ -13246,7 +13280,7 @@ screen_key() {
          k=$(printf '%s' "$k" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
          if [ -n "$k" ]; then
            mkdir -p "$KEYDIR"; printf '%s\n' "$k" > "$KEYFILE"; chmod 600 "$KEYFILE"
-           printf "\n  ${OK}stored${OFF}, ${DIM}given to %s apps${OFF}\n" "$(share_key)"
+           printf "\n  ${OK}stored${OFF}\n"
          else
            printf "\n  ${DIM}nothing was changed${OFF}\n"
          fi
@@ -13275,25 +13309,37 @@ case "${1:-}" in
   info)           screen_info; exit 0 ;;
   install|add)    screen_install; exit 0 ;;
   key)            screen_key; exit 0 ;;
-  sharekey)       share_key >/dev/null; exit 0 ;;
-  gtfs)           screen_gtfs; exit 0 ;;
   keytest|keys)   exec "$PY" "$APPHOME/keytest.py" ;;
   refresh)        exec "$PY" "$APPHOME/stream.py" refresh --check ;;
   check|doctor)   exec "$PY" "$APPHOME/stream.py" check ;;
   update|-update|--update) exec bash "$APPHOME/update.sh" ;;
   uninstall|wipe) exec bash "$APPHOME/uninstall.sh" ;;
   -h|--help)
-    printf 'maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|gtfs|keytest|refresh|check|update|uninstall]\n'
+    printf 'maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]\n'
     exit 0 ;;
 esac
 
-FOCUS=1
+# The screen is a status board: it redraws by itself when an app comes up or
+# goes away, so a server started from another window shows up here without a
+# keypress. It redraws only when the picture would change, never on a timer,
+# because a screen that repaints every few seconds flickers and eats the
+# key being typed.
+state_sig() { local id o=""; for id in $(app_ids); do running "$id" && o="$o$id,"; done; printf '%s' "$o"; }
+SIG=$(state_sig)
+REDRAW=1
 while :; do
-  draw
+  [ "$REDRAW" = 1 ] && { draw; SIG=$(state_sig); }
+  REDRAW=1
   # End of input is not a keypress. Reading EOF used to leave c empty, which
   # matched the Enter case and started an app, so piping anything into the
   # launcher launched something. EOF means the person is gone: leave.
-  if ! read -rsn1 c 2>/dev/null; then
+  # A TIMEOUT (status above 128) is not EOF: it is the moment to look again.
+  read -rsn1 -t 4 c 2>/dev/null; rc=$?
+  if [ "$rc" -gt 128 ]; then
+    NEWSIG=$(state_sig)
+    if [ "$NEWSIG" != "$SIG" ]; then SIG="$NEWSIG"; else REDRAW=0; fi
+    continue
+  elif [ "$rc" -ne 0 ]; then
     if ! read -r c 2>/dev/null; then printf "\n\n"; exit 0; fi
   fi
   # An arrow arrives as escape, bracket, letter. The two extra reads carry a
@@ -13308,30 +13354,27 @@ while :; do
   fi
   SELAPP=$(app_at "$SEL")
   case "$c" in
-    # A number goes to its quadrant AND fills it. An empty quadrant is a
-    # server that is not running, so pressing its number starts it; a
-    # quadrant that is already filled opens its page again. One meaning for
-    # the number, whatever state the quadrant is in: put me in this app.
-    1|2|3)
+    # 0 is the launcher: nothing lit, and the keys act on all of it.
+    0) SEL=0 ;;
+    # A number LIGHTS an app. If it is idle it is started first, which is how
+    # an app gets running; if it is already running the number only moves the
+    # light, so with two apps up, 1 and 3 swap between them without opening a
+    # page each time. Enter or o opens the page.
+    1|2|3|4)
       SEL="$c"
       NEW=$(app_at "$SEL")
-      [ -n "$NEW" ] && start_app "$NEW" ;;
-    4)   SEL=4; screen_gtfs ;;
-    prev) SEL=$((SEL-1)); [ "$SEL" -lt 1 ] && SEL=4 ;;
-    next) SEL=$((SEL+1)); [ "$SEL" -gt 4 ] && SEL=1 ;;
+      if [ -n "$NEW" ] && ! running "$NEW"; then start_app "$NEW"; fi ;;
+    prev) SEL=$((SEL-1)); [ "$SEL" -lt 0 ] && SEL=4 ;;
+    next) SEL=$((SEL+1)); [ "$SEL" -gt 4 ] && SEL=0 ;;
 
     # the verbs, on the focused quadrant
-    "")  if [ -n "$SELAPP" ]; then start_app "$SELAPP"; elif [ "$SEL" = 4 ]; then screen_gtfs; fi ;;
-    o|O) [ "$SEL" = 4 ] && { printf "\n"; gtfs_open; sleep 1; }
-         [ -n "$SELAPP" ] && { if running "$SELAPP"; then
+    "")  [ -n "$SELAPP" ] && start_app "$SELAPP" ;;
+    o|O) [ -n "$SELAPP" ] && { if running "$SELAPP"; then
            LAST="$SELAPP"; open_url "http://127.0.0.1:$(app_port "$SELAPP")/?run=$RUN"
          else start_app "$SELAPP"; fi; } ;;
-    s)   [ "$SEL" = 4 ] && { printf "\n"; gtfs_stop; sleep 1; }
-         [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; sleep 1; } ;;
-    R)   [ "$SEL" = 4 ] && { printf "\n"; gtfs_stop; gtfs_open; sleep 1; }
-         [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; start_app "$SELAPP"; } ;;
-    l|L) [ "$SEL" = 4 ] && screen_log gtfs
-         [ -n "$SELAPP" ] && screen_log "$SELAPP" ;;
+    s)   [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; sleep 1; } ;;
+    R)   [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; start_app "$SELAPP"; } ;;
+    l|L) [ -n "$SELAPP" ] && screen_log "$SELAPP" ;;
 
     # the things that belong to no single app
     h|H) screen_help ;;
@@ -13340,14 +13383,13 @@ while :; do
     t|T) printf "\n"; "$PY" "$APPHOME/keytest.py"; anykey ;;
     i|I) screen_install ;;
     k|K) screen_key ;;
-    u|U) printf "\n"; bash "$APPHOME/update.sh"; anykey ;;
+    u|U) update_focus ;;
     S)   stop_all ;;
     w|W|x|X) printf "\n"; bash "$APPHOME/uninstall.sh"; anykey ;;
     q|Q) printf "\n"
-         _left=0
-         for id in $(app_ids); do running "$id" && _left=1; done
-         gtfs_running && _left=1
-         [ "$_left" = 1 ] && printf "  ${DIM}servers left running. S stops them.${OFF}\n"
+         for id in $(app_ids); do
+           running "$id" && { printf "  ${DIM}servers left running. S stops them.${OFF}\n"; break; }
+         done
          printf "\n"; exit 0 ;;
   esac
 done
@@ -13538,1277 +13580,6 @@ exit 0
 MAHA_INSTALLONE_7c1a
 }
 
-maha_emit_gtfs() {
-  cat <<'MAHA_GTFS_7c1a'
-#!/usr/bin/env python3
-"""gtfs.py, written by the MAHA COMMUTE installer into ~/.maha.commute/gtfs/.
-
-ONE ZET SCHEDULE FOR THE WHOLE FAMILY. Marko, 7.10.2026: "Add central GTFS
-system so all apps share the same folder and same data of GTFS. And number 4
-... when I press 4, first download the GTFS latest file, checks its sanity if
-the data is corrupted, and in the terminal shows the data ... open also the
-Flask web user interface to monitor the data health and data itself."
-
-Until v21 each of the three apps downloaded the same twelve megabyte zip from
-the same address into its own folder, three copies of one file that could be
-three different days old. Now there is one folder and one copy:
-
-    ~/.maha.commute/gtfs/zet_gtfs.zip    the schedule, only ever a checked one
-    ~/.maha.commute/gtfs/meta.json       where it came from, its hash, who saw it
-    ~/.maha.commute/gtfs/health.json     the full check of that exact file
-    ~/.maha.commute/gtfs/history.jsonl   every fetch, kept or refused
-    ~/.maha.commute/gtfs/status.txt      one line for the launcher's quadrant 4
-
-THREE PROMISES
-
-  1. A download that is not a sound GTFS never replaces one that is. It is
-     written beside the real file, opened, CRC checked, its tables and columns
-     looked for, and only then renamed over the top. A phone that walks out of
-     signal half way leaves the old schedule exactly as it was.
-  2. Two apps asking at once download once. The second waits on a lock and
-     then finds the file the first one just fetched.
-  3. Each app learns separately that the schedule changed. "changed" is
-     measured against what THAT app last saw, so day.commute rebuilds even
-     when all.commute was the one that fetched.
-
-THE COMMANDS
-
-    python gtfs.py update     ask ZET for the newest, check it, show it (key 4)
-    python gtfs.py fetch      download if ZET has a newer one
-    python gtfs.py check      the full health check of the file that is here
-    python gtfs.py show       print the last check in the terminal
-    python gtfs.py serve      the web monitor (Flask, waitress when present)
-    python gtfs.py status     one line, for scripts
-
-The apps import this file and call fetch(). Nothing else of theirs changes.
-"""
-
-import csv
-import datetime
-import hashlib
-import io
-import json
-import os
-import socket
-import sys
-import textwrap
-import threading
-import time
-import urllib.error
-import urllib.request
-import zipfile
-
-try:
-    import fcntl
-except Exception:            # not on this platform: one process at a time is then a hope
-    fcntl = None
-
-VERSION = "v21"
-GDIR = os.environ.get("MAHA_GTFS_DIR",
-                      os.path.join(os.path.expanduser("~"), ".maha.commute", "gtfs"))
-ZIP = os.path.join(GDIR, "zet_gtfs.zip")
-META = os.path.join(GDIR, "meta.json")
-HEALTH = os.path.join(GDIR, "health.json")
-HISTORY = os.path.join(GDIR, "history.jsonl")
-STATUS = os.path.join(GDIR, "status.txt")
-PORTFILE = os.path.join(GDIR, "port")
-LOCK = os.path.join(GDIR, ".lock")
-URLS = ["https://www.zet.hr/gtfs-scheduled/latest",
-        "https://zet.hr/gtfs-scheduled/latest"]
-UA = "Mozilla/5.0 (Android; maha.commute-gtfs)"
-PORT_FIRST = int(os.environ.get("MAHA_GTFS_PORT", "8090"))
-
-# Every table a ZET app reads, and the columns it reads from it. Missing one of
-# these is not a warning: an app built on it shows nothing, or the wrong thing.
-REQUIRED = {
-    "agency.txt":     ["agency_name", "agency_timezone"],
-    "stops.txt":      ["stop_id", "stop_name", "stop_lat", "stop_lon"],
-    "routes.txt":     ["route_id", "route_short_name", "route_type"],
-    "trips.txt":      ["route_id", "service_id", "trip_id"],
-    "stop_times.txt": ["trip_id", "arrival_time", "departure_time", "stop_id", "stop_sequence"],
-}
-OPTIONAL = ["calendar.txt", "calendar_dates.txt", "shapes.txt", "feed_info.txt"]
-ROUTE_TYPES = {"0": "tram", "1": "metro", "2": "rail", "3": "bus", "4": "ferry",
-               "5": "cable tram", "6": "aerial lift", "7": "funicular"}
-# Zagreb and everything ZET reaches, generously (Velika Gorica, Samobor side).
-LAT_MIN, LAT_MAX, LON_MIN, LON_MAX = 45.55, 46.10, 15.60, 16.40
-
-
-# ---------------------------------------------------------------------------
-# small helpers
-# ---------------------------------------------------------------------------
-def _now():
-    return time.time()
-
-
-def _load(path, default):
-    try:
-        with open(path, encoding="utf-8") as f:
-            return json.load(f)
-    except Exception:
-        return default
-
-
-def _save(path, obj):
-    os.makedirs(GDIR, exist_ok=True)
-    tmp = path + ".new"
-    with open(tmp, "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, indent=1)
-    os.replace(tmp, path)
-
-
-def _history(event, **kw):
-    os.makedirs(GDIR, exist_ok=True)
-    kw.update({"t": int(_now()), "event": event})
-    try:
-        with open(HISTORY, "a", encoding="utf-8") as f:
-            f.write(json.dumps(kw, ensure_ascii=False) + "\n")
-    except Exception:
-        pass
-
-
-def history(n=40):
-    try:
-        with open(HISTORY, encoding="utf-8") as f:
-            lines = f.readlines()[-n:]
-        return [json.loads(x) for x in lines if x.strip()][::-1]
-    except Exception:
-        return []
-
-
-class _Lock:
-    """One fetch at a time across every app on the phone."""
-    def __enter__(self):
-        os.makedirs(GDIR, exist_ok=True)
-        self.f = open(LOCK, "a+")
-        if fcntl:
-            fcntl.flock(self.f, fcntl.LOCK_EX)
-        return self
-
-    def __exit__(self, *a):
-        try:
-            if fcntl:
-                fcntl.flock(self.f, fcntl.LOCK_UN)
-        finally:
-            self.f.close()
-
-
-def _member(zf, name):
-    for n in zf.namelist():
-        if n == name or n.endswith("/" + name):
-            return n
-    return None
-
-
-def _rows(zf, name):
-    """csv.DictReader over one table, BOM and quoting handled."""
-    m = _member(zf, name)
-    if not m:
-        return None
-    return csv.DictReader(io.TextIOWrapper(zf.open(m), encoding="utf-8-sig", newline=""))
-
-
-def _ymd(d):
-    return d.strftime("%Y%m%d")
-
-
-def _fmt_ymd(s):
-    s = str(s or "")
-    return "%s.%s.%s" % (int(s[6:8]), int(s[4:6]), s[0:4]) if len(s) == 8 and s.isdigit() else s
-
-
-def _secs(hms):
-    try:
-        h, m, s = hms.strip().split(":")
-        return int(h) * 3600 + int(m) * 60 + int(s)
-    except Exception:
-        return None
-
-
-# ---------------------------------------------------------------------------
-# the quick check: is this a GTFS at all. Runs on every download, before the
-# file is allowed anywhere near the real name.
-# ---------------------------------------------------------------------------
-def quick_check(path_or_bytes):
-    """Returns (ok, reason, feed_version)."""
-    try:
-        src = io.BytesIO(path_or_bytes) if isinstance(path_or_bytes, bytes) else path_or_bytes
-        with zipfile.ZipFile(src) as zf:
-            bad = zf.testzip()
-            if bad:
-                return False, "%s is damaged inside the zip (CRC)" % bad, ""
-            for name, cols in REQUIRED.items():
-                m = _member(zf, name)
-                if not m:
-                    return False, "%s is missing" % name, ""
-                r = _rows(zf, name)
-                head = r.fieldnames or []
-                miss = [c for c in cols if c not in head]
-                if miss:
-                    return False, "%s has no %s column" % (name, ", ".join(miss)), ""
-                if next(r, None) is None:
-                    return False, "%s is empty" % name, ""
-            if not (_member(zf, "calendar.txt") or _member(zf, "calendar_dates.txt")):
-                return False, "neither calendar.txt nor calendar_dates.txt", ""
-            ver = ""
-            fi = _rows(zf, "feed_info.txt")
-            if fi:
-                row = next(fi, None) or {}
-                ver = row.get("feed_version", "")
-            return True, "", ver
-    except zipfile.BadZipFile:
-        return False, "not a zip file", ""
-    except Exception as e:
-        return False, "unreadable: %r" % (e,), ""
-
-
-# ---------------------------------------------------------------------------
-# fetch: what the apps call
-# ---------------------------------------------------------------------------
-def _seen(meta, who, sha):
-    if not who:
-        return True
-    seen = meta.setdefault("seen", {})
-    changed = seen.get(who) != sha
-    seen[who] = sha
-    return changed
-
-
-def fetch(force=False, who=None, log=None, max_age=600, progress=None):
-    """Return (zip_bytes, changed_for_who).
-
-    max_age: seconds within which the server is not asked again, so three apps
-    starting together make one request and not three. force asks regardless
-    and downloads the whole file even if ZET says it has not changed."""
-    log = log or (lambda m: None)
-    with _Lock():
-        meta = _load(META, {})
-        have = os.path.isfile(ZIP)
-        if have and not force and _now() - meta.get("checked", 0) < max_age:
-            with open(ZIP, "rb") as f:
-                data = f.read()
-            changed = _seen(meta, who, meta.get("sha256"))
-            _save(META, meta)
-            return data, changed
-
-        headers = {"User-Agent": UA}
-        if have and not force:
-            if meta.get("etag"):
-                headers["If-None-Match"] = meta["etag"]
-            if meta.get("last_modified"):
-                headers["If-Modified-Since"] = meta["last_modified"]
-        last = None
-        for url in URLS:
-            try:
-                log("asking " + url)
-                req = urllib.request.Request(url, headers=headers)
-                try:
-                    resp = urllib.request.urlopen(req, timeout=180)
-                except urllib.error.HTTPError as he:
-                    if he.code == 304 and have:
-                        log("  unchanged on the server, the shared copy stays")
-                        meta["checked"] = int(_now())
-                        with open(ZIP, "rb") as f:
-                            data = f.read()
-                        changed = _seen(meta, who, meta.get("sha256"))
-                        _save(META, meta)
-                        _history("unchanged", who=who or "", url=url)
-                        write_status()
-                        return data, changed
-                    raise
-                total = int(resp.headers.get("Content-Length") or 0)
-                buf, got = io.BytesIO(), 0
-                while True:
-                    chunk = resp.read(65536)
-                    if not chunk:
-                        break
-                    buf.write(chunk)
-                    got += len(chunk)
-                    if progress:
-                        progress(got, total)
-                rh = resp.headers
-                resp.close()
-                data = buf.getvalue()
-                if total and got != total:
-                    last = "cut short: %d of %d bytes" % (got, total)
-                    log("  " + last)
-                    _history("refused", who=who or "", url=url, reason=last)
-                    continue
-                ok, why, ver = quick_check(data)
-                if not ok:
-                    last = "not a sound GTFS: " + why
-                    log("  " + last + ", the shared copy stays")
-                    _history("refused", who=who or "", url=url, reason=why, bytes=len(data))
-                    continue
-                sha = hashlib.sha256(data).hexdigest()
-                os.makedirs(GDIR, exist_ok=True)
-                part = ZIP + ".part"
-                with open(part, "wb") as f:
-                    f.write(data)
-                    f.flush()
-                    os.fsync(f.fileno())
-                os.replace(part, ZIP)
-                new = sha != meta.get("sha256")
-                meta.update({
-                    "etag": rh.get("ETag") or "", "last_modified": rh.get("Last-Modified") or "",
-                    "sha256": sha, "bytes": len(data), "url": url, "feed_version": ver,
-                    "checked": int(_now()),
-                })
-                if new:
-                    meta["fetched"] = int(_now())
-                changed = _seen(meta, who, sha)
-                _save(META, meta)
-                _history("new" if new else "same", who=who or "", url=url, bytes=len(data),
-                         sha=sha[:12], version=ver)
-                log("  got %d bytes, version %s%s" % (len(data), ver or "?",
-                                                      "" if new else " (the same file)"))
-                write_status()
-                return data, changed
-            except Exception as e:
-                last = repr(e)
-                log("  failed: " + last)
-        _history("failed", who=who or "", reason=str(last))
-        if have:
-            log("  ZET did not answer, the shared copy stays")
-            with open(ZIP, "rb") as f:
-                data = f.read()
-            changed = _seen(meta, who, meta.get("sha256"))
-            _save(META, meta)
-            return data, changed
-        raise RuntimeError("could not fetch the GTFS: %s" % last)
-
-
-# ---------------------------------------------------------------------------
-# the deep check: every table, every reference, every date
-# ---------------------------------------------------------------------------
-def deep_check(path=ZIP, say=None):
-    say = say or (lambda m: None)
-    t0 = _now()
-    checks = []
-
-    def add(level, name, detail):
-        checks.append({"level": level, "name": name, "detail": detail})
-
-    rep = {"checked_at": int(t0), "checks": checks, "files": [], "counts": {},
-           "feed": {}, "service": {}, "routes_by_type": {}, "top_stops": [], "level": "ok"}
-    if not os.path.isfile(path):
-        add("bad", "the file", "there is no GTFS here yet. Press 4 in the launcher to fetch it")
-        rep["level"] = "bad"
-        return rep
-    with open(path, "rb") as f:
-        rep["sha256"] = hashlib.sha256(f.read()).hexdigest()
-    rep["bytes"] = os.path.getsize(path)
-
-    try:
-        zf = zipfile.ZipFile(path)
-    except zipfile.BadZipFile:
-        add("bad", "zip", "the file is not a zip")
-        rep["level"] = "bad"
-        return rep
-    with zf:
-        say("checking the zip, every file's CRC")
-        bad = zf.testzip()
-        if bad:
-            add("bad", "zip integrity", "%s is damaged (CRC mismatch)" % bad)
-        else:
-            add("ok", "zip integrity", "%d files, every CRC matches" % len(zf.namelist()))
-        for i in zf.infolist():
-            rep["files"].append({"name": i.filename, "bytes": i.file_size,
-                                 "packed": i.compress_size})
-
-        # tables and columns
-        for name, cols in REQUIRED.items():
-            r = _rows(zf, name)
-            if r is None:
-                add("bad", name, "missing")
-                continue
-            miss = [c for c in cols if c not in (r.fieldnames or [])]
-            if miss:
-                add("bad", name, "no %s column" % ", ".join(miss))
-        # One of the two calendars is enough; the others are extras.
-        if not (_member(zf, "calendar.txt") or _member(zf, "calendar_dates.txt")):
-            add("bad", "calendar", "neither calendar.txt nor calendar_dates.txt")
-
-        # agency and feed_info
-        ag = list(_rows(zf, "agency.txt") or [])
-        rep["feed"]["agency"] = ag[0].get("agency_name", "") if ag else ""
-        rep["feed"]["timezone"] = ag[0].get("agency_timezone", "") if ag else ""
-        fi = list(_rows(zf, "feed_info.txt") or [])
-        if fi:
-            rep["feed"].update({k: fi[0].get(k, "") for k in
-                                ("feed_version", "feed_start_date", "feed_end_date", "feed_publisher_name")})
-
-        # stops
-        say("reading stops")
-        stops, outside, nocoord, dup, far = {}, 0, 0, 0, []
-        for row in _rows(zf, "stops.txt") or []:
-            sid = row.get("stop_id", "")
-            if sid in stops:
-                dup += 1
-            try:
-                lat, lon = float(row.get("stop_lat") or "x"), float(row.get("stop_lon") or "x")
-                if not (LAT_MIN <= lat <= LAT_MAX and LON_MIN <= lon <= LON_MAX):
-                    outside += 1
-                    far.append("%s %s (%s, %s)" % (sid, row.get("stop_name", ""), row.get("stop_lat"), row.get("stop_lon")))
-            except ValueError:
-                nocoord += 1
-                lat = lon = None
-            stops[sid] = row.get("stop_name", "")
-        rep["counts"]["stops"] = len(stops)
-        if dup:
-            add("bad", "stops", "%d stop ids appear twice" % dup)
-        if nocoord:
-            add("bad", "stop positions", "%d stops have no usable position" % nocoord)
-        elif outside:
-            add("warn", "stop positions", "%d of %d stops lie outside the Zagreb area: %s" % (
-                outside, len(stops), ", ".join(far[:4]) + (" …" if len(far) > 4 else "")))
-        else:
-            add("ok", "stop positions", "all %d stops inside the Zagreb area" % len(stops))
-
-        # routes
-        routes, rtype = {}, {}
-        for row in _rows(zf, "routes.txt") or []:
-            routes[row.get("route_id", "")] = row
-            t = ROUTE_TYPES.get(row.get("route_type", ""), "type " + row.get("route_type", "?"))
-            rtype[t] = rtype.get(t, 0) + 1
-        rep["counts"]["routes"] = len(routes)
-        rep["routes_by_type"] = rtype
-        noname = sum(1 for r in routes.values() if not r.get("route_short_name"))
-        add("warn" if noname else "ok", "routes",
-            "%d lines: %s%s" % (len(routes), ", ".join("%d %s" % (n, t) for t, n in sorted(rtype.items())),
-                                ", %d without a number" % noname if noname else ""))
-
-        # calendar: which services run on which date
-        say("reading the calendar")
-        services = {}
-        wd = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
-        for row in _rows(zf, "calendar.txt") or []:
-            services.setdefault(row.get("service_id", ""), {"cal": row, "add": set(), "del": set()})
-        for row in _rows(zf, "calendar_dates.txt") or []:
-            s = services.setdefault(row.get("service_id", ""), {"cal": None, "add": set(), "del": set()})
-            (s["add"] if row.get("exception_type") == "1" else s["del"]).add(row.get("date", ""))
-
-        def runs(sid, day):
-            s = services.get(sid)
-            if not s:
-                return False
-            y = _ymd(day)
-            if y in s["del"]:
-                return False
-            if y in s["add"]:
-                return True
-            c = s["cal"]
-            return bool(c) and c.get("start_date", "9") <= y <= c.get("end_date", "0") \
-                and c.get(wd[day.weekday()]) == "1"
-
-        # trips
-        say("reading trips")
-        trips, trips_by_service, routes_trips = {}, {}, {}
-        no_route = no_service = no_shape = dup = 0
-        shapes_present = set()
-        sh = _rows(zf, "shapes.txt")
-        if sh is not None:
-            for row in sh:
-                shapes_present.add(row.get("shape_id", ""))
-        for row in _rows(zf, "trips.txt") or []:
-            tid = row.get("trip_id", "")
-            if tid in trips:
-                dup += 1
-            trips[tid] = (row.get("route_id", ""), row.get("service_id", ""))
-            if row.get("route_id") not in routes:
-                no_route += 1
-            if row.get("service_id") not in services:
-                no_service += 1
-            if shapes_present and row.get("shape_id") and row["shape_id"] not in shapes_present:
-                no_shape += 1
-            trips_by_service[row.get("service_id", "")] = trips_by_service.get(row.get("service_id", ""), 0) + 1
-            routes_trips[row.get("route_id", "")] = routes_trips.get(row.get("route_id", ""), 0) + 1
-        rep["counts"]["trips"] = len(trips)
-        rep["counts"]["shape_ids"] = len(shapes_present)
-        probs = []
-        if dup:
-            probs.append("%d trip ids twice" % dup)
-        if no_route:
-            probs.append("%d name a line that does not exist" % no_route)
-        if no_service:
-            probs.append("%d name a service with no calendar" % no_service)
-        if no_shape:
-            probs.append("%d name a shape that is not there" % no_shape)
-        add("bad" if (dup or no_route or no_service) else ("warn" if no_shape else "ok"),
-            "trips", "; ".join(probs) if probs else "%d trips, every one tied to a line and a calendar" % len(trips))
-        unused = [r for r in routes if not routes_trips.get(r)]
-        if unused:
-            add("warn", "lines without trips", "%d lines have no trips: %s" % (
-                len(unused), ", ".join(routes[r].get("route_short_name") or r for r in unused[:8])))
-
-        # stop_times, the big one
-        say("reading stop_times, all of it (the long part)")
-        n = bad_time = backwards = no_trip = no_stop = seq_bad = 0
-        last = {}
-        per_stop = {}
-        has_times = set()
-        for row in _rows(zf, "stop_times.txt") or []:
-            n += 1
-            if n % 250000 == 0:
-                say("  %d rows" % n)
-            tid, sid = row.get("trip_id", ""), row.get("stop_id", "")
-            if tid not in trips:
-                no_trip += 1
-            if sid not in stops:
-                no_stop += 1
-            a, d = _secs(row.get("arrival_time", "")), _secs(row.get("departure_time", ""))
-            if a is None or d is None:
-                bad_time += 1
-            elif d < a:
-                backwards += 1
-            try:
-                q = int(row.get("stop_sequence") or -1)
-            except ValueError:
-                q = -1
-            p = last.get(tid)
-            if p is not None and (q <= p[0] or (d is not None and p[1] is not None and d < p[1])):
-                seq_bad += 1
-            last[tid] = (q, d)
-            has_times.add(tid)
-            per_stop[sid] = per_stop.get(sid, 0) + 1
-        rep["counts"]["stop_times"] = n
-        probs = []
-        if no_trip:
-            probs.append("%d rows name a trip that does not exist" % no_trip)
-        if no_stop:
-            probs.append("%d rows name a stop that does not exist" % no_stop)
-        if bad_time:
-            probs.append("%d times cannot be read" % bad_time)
-        if backwards:
-            probs.append("%d leave before they arrive" % backwards)
-        if seq_bad:
-            probs.append("%d go back in order or in time within their trip" % seq_bad)
-        add("bad" if (no_trip or no_stop or bad_time) else ("warn" if (backwards or seq_bad) else "ok"),
-            "stop_times", "; ".join(probs) if probs else
-            "%d rows, every one on a real trip and a real stop, times in order" % n)
-        empty = len(trips) - len(has_times & set(trips))
-        if empty:
-            add("warn", "trips without times", "%d trips have no stop_times at all" % empty)
-        rep["top_stops"] = [{"stop_id": s, "name": stops.get(s, "?"), "departures": c}
-                            for s, c in sorted(per_stop.items(), key=lambda x: -x[1])[:10]]
-
-        # service: today and the days ahead
-        today = datetime.date.today()
-        days = []
-        for i in range(0, 15):
-            day = today + datetime.timedelta(days=i)
-            live = [s for s in services if runs(s, day)]
-            days.append({"date": _ymd(day), "trips": sum(trips_by_service.get(s, 0) for s in live)})
-        rep["service"]["days"] = days
-        all_dates = set()
-        for s in services.values():
-            all_dates |= s["add"]
-            c = s["cal"]
-            if c:
-                all_dates.add(c.get("end_date", ""))
-        end = max([d for d in all_dates if d] or [""]) or rep["feed"].get("feed_end_date", "")
-        rep["service"]["last_date"] = end
-        if days[0]["trips"] == 0:
-            add("bad", "today", "no trip runs today in this schedule: it is expired or not yet valid")
-        else:
-            add("ok", "today", "%d trips run today" % days[0]["trips"])
-        dead = [d["date"] for d in days[1:8] if d["trips"] == 0]
-        if dead:
-            add("warn", "the week ahead", "no service at all on %s" % ", ".join(_fmt_ymd(d) for d in dead))
-        else:
-            add("ok", "the week ahead", "service on every one of the next seven days")
-        start = rep["feed"].get("feed_start_date", "")
-        if start and start > _ymd(today):
-            add("warn", "feed start", "this feed only starts on %s" % _fmt_ymd(start))
-
-        # freshness of what is on the phone
-        meta = _load(META, {})
-        if meta.get("checked"):
-            age = (_now() - meta["checked"]) / 3600.0
-            add("ok" if age < 48 else "warn", "asked ZET",
-                "%s ago" % (("%d hours" % age) if age < 48 else ("%d days" % (age / 24))))
-
-    order = {"ok": 0, "warn": 1, "bad": 2}
-    rep["level"] = max((c["level"] for c in checks), key=lambda l: order[l]) if checks else "ok"
-    rep["seconds"] = round(_now() - t0, 1)
-    return rep
-
-
-def check(force=False, say=None):
-    """The deep check of the file that is here, kept per file hash so it runs
-    once per schedule and not every time somebody looks."""
-    old = _load(HEALTH, {})
-    sha = ""
-    if os.path.isfile(ZIP):
-        with open(ZIP, "rb") as f:
-            sha = hashlib.sha256(f.read()).hexdigest()
-    if not force and sha and old.get("sha256") == sha and \
-            old.get("checked_at", 0) > _now() - 6 * 3600:
-        return old
-    rep = deep_check(ZIP, say=say)
-    if rep.get("sha256"):
-        _save(HEALTH, rep)
-        _history("checked", level=rep["level"], seconds=rep.get("seconds"), sha=rep["sha256"][:12])
-    write_status(rep)
-    return rep
-
-
-def write_status(rep=None):
-    """One line the launcher can read without starting python: version|level|date|port."""
-    rep = rep or _load(HEALTH, {})
-    meta = _load(META, {})
-    port = ""
-    try:
-        with open(PORTFILE) as f:
-            port = f.read().strip()
-    except Exception:
-        pass
-    line = "%s|%s|%s|%s\n" % (meta.get("feed_version") or rep.get("feed", {}).get("feed_version", ""),
-                              rep.get("level", "?") if rep.get("sha256") == meta.get("sha256") else "?",
-                              time.strftime("%-d.%-m.", time.localtime(meta.get("fetched") or meta.get("checked") or 0))
-                              if meta else "", port)
-    try:
-        os.makedirs(GDIR, exist_ok=True)
-        with open(STATUS, "w") as f:
-            f.write(line)
-    except Exception:
-        pass
-
-
-# ---------------------------------------------------------------------------
-# the terminal
-# ---------------------------------------------------------------------------
-TTY = sys.stdout.isatty()
-
-
-def _c(code, text):
-    return "\033[%sm%s\033[0m" % (code, text) if TTY else text
-
-
-C_OK, C_WARN, C_BAD = "1;32", "38;5;214", "1;31"
-C_KEY, C_DIM, C_SAND, C_AM = "1;37", "0;90", "38;5;223", "38;5;214"
-MARK = {"ok": _c(C_OK, "ok  "), "warn": _c(C_WARN, "look"), "bad": _c(C_BAD, "FAIL")}
-
-
-def show(rep=None):
-    rep = rep or _load(HEALTH, {})
-    meta = _load(META, {})
-    W = 46
-
-    def head(t):
-        print("\n  " + _c(C_AM, t))
-
-    def kv(k, v):
-        print("    " + _c(C_DIM, "%-11s" % k) + str(v))
-
-    print("\n  " + _c(C_KEY, "ZET GTFS") + "  " + _c(C_DIM, "the schedule all three apps share"))
-    if not rep.get("sha256"):
-        print("\n  " + _c(C_DIM, "no schedule here yet"))
-        return
-    lvl = rep.get("level", "?")
-    word = {"ok": _c(C_OK, "HEALTHY"), "warn": _c(C_WARN, "USABLE, LOOK BELOW"),
-            "bad": _c(C_BAD, "BROKEN")}.get(lvl, lvl)
-    print("  " + word)
-
-    head("SOURCE")
-    kv("from", (meta.get("url") or URLS[0]).replace("https://", ""))
-    kv("size", "%.1f MB packed, %.0f MB of tables" % (
-        rep.get("bytes", 0) / 1048576.0, sum(f["bytes"] for f in rep.get("files", [])) / 1048576.0))
-    if meta.get("last_modified"):
-        kv("published", meta["last_modified"].replace(" GMT", "")[5:22])
-    if meta.get("fetched"):
-        kv("downloaded", time.strftime("%-d.%-m.%Y %H:%M", time.localtime(meta["fetched"])))
-    if meta.get("checked"):
-        kv("asked ZET", time.strftime("%-d.%-m.%Y %H:%M", time.localtime(meta["checked"])))
-    kv("sha256", rep.get("sha256", "")[:16])
-
-    f = rep.get("feed", {})
-    head("FEED")
-    kv("agency", f.get("agency", "?")[:W - 15])
-    kv("version", f.get("feed_version") or "?")
-    if f.get("feed_start_date"):
-        kv("valid", "%s to %s" % (_fmt_ymd(f.get("feed_start_date")), _fmt_ymd(f.get("feed_end_date"))))
-    last = rep.get("service", {}).get("last_date")
-    if last:
-        try:
-            left = (datetime.datetime.strptime(last, "%Y%m%d").date() - datetime.date.today()).days
-            kv("last day", "%s, %d days from now" % (_fmt_ymd(last), left))
-        except Exception:
-            pass
-
-    head("TABLES")
-    cnt = rep.get("counts", {})
-    for fi in rep.get("files", []):
-        key = fi["name"].replace(".txt", "")
-        rows = cnt.get(key)
-        print("    " + _c(C_SAND, "%-19s" % fi["name"]) + _c(C_DIM, "%7.1f MB" % (fi["bytes"] / 1048576.0)) +
-              ("   %9d rows" % rows if rows is not None else ""))
-    rt = rep.get("routes_by_type", {})
-    if rt:
-        kv("lines", ", ".join("%d %s" % (n, t) for t, n in sorted(rt.items())))
-    if cnt.get("shape_ids"):
-        kv("shapes", "%d drawn routes" % cnt["shape_ids"])
-
-    days = rep.get("service", {}).get("days", [])
-    if days:
-        head("TRIPS PER DAY, THE NEXT TWO WEEKS")
-        top = max(d["trips"] for d in days) or 1
-        for d in days:
-            dt = datetime.datetime.strptime(d["date"], "%Y%m%d")
-            bar = "#" * int(round(22.0 * d["trips"] / top))
-            print("    " + _c(C_DIM, dt.strftime("%a %d.%m.")) + " " +
-                  _c(C_OK if d["trips"] else C_BAD, "%-22s" % bar) + " %5d" % d["trips"])
-
-    head("HEALTH")
-    for ch in rep.get("checks", []):
-        print("    %s %s" % (MARK.get(ch["level"], ch["level"]), _c(C_SAND, ch["name"])))
-        for line in textwrap.wrap(ch["detail"], W - 6) or [""]:
-            print("         " + _c(C_DIM, line))
-
-    ts = rep.get("top_stops", [])[:5]
-    if ts:
-        head("BUSIEST STOPS")
-        for s in ts:
-            print("    " + _c(C_SAND, "%-8s" % s["stop_id"]) + "%-26s" % s["name"][:26] +
-                  _c(C_DIM, "%6d" % s["departures"]))
-    print("\n  " + _c(C_DIM, "checked in %ss" % rep.get("seconds", "?")))
-
-
-def update():
-    """Key 4: ask ZET for the newest file, check it, show it."""
-    print("\n  " + _c(C_KEY, "1  DOWNLOAD") + "  " + _c(C_DIM, "the newest ZET schedule"))
-
-    def prog(got, total):
-        if TTY:
-            if total:
-                pct = 100.0 * got / total
-                bar = "#" * int(pct / 4)
-                sys.stdout.write("\r    %-25s %5.1f%% %5.1f MB" % (bar, pct, got / 1048576.0))
-            else:
-                sys.stdout.write("\r    %5.1f MB" % (got / 1048576.0))
-            sys.stdout.flush()
-
-    try:
-        _, _ = fetch(force=False, who=None, max_age=0, progress=prog,
-                     log=lambda m: print(("\n" if TTY else "") + "    " + _c(C_DIM, m.strip())))
-    except Exception as e:
-        print("\n    " + _c(C_BAD, str(e)))
-    print("\n  " + _c(C_KEY, "2  CHECK") + "  " + _c(C_DIM, "every table, every reference, every date"))
-    rep = check(force=False, say=lambda m: print("    " + _c(C_DIM, m)))
-    print("  " + _c(C_KEY, "3  THE DATA"))
-    show(rep)
-    return rep
-
-
-# ---------------------------------------------------------------------------
-# reading the data, for the web page
-# ---------------------------------------------------------------------------
-_cache = {}
-_cache_lock = threading.Lock()
-
-
-def _zip():
-    return zipfile.ZipFile(ZIP)
-
-
-def _cached(key, build):
-    sha = _load(META, {}).get("sha256", "")
-    with _cache_lock:
-        if _cache.get("_sha") != sha:
-            _cache.clear()
-            _cache["_sha"] = sha
-        if key in _cache:
-            return _cache[key]
-    val = build()
-    with _cache_lock:
-        _cache[key] = val
-    return val
-
-
-def data_routes():
-    def build():
-        with _zip() as zf:
-            trips, heads = {}, {}
-            for r in _rows(zf, "trips.txt"):
-                rid = r["route_id"]
-                trips[rid] = trips.get(rid, 0) + 1
-                h = heads.setdefault(rid, {})
-                h[r.get("trip_headsign", "")] = h.get(r.get("trip_headsign", ""), 0) + 1
-            out = []
-            for r in _rows(zf, "routes.txt"):
-                rid = r["route_id"]
-                out.append({"id": rid, "short": r.get("route_short_name", ""), "long": r.get("route_long_name", ""),
-                            "type": ROUTE_TYPES.get(r.get("route_type", ""), r.get("route_type", "")),
-                            "color": r.get("route_color", ""), "trips": trips.get(rid, 0),
-                            "heads": sorted(heads.get(rid, {}).items(), key=lambda x: -x[1])[:4]})
-
-            def k(x):
-                s = x["short"]
-                return (x["type"], int(s) if s.isdigit() else 9999, s)
-            return sorted(out, key=k)
-    return _cached("routes", build)
-
-
-def data_stops():
-    def build():
-        with _zip() as zf:
-            return [{"id": r["stop_id"], "code": r.get("stop_code", ""), "name": r.get("stop_name", ""),
-                     "lat": r.get("stop_lat", ""), "lon": r.get("stop_lon", ""),
-                     "parent": r.get("parent_station", "")} for r in _rows(zf, "stops.txt")]
-    return _cached("stops", build)
-
-
-def _services_on(zf, day):
-    wd = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"][day.weekday()]
-    y = _ymd(day)
-    on = set()
-    for r in _rows(zf, "calendar.txt") or []:
-        if r.get("start_date", "9") <= y <= r.get("end_date", "0") and r.get(wd) == "1":
-            on.add(r["service_id"])
-    for r in _rows(zf, "calendar_dates.txt") or []:
-        if r.get("date") == y:
-            (on.add if r.get("exception_type") == "1" else on.discard)(r["service_id"])
-    return on
-
-
-def data_departures(stop_id, day=None):
-    day = day or datetime.date.today()
-
-    def build():
-        with _zip() as zf:
-            on = _services_on(zf, day)
-            routes = {r["route_id"]: r for r in _rows(zf, "routes.txt")}
-            trips = {}
-            for r in _rows(zf, "trips.txt"):
-                if r["service_id"] in on:
-                    trips[r["trip_id"]] = r
-            out = []
-            for r in _rows(zf, "stop_times.txt"):
-                if r["stop_id"] == stop_id and r["trip_id"] in trips:
-                    t = trips[r["trip_id"]]
-                    rt = routes.get(t["route_id"], {})
-                    out.append({"time": r["departure_time"], "route": rt.get("route_short_name", t["route_id"]),
-                                "type": ROUTE_TYPES.get(rt.get("route_type", ""), ""),
-                                "head": t.get("trip_headsign", ""), "trip": r["trip_id"]})
-            return sorted(out, key=lambda x: _secs(x["time"]) or 0)
-    return _cached("dep:%s:%s" % (stop_id, _ymd(day)), build)
-
-
-def data_file(name, q="", offset=0, limit=100):
-    """Raw rows of one table, filtered by a substring, streamed so stop_times
-    never has to sit in memory."""
-    q = (q or "").lower()
-    with _zip() as zf:
-        m = _member(zf, name)
-        if not m:
-            return {"header": [], "rows": [], "more": False}
-        rd = csv.reader(io.TextIOWrapper(zf.open(m), encoding="utf-8-sig", newline=""))
-        header = next(rd, [])
-        rows, seen, more = [], 0, False
-        for row in rd:
-            if q and q not in ",".join(row).lower():
-                continue
-            if seen >= offset:
-                if len(rows) >= limit:
-                    more = True
-                    break
-                rows.append(row)
-            seen += 1
-        return {"header": header, "rows": rows, "more": more, "offset": offset}
-
-
-# ---------------------------------------------------------------------------
-# the web monitor
-# ---------------------------------------------------------------------------
-JOB = {"running": False, "what": "", "lines": [], "done": 0}
-
-
-def _job(what, fn):
-    if JOB["running"]:
-        return False
-
-    def run():
-        JOB.update({"running": True, "what": what, "lines": [], "done": 0})
-        try:
-            fn(lambda m: JOB["lines"].append(m.strip()))
-        except Exception as e:
-            JOB["lines"].append("failed: %r" % (e,))
-        finally:
-            JOB.update({"running": False, "done": int(_now())})
-    threading.Thread(target=run, daemon=True).start()
-    return True
-
-
-def _port_free(p):
-    """Only a port that ANSWERS is taken (MANTRA_MANIFEST modules/ports.md):
-    a refused connection is free, and a port in TIME_WAIT is free too."""
-    s = socket.socket()
-    s.settimeout(0.3)
-    try:
-        return s.connect_ex(("127.0.0.1", p)) != 0
-    finally:
-        s.close()
-
-
-def pick_port():
-    for p in range(PORT_FIRST, PORT_FIRST + 16):
-        if _port_free(p):
-            return p
-    s = socket.socket()
-    s.bind(("0.0.0.0", 0))
-    p = s.getsockname()[1]
-    s.close()
-    return p
-
-
-def make_app():
-    from flask import Flask, jsonify, request, Response
-    app = Flask("maha-gtfs")
-
-    @app.get("/")
-    def page():
-        return Response(PAGE.replace("@@VERSION@@", VERSION), mimetype="text/html")
-
-    @app.get("/api/health")
-    def api_health():
-        h = _load(HEALTH, {})
-        m = _load(META, {})
-        return jsonify({"health": h, "meta": {k: v for k, v in m.items() if k != "seen"},
-                        "seen": m.get("seen", {}), "current": h.get("sha256") == m.get("sha256"),
-                        "history": history(30), "job": JOB, "dir": GDIR, "version": VERSION})
-
-    @app.post("/api/fetch")
-    def api_fetch():
-        force = request.args.get("force") == "1"
-        ok = _job("download", lambda say: (fetch(force=force, max_age=0, log=say), check(say=say)))
-        return jsonify({"ok": ok})
-
-    @app.post("/api/check")
-    def api_check():
-        return jsonify({"ok": _job("check", lambda say: check(force=True, say=say))})
-
-    @app.get("/api/job")
-    def api_job():
-        return jsonify(JOB)
-
-    @app.get("/api/routes")
-    def api_routes():
-        return jsonify(data_routes() if os.path.isfile(ZIP) else [])
-
-    @app.get("/api/stops")
-    def api_stops():
-        q = (request.args.get("q") or "").lower().strip()
-        st = data_stops() if os.path.isfile(ZIP) else []
-        if q:
-            st = [s for s in st if q in s["name"].lower() or q == s["id"].lower() or q == s["code"]]
-        return jsonify(st[:200])
-
-    @app.get("/api/departures")
-    def api_dep():
-        sid = request.args.get("stop", "")
-        d = request.args.get("date", "")
-        day = datetime.datetime.strptime(d, "%Y%m%d").date() if d else None
-        return jsonify(data_departures(sid, day))
-
-    @app.get("/api/file")
-    def api_file():
-        return jsonify(data_file(request.args.get("name", ""), request.args.get("q", ""),
-                                 int(request.args.get("offset", 0)), min(int(request.args.get("limit", 100)), 500)))
-
-    return app
-
-
-def serve(open_page=True):
-    try:
-        app = make_app()
-    except ImportError:
-        print("  the web monitor needs Flask:  pip install flask waitress")
-        return 2
-    port = pick_port()
-    os.makedirs(GDIR, exist_ok=True)
-    with open(PORTFILE, "w") as f:
-        f.write(str(port))
-    write_status()
-    url = "http://127.0.0.1:%d/" % port
-    print("  GTFS monitor on %s" % url, flush=True)
-    if open_page:
-        threading.Timer(0.8, _open, args=(url,)).start()
-    try:
-        try:
-            from waitress import serve as wserve
-            wserve(app, host="0.0.0.0", port=port, threads=6)
-        except ImportError:
-            print("  (waitress is not here, so this is Flask's own server)", flush=True)
-            app.run(host="0.0.0.0", port=port, threaded=True)
-    finally:
-        try:
-            with open(PORTFILE) as f:
-                mine = f.read().strip() == str(port)
-            if mine:
-                os.remove(PORTFILE)
-            write_status()
-        except OSError:
-            pass
-    return 0
-
-
-def _open(url):
-    import subprocess
-    for cmd in (["am", "start", "-a", "android.intent.action.VIEW", "-d", url],
-                ["termux-open-url", url], ["xdg-open", url], ["open", url]):
-        try:
-            r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=8)
-            if r.returncode == 0:
-                return
-        except Exception:
-            continue
-
-
-PAGE = r'''<!doctype html>
-<html lang="en"><head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>ZET GTFS</title>
-<style>
-:root{--bg:#0d1117;--card:#141a22;--border:#2a323d;--text:#e6edf3;--muted:#8b949e;
-  --cyan:#39d0d8;--gold:#d4a017;--green:#3fb950;--red:#f85149;--amber:#ff9f1c;}
-@media (prefers-color-scheme: light){:root:not([data-theme="dark"]){--bg:#f6f8fa;--card:#fff;
-  --border:#d0d7de;--text:#1f2328;--muted:#656d76;--cyan:#0a7f86;--gold:#9a6700;--green:#1a7f37;--red:#cf222e;--amber:#bc4c00;}}
-*{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--border);
-  padding:12px 16px 0;padding-top:calc(12px + env(safe-area-inset-top))}
-.top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-.top h1{margin:0;font-size:1.05rem;letter-spacing:.04em}
-.top .sub{color:var(--muted);font-size:.78rem;font-weight:600}
-.badge{padding:4px 10px;border-radius:999px;font:800 .72rem/1 system-ui;letter-spacing:.06em;border:1.5px solid}
-.badge.ok{color:var(--green);border-color:var(--green)} .badge.warn{color:var(--amber);border-color:var(--amber)}
-.badge.bad{color:var(--red);border-color:var(--red)} .badge.unk{color:var(--muted);border-color:var(--border)}
-nav{display:flex;gap:2px;overflow-x:auto;margin-top:10px}
-nav button{flex:none;border:0;background:transparent;color:var(--muted);padding:10px 12px;font:700 .82rem/1 system-ui;
-  border-bottom:2px solid transparent;cursor:pointer}
-nav button.on{color:var(--cyan);border-bottom-color:var(--cyan)}
-main{padding:14px 16px 40px;max-width:980px;margin:0 auto}
-.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:14px}
-.card h2{margin:0 0 10px;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
-.stat b{display:block;font-size:1.35rem;font-variant-numeric:tabular-nums}
-.stat span{color:var(--muted);font-size:.74rem;font-weight:600}
-.kv{display:flex;justify-content:space-between;gap:12px;padding:5px 0;border-bottom:1px solid var(--border);font-size:.84rem}
-.kv:last-child{border-bottom:0} .kv span{color:var(--muted)} .kv b{text-align:right;word-break:break-all}
-.chk{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;padding:8px 0;border-bottom:1px solid var(--border)}
-.chk:last-child{border-bottom:0}
-.lv{font:800 .66rem/1 system-ui;letter-spacing:.06em;padding:4px 6px;border-radius:6px;align-self:start;margin-top:2px}
-.lv.ok{background:color-mix(in srgb,var(--green) 18%,transparent);color:var(--green)}
-.lv.warn{background:color-mix(in srgb,var(--amber) 18%,transparent);color:var(--amber)}
-.lv.bad{background:color-mix(in srgb,var(--red) 18%,transparent);color:var(--red)}
-.chk b{font-size:.88rem} .chk i{grid-column:2;font-style:normal;color:var(--muted);font-size:.8rem;line-height:1.4}
-.bars{display:grid;grid-template-columns:auto 1fr auto;gap:5px 10px;align-items:center;font-size:.78rem}
-.bars .bar{height:10px;border-radius:5px;background:var(--cyan)} .bars .zero{background:var(--red);width:4px}
-.bars span{color:var(--muted);font-variant-numeric:tabular-nums} .bars em{font-style:normal;text-align:right;font-variant-numeric:tabular-nums}
-.btns{display:flex;gap:8px;flex-wrap:wrap}
-.btn{border:1px solid var(--border);background:var(--card);color:var(--text);border-radius:10px;padding:10px 14px;
-  font:700 .82rem/1 system-ui;cursor:pointer} .btn.main{border-color:var(--cyan);color:var(--cyan)}
-.btn:disabled{opacity:.5}
-.log{font:600 .74rem/1.5 ui-monospace,Menlo,monospace;color:var(--muted);white-space:pre-wrap;margin-top:10px;max-height:180px;overflow:auto}
-input.q{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);
-  font:600 .9rem system-ui;margin-bottom:12px}
-table{width:100%;border-collapse:collapse;font-size:.8rem}
-th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--border);vertical-align:top}
-th{color:var(--muted);font-size:.7rem;letter-spacing:.05em;text-transform:uppercase;position:sticky;top:0;background:var(--card)}
-.tw{overflow:auto;max-height:65vh;border:1px solid var(--border);border-radius:10px;background:var(--card)}
-.rt{display:inline-flex;min-width:34px;justify-content:center;padding:4px 7px;border-radius:7px;font-weight:800;
-  background:var(--cyan);color:#0d1117} .rt.bus{background:var(--gold)}
-tr.click{cursor:pointer} tr.click:hover td{background:color-mix(in srgb,var(--cyan) 7%,transparent)}
-.muted{color:var(--muted)} .pill{display:inline-block;padding:3px 8px;border-radius:999px;border:1px solid var(--border);
-  font-size:.72rem;margin:2px 4px 2px 0;color:var(--muted)}
-.files{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.files button{border:1px solid var(--border);background:transparent;color:var(--muted);border-radius:8px;padding:7px 10px;
-  font:700 .76rem system-ui;cursor:pointer} .files button.on{border-color:var(--cyan);color:var(--cyan)}
-.hide{display:none}
-</style></head><body>
-<header>
-  <div class="top"><h1>ZET GTFS</h1><span id="lvl" class="badge unk">…</span>
-    <span class="sub" id="topsub">the schedule all three apps share · @@VERSION@@</span></div>
-  <nav id="tabs">
-    <button data-t="health" class="on">Health</button><button data-t="routes">Lines</button>
-    <button data-t="stops">Stops</button><button data-t="files">Tables</button><button data-t="history">History</button>
-  </nav>
-</header>
-<main>
-  <section id="t-health">
-    <div class="card"><div class="btns">
-      <button class="btn main" id="bFetch">Download the newest</button>
-      <button class="btn" id="bForce">Download again, whole</button>
-      <button class="btn" id="bCheck">Check again</button></div>
-      <div class="log" id="log"></div></div>
-    <div class="card"><h2>At a glance</h2><div class="grid" id="stats"></div></div>
-    <div class="card"><h2>Health</h2><div id="checks"></div></div>
-    <div class="card"><h2>Trips per day, the next two weeks</h2><div class="bars" id="days"></div></div>
-    <div class="card"><h2>Feed and source</h2><div id="feed"></div></div>
-    <div class="card"><h2>Busiest stops</h2><div id="top"></div></div>
-  </section>
-  <section id="t-routes" class="hide"><input class="q" id="rq" placeholder="Filter lines: 6, Dubec, tram…"><div class="tw"><table id="rtab"></table></div></section>
-  <section id="t-stops" class="hide"><input class="q" id="sq" placeholder="Find a stop: Jelačić, Črnomerec, 104_1…">
-    <div id="slist"></div><div id="sdep"></div></section>
-  <section id="t-files" class="hide"><div class="files" id="flist"></div><input class="q" id="fq" placeholder="Filter rows in this table">
-    <div class="tw"><table id="ftab"></table></div><div class="btns" style="margin-top:10px"><button class="btn" id="fmore">More rows</button></div></section>
-  <section id="t-history" class="hide"><div class="card"><h2>Every fetch and check</h2><div id="hist"></div></div>
-    <div class="card"><h2>What each app last saw</h2><div id="seen"></div></div></section>
-</main>
-<script>
-const $ = id => document.getElementById(id);
-const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const ymd = s => s && s.length === 8 ? (+s.slice(6)) + "." + (+s.slice(4,6)) + "." + s.slice(0,4) : (s || "—");
-const when = t => t ? new Date(t * 1000).toLocaleString("hr-HR", {day:"numeric",month:"numeric",year:"numeric",hour:"2-digit",minute:"2-digit"}) : "—";
-const mb = b => (b / 1048576).toFixed(1) + " MB";
-let H = null, FILE = "routes.txt", FOFF = 0, polling = null;
-const WORD = {ok:"HEALTHY", warn:"LOOK", bad:"BROKEN"};
-
-document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => tab(b.dataset.t));
-function tab(t){
-  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.t === t));
-  document.querySelectorAll("main > section").forEach(s => s.classList.toggle("hide", s.id !== "t-" + t));
-  if (t === "routes") loadRoutes(); if (t === "files") loadFile(); if (t === "history") paintHistory();
-  try { localStorage.setItem("gtfs_tab", t); } catch (e) {}
-}
-
-async function loadHealth(){
-  H = await fetch("api/health").then(r => r.json());
-  const h = H.health || {}, m = H.meta || {};
-  const lv = H.current && h.level ? h.level : "unk";
-  $("lvl").className = "badge " + lv; $("lvl").textContent = WORD[lv] || (m.sha256 ? "NOT CHECKED" : "NO DATA");
-  const c = h.counts || {}, f = h.feed || {};
-  const left = h.service && h.service.last_date ? Math.round((new Date(h.service.last_date.slice(0,4)+"-"+h.service.last_date.slice(4,6)+"-"+h.service.last_date.slice(6)) - new Date()) / 864e5) : null;
-  $("stats").innerHTML = [["version", f.feed_version || m.feed_version || "—"], ["lines", c.routes], ["stops", c.stops],
-    ["trips", c.trips], ["stop times", c.stop_times], ["today", h.service && h.service.days ? h.service.days[0].trips + " trips" : "—"],
-    ["days left", left == null ? "—" : left], ["downloaded", m.fetched ? new Date(m.fetched*1000).toLocaleDateString("hr-HR") : "—"]]
-    .map(([k, v]) => '<div class="stat"><b>' + esc(v == null ? "—" : (typeof v === "number" ? v.toLocaleString("hr-HR") : v)) + '</b><span>' + k + '</span></div>').join("");
-  $("checks").innerHTML = (h.checks || []).map(x => '<div class="chk"><span class="lv ' + x.level + '">' +
-    (x.level === "ok" ? "OK" : x.level === "warn" ? "LOOK" : "FAIL") + '</span><b>' + esc(x.name) + '</b><i>' + esc(x.detail) + '</i></div>').join("")
-    || '<span class="muted">Not checked yet. Download, or Check again.</span>';
-  const days = (h.service && h.service.days) || [], top = Math.max(1, ...days.map(d => d.trips));
-  $("days").innerHTML = days.map(d => { const dt = new Date(d.date.slice(0,4)+"-"+d.date.slice(4,6)+"-"+d.date.slice(6));
-    return '<span>' + dt.toLocaleDateString("hr-HR",{weekday:"short",day:"numeric",month:"numeric"}) + '</span><div><div class="bar' + (d.trips ? "" : " zero") +
-      '" style="width:' + (d.trips ? Math.max(2, 100 * d.trips / top) : 1) + '%"></div></div><em>' + d.trips.toLocaleString("hr-HR") + '</em>'; }).join("");
-  const kv = (k, v) => '<div class="kv"><span>' + k + '</span><b>' + esc(v || "—") + '</b></div>';
-  $("feed").innerHTML = kv("agency", f.agency) + kv("valid", f.feed_start_date ? ymd(f.feed_start_date) + " – " + ymd(f.feed_end_date) : "") +
-    kv("last service day", ymd(h.service && h.service.last_date)) + kv("published by ZET", m.last_modified) +
-    kv("downloaded", when(m.fetched)) + kv("last asked ZET", when(m.checked)) + kv("size", m.bytes ? mb(m.bytes) : "") +
-    kv("sha256", (m.sha256 || "").slice(0, 16)) + kv("from", m.url) + kv("folder", H.dir) + kv("checked in", h.seconds ? h.seconds + " s" : "");
-  $("top").innerHTML = '<table><tr><th>stop</th><th>name</th><th>departures</th></tr>' + (h.top_stops || []).map(s =>
-    '<tr class="click" data-stop="' + esc(s.stop_id) + '"><td>' + esc(s.stop_id) + '</td><td>' + esc(s.name) + '</td><td>' + s.departures.toLocaleString("hr-HR") + '</td></tr>').join("") + '</table>';
-  paintJob(H.job);
-}
-$("top").onclick = e => { const r = e.target.closest("[data-stop]"); if (r) { tab("stops"); showStop(r.dataset.stop); } };
-
-function paintJob(j){
-  const busy = j && j.running;
-  ["bFetch","bForce","bCheck"].forEach(id => $(id).disabled = busy);
-  $("log").textContent = j && j.lines && j.lines.length ? (busy ? "working: " + j.what + "\n" : "") + j.lines.join("\n") : "";
-  if (busy && !polling) polling = setInterval(async () => {
-    const jj = await fetch("api/job").then(r => r.json()); paintJob(jj);
-    if (!jj.running) { clearInterval(polling); polling = null; loadHealth(); }
-  }, 800);
-}
-async function start(url){ await fetch(url, {method:"POST"}); const j = await fetch("api/job").then(r => r.json()); paintJob(j); }
-$("bFetch").onclick = () => start("api/fetch");
-$("bForce").onclick = () => start("api/fetch?force=1");
-$("bCheck").onclick = () => start("api/check");
-
-let ROUTES = [];
-async function loadRoutes(){
-  if (!ROUTES.length) ROUTES = await fetch("api/routes").then(r => r.json());
-  const q = $("rq").value.toLowerCase();
-  const rows = ROUTES.filter(r => !q || (r.short + " " + r.long + " " + r.type + " " + r.heads.map(h => h[0]).join(" ")).toLowerCase().includes(q));
-  $("rtab").innerHTML = '<tr><th>line</th><th>name</th><th>type</th><th>trips</th><th>headsigns</th></tr>' + rows.map(r =>
-    '<tr><td><span class="rt ' + (r.type === "bus" ? "bus" : "") + '">' + esc(r.short || r.id) + '</span></td><td>' + esc(r.long) + '</td><td class="muted">' + esc(r.type) +
-    '</td><td>' + r.trips.toLocaleString("hr-HR") + '</td><td>' + r.heads.map(h => '<span class="pill">' + esc(h[0] || "—") + ' ' + h[1] + '</span>').join("") + '</td></tr>').join("");
-}
-$("rq").oninput = loadRoutes;
-
-let sT = null;
-$("sq").oninput = () => { clearTimeout(sT); sT = setTimeout(findStops, 250); };
-async function findStops(){
-  const q = $("sq").value.trim(); $("sdep").innerHTML = "";
-  if (q.length < 2) { $("slist").innerHTML = ""; return; }
-  const st = await fetch("api/stops?q=" + encodeURIComponent(q)).then(r => r.json());
-  $("slist").innerHTML = '<div class="tw"><table><tr><th>stop</th><th>code</th><th>name</th><th>position</th></tr>' + st.map(s =>
-    '<tr class="click" data-stop="' + esc(s.id) + '"><td>' + esc(s.id) + '</td><td>' + esc(s.code) + '</td><td>' + esc(s.name) + '</td><td class="muted">' + esc(s.lat) + ", " + esc(s.lon) + '</td></tr>').join("") + '</table></div>';
-}
-$("slist").onclick = e => { const r = e.target.closest("[data-stop]"); if (r) showStop(r.dataset.stop); };
-async function showStop(id){
-  $("sdep").innerHTML = '<div class="card"><span class="muted">Reading every departure of ' + esc(id) + ' today… the whole stop_times table is read, a few seconds.</span></div>';
-  const d = await fetch("api/departures?stop=" + encodeURIComponent(id)).then(r => r.json());
-  const now = new Date(), secs = now.getHours()*3600 + now.getMinutes()*60;
-  const toS = t => { const p = t.split(":"); return +p[0]*3600 + +p[1]*60 + +p[2]; };
-  const next = d.findIndex(x => toS(x.time) >= secs);
-  $("sdep").innerHTML = '<div class="card"><h2>' + esc(id) + ' · ' + d.length + ' departures today in the schedule</h2><div class="tw"><table><tr><th>time</th><th>line</th><th>to</th></tr>' +
-    d.map((x, i) => '<tr' + (i === next ? ' id="nextdep" style="outline:2px solid var(--cyan)"' : "") + (i < next ? ' class="muted"' : "") + '><td>' + esc(x.time.slice(0,5)) +
-      '</td><td><span class="rt ' + (x.type === "bus" ? "bus" : "") + '">' + esc(x.route) + '</span></td><td>' + esc(x.head) + '</td></tr>').join("") + '</table></div></div>';
-  const n = $("nextdep"); if (n) n.scrollIntoView({block:"center"});
-}
-
-async function loadFile(more){
-  if (!more) FOFF = 0;
-  const files = ((H && H.health && H.health.files) || []).map(f => f.name);
-  $("flist").innerHTML = files.map(f => '<button class="' + (f === FILE ? "on" : "") + '" data-f="' + esc(f) + '">' + esc(f) + '</button>').join("");
-  const d = await fetch("api/file?name=" + encodeURIComponent(FILE) + "&q=" + encodeURIComponent($("fq").value) + "&offset=" + FOFF + "&limit=100").then(r => r.json());
-  const body = d.rows.map(r => '<tr>' + r.map(c => '<td>' + esc(c) + '</td>').join("") + '</tr>').join("");
-  if (more) $("ftab").insertAdjacentHTML("beforeend", body);
-  else $("ftab").innerHTML = '<tr>' + d.header.map(h => '<th>' + esc(h) + '</th>').join("") + '</tr>' + body;
-  FOFF += d.rows.length; $("fmore").classList.toggle("hide", !d.more);
-}
-$("flist").onclick = e => { const b = e.target.closest("[data-f]"); if (b) { FILE = b.dataset.f; loadFile(); } };
-let fT = null; $("fq").oninput = () => { clearTimeout(fT); fT = setTimeout(() => loadFile(), 300); };
-$("fmore").onclick = () => loadFile(true);
-
-function paintHistory(){
-  if (!H) return;
-  $("hist").innerHTML = (H.history || []).map(x => '<div class="kv"><span>' + when(x.t) + '</span><b>' + esc(x.event) +
-    (x.who ? " · " + esc(x.who) : "") + (x.version ? " · v" + esc(x.version) : "") + (x.level ? " · " + esc(x.level) : "") +
-    (x.reason ? " · " + esc(x.reason) : "") + (x.bytes ? " · " + mb(x.bytes) : "") + '</b></div>').join("") || '<span class="muted">nothing yet</span>';
-  const cur = (H.meta || {}).sha256;
-  $("seen").innerHTML = ["day", "night", "all"].map(a => { const s = (H.seen || {})[a];
-    return '<div class="kv"><span>' + a + '.commute</span><b>' + (!s ? "has not asked yet" : s === cur ? "the current schedule" : "an older schedule, until it next asks") + '</b></div>'; }).join("");
-}
-
-loadHealth().then(() => { try { const t = localStorage.getItem("gtfs_tab"); if (t) tab(t); } catch (e) {} });
-setInterval(() => { if (!polling) loadHealth(); }, 60000);
-</script></body></html>'''
-
-
-# ---------------------------------------------------------------------------
-def main(argv):
-    cmd = argv[1] if len(argv) > 1 else "update"
-    if cmd == "update":
-        rep = update()
-        return 0 if rep.get("level") != "bad" else 1
-    if cmd == "fetch":
-        fetch(force="--force" in argv, max_age=0, log=print)
-        return 0
-    if cmd == "check":
-        rep = check(force=True, say=print)
-        show(rep)
-        return 0 if rep.get("level") != "bad" else 1
-    if cmd == "show":
-        show()
-        return 0
-    if cmd == "serve":
-        return serve(open_page="--no-open" not in argv)
-    if cmd == "status":
-        write_status()
-        with open(STATUS) as f:
-            print(f.read().strip())
-        return 0
-    print(__doc__.split("THE COMMANDS")[1].split("The apps")[0])
-    return 2
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv))
-MAHA_GTFS_7c1a
-}
-
 maha_emit_stream() {
   cat <<'MAHA_STREAM_7c1a'
 #!/usr/bin/env python3
@@ -14881,14 +13652,6 @@ CACHES = {
         "files": ["zet_gtfs.zip"],
         "dirs": [],
         "keep": ["gmaps-api.txt", "gemini-api.txt", "port", "server.out"],
-    },
-    # v21: the one schedule all three share. A refresh throws it away like the
-    # apps' own copies, and the next app to ask fetches it fresh.
-    "shared": {
-        "dir": ".maha.commute/gtfs",
-        "files": ["zet_gtfs.zip", "meta.json", "health.json", "status.txt"],
-        "dirs": [],
-        "keep": ["gtfs.py", "history.jsonl"],
     },
     "all": {
         "dir": ".all.commute",
@@ -15161,9 +13924,6 @@ def check_static(res, feed):
     for app, spec in CACHES.items():
         z = os.path.join(os.path.expanduser("~"), spec["dir"], "zet_gtfs.zip")
         if not os.path.exists(z):
-            shared = os.path.join(APPHOME, "gtfs", "zet_gtfs.zip")
-            if app != "shared" and os.path.exists(shared):
-                continue        # since v21 it reads the shared schedule, checked below
             res.add("ok", "%s schedule" % app, "no cached copy yet")
             continue
         age_h = (time.time() - os.path.getmtime(z)) / 3600.0
@@ -15924,7 +14684,7 @@ if [ "$W" != "wipe" ]; then
 fi
 
 printf "\n  ${DIM}stopping anything that is running${OFF}\n"
-for proc in commute_server.py night_server.py all_commute_server.py gtfs.py; do
+for proc in commute_server.py night_server.py all_commute_server.py; do
   pkill -f "$proc" 2>/dev/null && printf "  ${OK}stopped${OFF} ${DIM}%s${OFF}\n" "$proc"
 done
 sleep 1
@@ -15996,20 +14756,40 @@ fi
 
 CAND=""
 MODE="run"
+ONLY=""
+
+# maha-commute-update [--check] [--app ID] [file]. --app updates one app and
+# leaves the others, running or not, exactly as they are.
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --check) MODE="check" ;;
+    --app)   ONLY="${2:-}"; shift ;;
+    -*)      ;;
+    *)       [ -f "$1" ] && CAND="$1" ;;
+  esac
+  shift
+done
+if [ -n "$ONLY" ] && ! printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1 | grep -qx "$ONLY"; then
+  printf "update: %s is not one of the apps\n" "$ONLY"; exit 2
+fi
 
 RAW="https://raw.githubusercontent.com/markoboskoauroville/MAHA_COMMUTE/main"
 
 # What github is offering. A plain unsigned request: no token, no header,
 # nothing kept afterwards.
 REMOTE_V=""
-if command -v curl >/dev/null 2>&1; then
+if [ -n "$CAND" ]; then
+  :   # a file was given, so github is not asked
+elif command -v curl >/dev/null 2>&1; then
   REMOTE_V=$(curl -fsSL --max-time 20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
 elif command -v wget >/dev/null 2>&1; then
   REMOTE_V=$(wget -qO- --timeout=20 "$RAW/VERSION" 2>/dev/null | tr -cd '0-9' | head -c 6)
 fi
 
 HERE="${MAHA_VERSION#v}"
-if [ -n "$REMOTE_V" ]; then
+if [ -n "$CAND" ]; then
+  :
+elif [ -n "$REMOTE_V" ]; then
   if [ "$REMOTE_V" -gt "$HERE" ] 2>/dev/null; then
     printf "\n  ${KEY}v%s is available${OFF} ${DIM}(this phone has v%s)${OFF}\n" "$REMOTE_V" "$HERE"
     if [ "$MODE" = "check" ]; then printf "\n"; exit 0; fi
@@ -16113,8 +14893,12 @@ n=0
 for id in $(printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1); do
   n=$((n+1))
   cmd=$(printf '%s\n' "$MAHA_APPS" | grep "^$id|" | cut -d'|' -f2)
+  if [ -n "$ONLY" ] && [ "$id" != "$ONLY" ]; then continue; fi
   [ -x "$BIN/$cmd" ] && PICK="$PICK$n"
 done
+if [ -n "$ONLY" ]; then
+  printf "  ${DIM}updating only${OFF} ${SAND}%s${OFF}${DIM}; the other apps are left as they are${OFF}\n" "$ONLY"
+fi
 if [ -z "$PICK" ]; then
   printf "  ${DIM}no apps are installed, so the update installs none of them${OFF}\n"
   PICK="n"
@@ -16122,6 +14906,7 @@ else
   printf "  ${DIM}installed now, and kept:${OFF}"
   for id in $(printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1); do
     cmd=$(printf '%s\n' "$MAHA_APPS" | grep "^$id|" | cut -d'|' -f2)
+    if [ -n "$ONLY" ] && [ "$id" != "$ONLY" ]; then continue; fi
     [ -x "$BIN/$cmd" ] && printf " ${SAND}%s${OFF}" "$cmd"
   done
   printf "\n"
@@ -16208,12 +14993,6 @@ HAVE_FUSER=0; have fuser && HAVE_FUSER=1
 HAVE_SHA=0;  have sha256sum && HAVE_SHA=1
 HAVE_PGREP=0; have pgrep && HAVE_PGREP=1
 HAVE_B64=0;  have base64 && HAVE_B64=1
-# v21: the GTFS monitor's page is Flask, served by waitress (termux-app.md).
-# Optional: without them key 4 still downloads, checks and shows in the terminal.
-HAVE_FLASK=0
-for _py in python python3; do
-  command -v "$_py" >/dev/null 2>&1 && "$_py" -c 'import flask, waitress' >/dev/null 2>&1 && HAVE_FLASK=1
-done
 REQ_MISSING=0
 [ "$HAVE_PY" = "0" ] && REQ_MISSING=$((REQ_MISSING+1))
 
@@ -16233,7 +15012,6 @@ dep_row "fuser"        "$HAVE_FUSER" "frees a busy port"        "opt"
 dep_row "procps"       "$HAVE_PGREP" "finds and stops servers"  "opt"
 dep_row "sha256sum"    "$HAVE_SHA"   "checks the payloads"      "opt"
 dep_row "base64"       "$HAVE_B64"   "used by all.commute"      "opt"
-dep_row "flask"        "$HAVE_FLASK" "the GTFS monitor page"    "opt"
 printf "\n"
 
 # ---------------------------------------------------------------
@@ -16277,13 +15055,6 @@ else
     if pkg install -y "$pkgname" >/dev/null 2>&1; then done_; else fail_ "not fetched"; fi
   done
   command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 && HAVE_PY=1
-fi
-# Flask and waitress are pip packages, not pkg ones, so they come after python.
-if [ "$MODE" != "offline" ] && [ "$HAVE_FLASK" = "0" ] && [ "$HAVE_PY" = "1" ]; then
-  step "installing flask and waitress"
-  _py=$(command -v python || command -v python3)
-  if "$_py" -m pip install -q flask waitress >/dev/null 2>&1; then HAVE_FLASK=1; done_
-  else fail_ "not fetched, key 4 still works in the terminal"; fi
 fi
 # ---------------------------------------------------------------
 # storage, asked for rather than left to the person
@@ -16340,19 +15111,11 @@ else
            "$HOME/storage/downloads/google-api.txt" \
            "$HOME/storage/downloads/Google-maps-api.txt" \
            "$HOME/downloads/google-api.txt"; do
-    # v21: a file only counts when a key comes OUT of it. An install without a
-    # key leaves blank key files in the apps' folders, and the old test (-s)
-    # took the first of them as "found", stored an empty key and stopped
-    # looking, so a key put in Downloads later was never picked up (seen on
-    # the Pixel 7 emulator, 7.10.2026).
-    if [ -s "$c" ] && [ -r "$c" ]; then
-      _k=$(grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key)
-      if [ -n "$_k" ]; then
-        printf '%s\n' "$_k" > "$KEYFILE"
-        chmod 600 "$KEYFILE"
-        FOUND="$c"
-        break
-      fi
+    if [ -s "$c" ]; then
+      grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key > "$KEYFILE"
+      chmod 600 "$KEYFILE"
+      FOUND="$c"
+      break
     fi
   done
 fi
@@ -16430,27 +15193,6 @@ done_
 
 step "the install routine"
 maha_emit_install_one | install_command "$APPHOME/install-one.sh"
-done_
-
-step "the shared GTFS"
-# One schedule for all three apps (v21). The apps look for this file and
-# fall back to their own download only when it is not there.
-mkdir -p "$APPHOME/gtfs"
-maha_emit_gtfs > "$APPHOME/gtfs/gtfs.py.new"
-mv -f "$APPHOME/gtfs/gtfs.py.new" "$APPHOME/gtfs/gtfs.py"
-# The first install adopts the newest copy an app already holds, so nobody
-# downloads twelve megabytes that are already on the phone.
-if [ ! -f "$APPHOME/gtfs/zet_gtfs.zip" ]; then
-  _best=""
-  for _z in "$HOME/.commute/zet_gtfs.zip" "$HOME/.all.commute/zet_gtfs.zip" "$HOME/.nightcommute/zet_gtfs.zip"; do
-    [ -s "$_z" ] || continue
-    if [ -z "$_best" ] || [ "$_z" -nt "$_best" ]; then _best="$_z"; fi
-  done
-  if [ -n "$_best" ] && head -c 2 "$_best" | grep -q PK; then
-    cp -f "$_best" "$APPHOME/gtfs/zet_gtfs.zip.part" && mv -f "$APPHOME/gtfs/zet_gtfs.zip.part" "$APPHOME/gtfs/zet_gtfs.zip"
-    printf " ${DIM}adopted %s${OFF}" "${_best#$HOME/}"
-  fi
-fi
 done_
 
 step "the stream checker"
@@ -16539,10 +15281,6 @@ for id in $CHOSEN; do
   fi
 done
 
-# v21: the shared key goes to every installed app, including the ones left
-# alone above, so a key found on this run reaches apps installed on an earlier one.
-"$BIN/maha-commute" sharekey >/dev/null 2>&1 || true
-
 # ---------------------------------------------------------------
 # what happened
 # ---------------------------------------------------------------
@@ -16582,4 +15320,4 @@ if [ "$STORAGE" = "not allowed" ]; then
 fi
 printf "\n"
 
-# MAHA_COMMUTE_SENTINEL v21 6179f4b9cb734d06
+# MAHA_COMMUTE_SENTINEL v21 0cb9477d42d1ca12

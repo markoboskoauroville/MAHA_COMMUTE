@@ -1,0 +1,22 @@
+ii  termux-api     0.60.0       aarch64 
+--- termux-location (gps, once)
+{
+  "latitude": 45.8125,
+  "longitude": 15.964271666666667,
+  "altitude": 0.0,
+  "accuracy": 5.0,
+  "vertical_accuracy": 0.5,
+  "bearing": 0.0,
+  "speed": 0.0,
+  "elapsedMs": 22,
+  "provider": "gps"
+}
+rc=0
+--- termux-location (network)
+rc=124
+--- termux-notification
+rc=0
+--- termux-wake-lock
+rc=0
+--- all.commute /gps
+{"ok": true, "termux": true, "fresh": false, "gps": {"ok": true, "provider": "gps", "latitude": 45.812673333333336, "longitude": 15.965455, "altitude": 0.0, "accuracy": 5.0, "vertical_accuracy": 0.5, "bearing": 0.0, "speed": 0.0, "elapsedMs": 8133}, "network": {"ok": true, "provider": "network"}, "b

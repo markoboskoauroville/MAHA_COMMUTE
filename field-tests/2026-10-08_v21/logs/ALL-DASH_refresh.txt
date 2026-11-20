@@ -1,0 +1,64 @@
+board fetches in 45 s: 16
+--- dashboard text first 600 chars:
+102_1
+Slovenska
+35 m away · vehicles head E · live
+✕
+You are watching this stop
+the bar at the bottom keeps the next one
+WATCHING
+Add a Google key in ⚙ to see the stop.
+JUST LEFT
+11
+Črnomerec → Dubec
+18:20 · −7 min
+−7
+min ago
+11
+Črnomerec → Dubec
+18:21
+−6
+min ago
+2
+Črnomerec → Savišće
+18:23
+−4
+min ago
+6
+Črnomerec → Sopot
+18:26 · −4 min
+−1
+min ago
+COMING
+2
+Črnomerec → Savišće
+18:28 · −7 min
+1
+min
+11
+Črnomerec → Dubec
+18:31 · −3 min
+4
+min
+6
+Črnomerec → Sopot
+18:36 · on time
+9
+min
+11
+Črnomerec → Dubec
+18:41
+14
+min
+6
+Črnomerec → Sopot
+18:42
+15
+min
+2
+Črnomerec → Spr. Trešnj.
+18:43 · on time
+16
+min
+
+--- changed after 45 s: True

@@ -55,12 +55,25 @@ maha_clean_key() {
   tr -cd 'A-Za-z0-9_-' | head -c 200
 }
 
-# The truth about an app is the command on disk. The stamp file only
-# supplies the version, and a stamp with no command behind it is a lie
-# this function refuses to repeat.
+# A file counts as holding a key only if, once cleaned, it is long enough to be
+# one. A lone newline (one byte, so `-s` calls it non-empty) used to win over the
+# real key in another app's folder and fill the shared store with nothing.
+maha_key_ok() {   # maha_key_ok FILE
+  [ -f "$1" ] && [ "$(grep -v '^[[:space:]]*$' "$1" 2>/dev/null | head -1 | maha_clean_key | wc -c | tr -d ' ')" -ge 20 ]
+}
+
+# The truth about an app is the command on disk AND its own files. The stamp
+# file only supplies the version. A command whose folder was deleted is not an
+# installed app (field test v21, F4): the installer called it "already current"
+# and left it broken.
+app_files_present() {
+  local row dir proc
+  row=$(app_row "$1"); dir=$(field "$row" 3); proc=$(field "$row" 7)
+  [ -n "$dir" ] && [ -f "$HOME/$dir/$(basename "$proc")" ]
+}
 is_installed() {
   local cmd; cmd=$(field "$(app_row "$1")" 2)
-  [ -n "$cmd" ] && [ -x "$BIN/$cmd" ]
+  [ -n "$cmd" ] && [ -x "$BIN/$cmd" ] && app_files_present "$1"
 }
 
 stamped_version() {

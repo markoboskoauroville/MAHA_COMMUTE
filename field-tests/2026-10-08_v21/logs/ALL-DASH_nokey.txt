@@ -1,0 +1,4 @@
+OPEN by tap 102_1 {"dash": true, "sel": "102_1", "url": "http://127.0.0.1:8084/?run=dash", "name": "Slovenska", "sub": "88 m away \u00b7 vehicles head E \u00b7 live", "watch": "102_1", "wb": "Slovenska", "rows": 0, "img": [], "svtext": "Add a Google key in \u2699 to see the stop."}
+CLOSE X False http://127.0.0.1:8084/?run=dash
+CLOSE back dash False url http://127.0.0.1:8084/?run=dash
+second BACK: page gone Page.evaluate: Target page, context or browser has been closed

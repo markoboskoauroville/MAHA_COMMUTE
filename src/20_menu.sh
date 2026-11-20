@@ -5,20 +5,25 @@
 # look, it is the way mc lets a pair of panels share one set of keys.
 #
 # FOUR QUADRANTS, one app each. A quadrant is empty when its app is not
-# running. The fourth is the schedule all three share (v21, Marko 7.10.2026):
-# 4 downloads the newest ZET GTFS, checks it, shows it in the terminal and
-# opens the GTFS monitor page. Nothing appears, nothing disappears.
+# running and empty when there is no app for it at all: the fourth is free
+# and stays drawn, because a slot that appears when a fourth app arrives is
+# a screen that moves under the hand. Nothing appears, nothing disappears.
 #
 #   +-----------------+-----------------+
 #   | 1 day.commute   | 2 night.commute |
 #   +-----------------+-----------------+
-#   | 3 all.commute   | 4 GTFS          |
+#   | 3 all.commute   | 4 free          |
 #   +-----------------+-----------------+
 #
-# 1 2 3 4 FILL a quadrant. An empty quadrant is an app that is not running,
-# so pressing its number starts that server and the quadrant fills in front
-# of you. Pressing the number of a quadrant that is already filled opens its
-# page again. The number means one thing in both cases: put me in this app.
+# 1 2 3 4 LIGHT a quadrant. An idle app is started by its number and the
+# quadrant says RUNNING; an app that is already running is only lit, so with
+# two apps up the numbers just swap the light between them. Enter or o opens
+# the page. 0 lights nothing: it is the launcher itself, and the keys that
+# belong to no single app act on all of it.
+#
+# u UPDATES according to what is running. With nothing running it updates the
+# whole launcher. With apps running it updates only the lit one, because an
+# update replaces files that a running server is serving from.
 #
 # The label is drawn whether the quadrant is filled or not, so the number
 # never has to be looked up. 1 is always day.commute, on this phone and on
@@ -59,7 +64,7 @@ RUNDIR="$APPHOME/running"; mkdir -p "$RUNDIR"
 # run start clean instead of where you left off.
 RUN=$(date +%s)
 PY="$(command -v python3 || command -v python)"
-SEL=1
+SEL=0     # 0 is the launcher itself; 1 to 4 light an app
 LAST=""
 
 STTY_SAVED=""
@@ -70,10 +75,17 @@ STTY_SAVED=$(stty -g 2>/dev/null || true)
 field()   { printf '%s' "$1" | cut -d'|' -f"$2"; }
 app_row() { printf '%s\n' "$MAHA_APPS" | grep "^$1|" || true; }
 app_ids() { printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1; }
-app_at()  { app_ids | sed -n "${1}p"; }
+app_at()  { case "$1" in ''|0|*[!0-9]*) return 0 ;; esac; app_ids | sed -n "${1}p"; }
 n_apps()  { app_ids | wc -l | tr -d ' '; }
 
-is_installed() { local c; c=$(field "$(app_row "$1")" 2); [ -n "$c" ] && [ -x "$BIN/$c" ]; }
+# Installed means the command AND the app's own files (field test v21, F4): a
+# command whose folder was deleted is a broken install, not an installed app.
+app_files_present() {
+  local row dir proc
+  row=$(app_row "$1"); dir=$(field "$row" 3); proc=$(field "$row" 7)
+  [ -n "$dir" ] && [ -f "$HOME/$dir/$(basename "$proc")" ]
+}
+is_installed() { local c; c=$(field "$(app_row "$1")" 2); [ -n "$c" ] && [ -x "$BIN/$c" ] && app_files_present "$1"; }
 stamped()      { if [ -f "$STAMPDIR/$1" ]; then tr -d ' \n' < "$STAMPDIR/$1"; else printf '?'; fi; }
 
 # The app's OWN launcher. Since v17 the command on the PATH (day.commute and
@@ -183,17 +195,22 @@ start_app() {
   # it cannot compete with this menu for a keypress and it does not die when
   # the menu is quit. Inheriting the terminal is how a backgrounded server
   # ends up eating the key you pressed for something else.
-  # v21: setsid is asked for BEFORE it is used. The old "setsid ... & || nohup"
-  # never reached its fallback: a command not found inside a background job is
-  # not the subshell's failure, so on a phone without setsid (util-linux is not
-  # in Termux by default) nothing was started at all and the wait below ran out.
+  #
+  # FIELD TEST v21, F5. This used to be `( cd "$HOME" && setsid nohup X ... & echo $! )`,
+  # and the `&` belongs to the WHOLE `cd && setsid ...` list: it ran in a forked
+  # copy of this script that stayed alive as the server's parent, holding the
+  # caller's stdout. `maha-commute day | cat` (a script, a widget, Termux:Boot)
+  # never returned, 94 seconds here, 25 minutes on the phone. Now the subshell
+  # that backgrounds the server is a single exec: nothing of this script is left
+  # behind and nothing holds the caller's terminal or pipe.
+  L=$(launcher_of "$id")
   if command -v setsid >/dev/null 2>&1; then
-    ( cd "$HOME" && setsid nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-      echo $! > "$RUNDIR/$id.pid" )
+    ( cd "$HOME" 2>/dev/null; exec setsid nohup "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
   else
-    ( cd "$HOME" && nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-      echo $! > "$RUNDIR/$id.pid" )
+    ( cd "$HOME" 2>/dev/null; exec nohup "$L" </dev/null >"$RUNDIR/$id.log" 2>&1 ) &
   fi
+  echo $! > "$RUNDIR/$id.pid"
+  disown 2>/dev/null || true
 
   # A FIRST start is not a restart. day.commute fetches an eleven megabyte
   # schedule from ZET and builds its caches before it binds anything, which
@@ -214,11 +231,17 @@ start_app() {
       [ -n "$last" ] && [ "$last" != "$shown" ] && { printf "  ${DIM}%s${OFF}\n" "$last"; shown="$last"; }
       printf "\r  ${AM}%ss${OFF}${DIM} waiting for port %s${OFF}   " "$((i * 2 / 5))" "$(app_port "$id")"
     fi
-    # A key means stop waiting, not stop the app.
-    if read -rsn1 -t 0.4 _k 2>/dev/null; then
-      printf "\n\n  ${SAND}left working in the background.${OFF}\n"
-      printf "  ${DIM}the quadrant fills when it answers${OFF}\n"
-      sleep 1; return
+    # A key means stop waiting, not stop the app. Without a terminal (a script,
+    # a widget, Termux:Boot) `read -t` returns at once, which turned the three
+    # minute wait into a few seconds (field test v21, F10), so it sleeps instead.
+    if [ -t 0 ]; then
+      if read -rsn1 -t 0.4 _k 2>/dev/null; then
+        printf "\n\n  ${SAND}left working in the background.${OFF}\n"
+        printf "  ${DIM}the quadrant fills when it answers${OFF}\n"
+        sleep 1; return
+      fi
+    else
+      sleep 0.4
     fi
   done
   printf "\r                                                  \r"
@@ -262,84 +285,8 @@ stop_all() {
   printf "\n"
   local id any=0
   for id in $(app_ids); do running "$id" && { stop_app "$id"; any=1; }; done
-  gtfs_running && { gtfs_stop; any=1; }
   [ "$any" = 0 ] && printf "  ${DIM}nothing was running${OFF}\n"
   anykey
-}
-
-# ---------------------------------------------------------------
-# quadrant 4: the shared GTFS
-#
-# gtfs.py in ~/.maha.commute/gtfs is the one schedule all three apps read.
-# Its status.txt is one line, version|level|date|port, so drawing the
-# quadrant never starts python. The monitor is found by its process AND its
-# answering port, the same rule as the apps.
-# ---------------------------------------------------------------
-GTFSDIR="$APPHOME/gtfs"; GTFS="$GTFSDIR/gtfs.py"
-gtfs_port() { [ -f "$GTFSDIR/port" ] && tr -d ' \n' < "$GTFSDIR/port" 2>/dev/null; }
-gtfs_running() {
-  local p; proc_alive "gtfs.py serve" || return 1
-  p=$(gtfs_port); [ -n "$p" ] && port_live "$p"
-}
-gtfs_cell() {
-  local ver="" lvl="" day="" w
-  q1='4 GTFS'
-  [ -f "$GTFSDIR/status.txt" ] && IFS='|' read -r ver lvl day _ < "$GTFSDIR/status.txt"
-  if [ ! -f "$GTFSDIR/zet_gtfs.zip" ]; then
-    q2='no schedule yet'; q3='4 fetches it'; qstate='absent'
-  else
-    case "$lvl" in ok) w='healthy' ;; warn) w='look' ;; bad) w='BROKEN' ;; *) w='unchecked' ;; esac
-    q2="v${ver:-?} $w ${day}"
-    if gtfs_running; then q3="page on $(gtfs_port)"; qstate='running'
-    else q3='4 fetch check show'; qstate='ready'; fi
-  fi
-}
-gtfs_open() {
-  local i a
-  if gtfs_running; then open_url "http://127.0.0.1:$(gtfs_port)/"; return 0; fi
-  if ! "$PY" -c 'import flask' >/dev/null 2>&1; then
-    printf "\n  ${SAND}the monitor page needs Flask.${OFF}\n"
-    printf "  ${KEY}y${OFF} ${DIM}installs flask and waitress now, any other key skips${OFF}\n  ${AM}>${OFF} "
-    read -rsn1 a 2>/dev/null || read -r a; printf "\n"
-    case "$a" in y|Y) "$PY" -m pip install flask waitress || return 1 ;; *) return 1 ;; esac
-  fi
-  rm -f "$GTFSDIR/port"
-  if command -v setsid >/dev/null 2>&1; then
-    ( cd "$HOME" && setsid nohup "$PY" "$GTFS" serve --no-open </dev/null > "$RUNDIR/gtfs.log" 2>&1 &
-      echo $! > "$RUNDIR/gtfs.pid" )
-  else
-    ( cd "$HOME" && nohup "$PY" "$GTFS" serve --no-open </dev/null > "$RUNDIR/gtfs.log" 2>&1 &
-      echo $! > "$RUNDIR/gtfs.pid" )
-  fi
-  printf "  ${DIM}starting the monitor page${OFF}"
-  for i in $(seq 1 40); do
-    gtfs_running && break
-    printf "."; sleep 0.25
-  done
-  if gtfs_running; then
-    printf " ${OK}up on %s${OFF}\n" "$(gtfs_port)"
-    open_url "http://127.0.0.1:$(gtfs_port)/"
-  else
-    printf " ${BAD}it did not answer${OFF}\n"; tail -4 "$RUNDIR/gtfs.log" 2>/dev/null | sed 's/^/    /'
-  fi
-}
-gtfs_stop() {
-  pkill -f "gtfs.py serve" 2>/dev/null
-  [ -f "$RUNDIR/gtfs.pid" ] && kill "$(cat "$RUNDIR/gtfs.pid")" 2>/dev/null
-  rm -f "$RUNDIR/gtfs.pid"; sleep 1
-  if gtfs_running; then printf "  ${BAD}the monitor would not stop${OFF}\n"
-  else printf "  ${OK}the GTFS monitor stopped${OFF}\n"; fi
-}
-# Key 4: download the newest, check it, show it, then open the page.
-screen_gtfs() {
-  clear 2>/dev/null || true
-  if [ ! -f "$GTFS" ]; then
-    printf "\n  ${BAD}%s is missing. Run the installer again.${OFF}\n" "$GTFS"; anykey; return
-  fi
-  "$PY" "$GTFS" update
-  printf "\n"
-  gtfs_open
-  anykey "any key, back to the quadrants"
 }
 
 # ---------------------------------------------------------------
@@ -362,6 +309,32 @@ screen_gtfs() {
 # frame stops being a frame.
 # ---------------------------------------------------------------
 CW=22
+
+# u. What it updates depends on what is running, because an update replaces
+# files a running server is serving from.
+#   nothing running   the whole launcher, every installed app
+#   something running only the lit app (its server is stopped first by the
+#                     installer, nothing else is touched). With no app lit
+#                     there is nothing to aim at, and it says so.
+update_focus() {
+  local n_run=0 id sel_id
+  for id in $(app_ids); do running "$id" && n_run=$((n_run+1)); done
+  printf "\n"
+  if [ "$n_run" = 0 ]; then
+    bash "$APPHOME/update.sh"; anykey; return
+  fi
+  sel_id=$(app_at "$SEL")
+  if [ "$SEL" = 0 ] || [ -z "$sel_id" ]; then
+    printf "  ${SAND}%s running.${OFF} ${DIM}Light one with 1 to 4 and press u to update just that app,${OFF}\n" "$n_run"
+    printf "  ${DIM}or press S to stop them all and update the whole launcher.${OFF}\n"
+    anykey; return
+  fi
+  if ! is_installed "$sel_id"; then
+    printf "  ${DIM}%s is not installed, so there is nothing to update.${OFF}\n" "$(field "$(app_row "$sel_id")" 2)"
+    anykey; return
+  fi
+  bash "$APPHOME/update.sh" --app "$sel_id"; anykey
+}
 
 pad() { printf '%-*.*s' "$CW" "$CW" "$1"; }
 
@@ -426,7 +399,8 @@ W=21   # inner width of one quadrant, so two of them plus the rules fit a
 # afterwards. printf counts the bytes of an escape sequence as width, so a
 # coloured string handed to %-21s comes out short by exactly the length of
 # the escapes, and every rule on the right hand side walks left.
-pad() { printf "%-${W}.${W}s" "$1"; }
+PW=$W
+pad() { printf "%-${PW}.${PW}s" "$1"; }
 
 uptime_of() {
   local id="$1" pidf="$RUNDIR/$1.pid" s
@@ -441,21 +415,24 @@ uptime_of() {
 cell() {
   local slot="$1" id cmd
   id=$(app_at "$slot")
-  if [ -z "$id" ] && [ "$slot" = 4 ]; then gtfs_cell; return; fi
   if [ -z "$id" ]; then
     q1=$(printf '%d free' "$slot"); q2=''; q3='room for a fourth'
     qstate='empty'; return
   fi
   cmd=$(field "$(app_row "$id")" 2)
-  q1=$(printf '%d %s' "$slot" "$cmd")
+  # the version rides on the first line; the third line is what the app is for
   q3=$(field "$(app_row "$id")" 8)
   if ! is_installed "$id"; then
+    q1=$(printf '%d %s' "$slot" "$cmd")
     q2='not installed'; qstate='absent'
   elif running "$id"; then
-    q2=$(printf '%s  %s  %s' "$(stamped "$id")" "$(app_port "$id")" "$(uptime_of "$id")")
+    q1=$(printf '%d %s %s' "$slot" "$cmd" "$(stamped "$id")")
+    q2=$(printf 'RUNNING %s  %s' "$(app_port "$id")" "$(uptime_of "$id")")
+    [ "$LAST" = "$id" ] && q2="$q2 *"
     qstate='running'
   else
-    q2=$(printf '%s  ready' "$(stamped "$id")")
+    q1=$(printf '%d %s %s' "$slot" "$cmd" "$(stamped "$id")")
+    q2='ready'
     qstate='ready'
   fi
 }
@@ -491,21 +468,77 @@ quad_row() {
     "$(pad "  $l3")" "$(pad "  $r3")"
 }
 
+# Width of the terminal. Below 49 columns the 2 by 2 frame (47 wide) cannot be
+# drawn, so the four apps are four lines instead (field test v21, F12).
+term_cols() {
+  local c; c=$(tput cols 2>/dev/null || true)
+  case "$c" in ''|*[!0-9]*) c=${COLUMNS:-80} ;; esac
+  case "$c" in ''|*[!0-9]*) c=80 ;; esac
+  printf '%s' "$c"
+}
+
+# Dim text wrapped to the terminal, never cut mid-word.
+say_wrapped() {
+  local l
+  printf '%s\n' "$1" | fold -s -w "$((COLS-4))" | while IFS= read -r l; do
+    printf "  ${DIM}%s${OFF}\n" "$l"
+  done
+}
+
+grid_narrow() {
+  local n focused
+  PW=$((COLS-4)); [ "$PW" -lt 20 ] && PW=20
+  for n in 1 2 3 4; do
+    cell "$n"
+    focused=0; [ "$SEL" = "$n" ] && focused=1
+    if [ -n "$q2" ]; then _l=$(printf '%s  %s' "$q1" "$q2"); else _l="$q1"; fi
+    printf "  %b\n" "$(paint "$_l" "$qstate" "$focused")"
+  done
+  PW=$W
+}
+
+# The ten keys, five to a row where they fit and fewer where they do not.
+draw_keys() {
+  local any_run="$1" per n=0 item
+  per=$(( (COLS-2) / 8 )); [ "$per" -gt 5 ] && per=5; [ "$per" -lt 2 ] && per=2
+  printf "  "
+  for item in "h|elp |1" "r|efresh |1" "c|heck |1" "t|est |1" "i|nstall|1" \
+              "u|pdate |1" "k|ey |1" "S|topAll|$any_run" "w|ipe |1" "q|uit|1"; do
+    fkey "" "${item%%|*}" "$(printf '%s' "$item" | cut -d'|' -f2)" "${item##*|}"
+    n=$((n+1))
+    if [ $((n % per)) = 0 ] && [ "$n" -lt 10 ]; then printf "\n  "; fi
+  done
+  printf "\n"
+}
+
 draw() {
   clear 2>/dev/null || true
-  local id any_run=0 sel_id sel_run=0 sel_inst=0
+  COLS=$(term_cols)
+  local id any_run=0 sel_id sel_run=0 sel_inst=0 narrow=0
+  [ "$COLS" -lt 49 ] && narrow=1
   printf "\n  ${KEY}MAHA COMMUTE${OFF} ${DIM}%s${OFF}\n" "$MAHA_VERSION"
-  rule; quad_row 1 2; rule; quad_row 3 4; rule
+  if [ "$narrow" = 1 ]; then grid_narrow
+  else rule; quad_row 1 2; rule; quad_row 3 4; rule; fi
 
   sel_id=$(app_at "$SEL")
   [ -n "$sel_id" ] && { running "$sel_id" && sel_run=1; is_installed "$sel_id" && sel_inst=1; }
   for id in $(app_ids); do running "$id" && any_run=1; done
 
-  # The verbs, which act on whichever quadrant has the focus.
-  if [ -z "$sel_id" ]; then
-    printf "  ${DIM}on ${OFF}${KEY}GTFS${OFF}${DIM}:${OFF}  ${KEY}Enter${OFF}${SAND}=fetch+check${OFF}  ${KEY}o${OFF}${SAND}pen${OFF}  ${KEY}s${OFF}${SAND}top${OFF}  ${KEY}l${OFF}${SAND}og${OFF}\n\n"
+  # The verbs, which act on whichever quadrant has the focus. Focus 0 is the
+  # launcher itself: nothing is lit and the keys below act on all of it.
+  if [ "$SEL" = 0 ]; then
+    if [ "$any_run" = 1 ]; then
+      say_wrapped "launcher: apps are running, so u needs one lit app"
+    else
+      say_wrapped "launcher: nothing runs, so u updates all of it"
+    fi
+    printf "\n"
+  elif [ -z "$sel_id" ]; then
+    say_wrapped "quadrant 4 is free. The verbs wait for an app."
+    printf "\n"
   else
-    printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}  " "$(field "$(app_row "$sel_id")" 2)"
+    printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}" "$(field "$(app_row "$sel_id")" 2)"
+    if [ "$narrow" = 1 ]; then printf "\n  "; else printf "  "; fi
     if [ "$sel_inst" != 1 ]; then
       printf "${KEY}Enter${OFF}${SAND}=install${OFF}${DIM}  open stop restart log${OFF}"
     elif [ "$sel_run" = 1 ]; then
@@ -518,19 +551,16 @@ draw() {
   # Every label is spelled by its own key: r efresh, c heck, w ipe. A key
   # whose letter does not begin its word has to be read rather than
   # recognised, and this row is meant to be recognised.
-  printf "  "; fkey 1 h "elp" 1; fkey 2 r "efresh" 1; fkey 3 c "heck" 1
-  fkey 4 t "est" 1; fkey 5 i "nstall" 1; printf "\n  "
-  fkey 6 u "pdate" 1; fkey 7 k "ey" 1; fkey 8 S "topAll" "$any_run"
-  fkey 9 w "ipe" 1; fkey 0 q "uit" 1; printf "\n"
-  printf "\n  ${DIM}1 2 3 4 fill a quadrant, arrows move without starting${OFF}\n"
+  draw_keys "$any_run"
+  printf "\n"
+  say_wrapped "1-4 light an app (starts it if idle), 0 the launcher"
   printf "  ${AM}>${OFF} "
 }
 
 screen_log() {
   local id="$1" f="$RUNDIR/$1.log"
   clear 2>/dev/null || true
-  local nm; nm=$(field "$(app_row "$id")" 2); [ -z "$nm" ] && nm="the GTFS monitor"
-  printf "\n  ${KEY}%s${OFF} ${DIM}in its own words${OFF}\n\n" "$nm"
+  printf "\n  ${KEY}%s${OFF} ${DIM}in its own words${OFF}\n\n" "$(field "$(app_row "$id")" 2)"
   if [ -s "$f" ]; then
     tail -20 "$f" | cut -c1-46 | sed 's/^/  /'
   else
@@ -589,52 +619,45 @@ screen_info() {
 
 screen_help() {
   clear 2>/dev/null || true
-  cat <<'HELPTEXT'
+  COLS=$(term_cols)
+  # fold -s wraps at the terminal's width on a space, so nothing is cut in a word
+  fold -s -w "$((COLS-2))" <<'HELPTEXT'
 
-  MAHA COMMUTE
+MAHA COMMUTE
 
-  Four quadrants. 1 2 3 are the apps. 4 is the ZET schedule
-  all three share: it downloads the newest, checks every table
-  for damage, shows the data here, and opens the GTFS monitor
-  page (health, lines, stops and their departures, raw tables).
+Four quadrants, one app each. The fourth is free and stays drawn, so the screen does not move when a fourth app arrives.
 
-  1 2 3 4 fill a quadrant. An empty quadrant is a server that
-  is not running, so its number starts it and the quadrant
-  fills. If it is already filled, the number opens its page.
+1 2 3 4 light an app. If it is idle its number starts it. If it is already running the number only moves the light, so with two apps up, 1 and 3 swap between them and nothing reopens. Every running app says RUNNING in its quadrant, with its port.
 
-  Arrows move between quadrants without starting anything,
-  for when you want to look before you press.
+0 is the launcher itself: nothing is lit and the keys that belong to no single app act on all of it.
 
-  The verbs are the same for every quadrant and act on the
-  focused one, which is the whole point: one set of keys.
+Arrows move the light without starting anything, for when you want to look before you press.
 
-      Enter  open it, starting it first if it is not running
-      o      open the page again
-      s      stop it
-      R      restart it
-      l      its log, the last twenty lines
-      i      install it, or remove it if it is here
+The verbs are the same for every quadrant and act on the lit one, which is the whole point: one set of keys.
 
-  Servers stack: start all three and all three keep running,
-  on 8082, 8087 and 8084.
+  Enter  open it, starting it first if it is not running
+  o      open the page again
+  s      stop it
+  R      restart it
+  l      its log, the last twenty lines
+  i      install it, or remove it if it is here
 
-  The bottom row is always the same ten keys, dim when they do
-  not apply. Press the letter. The number is only there because
-  a phone has no F keys.
+Servers stack: start all three and all three keep running, on 8082, 8087 and 8084.
 
-      h  this
-      r  refresh every ZET stream, then check it
-      c  check the streams without refreshing
-      t  test every key this phone holds
-      i  install or remove an app
-      u  update from a newer installer file
-      k  the shared google key
-      S  stop all of them
-      x  uninstall, which asks twice
-      q  quit the menu, leaving the servers running
+The bottom rows are always the same ten keys, dim when they do not apply. Press the letter shown in white.
 
-  Quitting does not stop anything. The servers keep serving and
-  the pages stay open. S is what stops them.
+  h  this
+  r  refresh every ZET stream, then check it
+  c  check the streams without refreshing
+  t  test every key this phone holds
+  i  install or remove an app
+  u  update. Nothing running: the whole launcher. Apps running: only the lit one (0 or S first for all)
+  k  the shared google key
+  S  stop all of them
+  w  wipe: uninstall, which asks twice
+  q  quit the menu, leaving the servers running
+
+Quitting does not stop anything. The servers keep serving and the pages stay open. S is what stops them.
 
 HELPTEXT
   anykey
@@ -680,48 +703,58 @@ screen_install() {
   done
 }
 
-# v21: the shared key is handed to every installed app, in the file that app
-# reads (day and all google-api.txt, night gmaps-api.txt). Before, a key only
-# reached an app when that app was installed, so a key added later sat in the
-# store and no app ever saw it (found on the Pixel 7 emulator, 7.10.2026).
-share_key() {
-  local k f n=0
-  [ -s "$KEYFILE" ] || return 0
-  k=$(grep -v '^[[:space:]]*$' "$KEYFILE" | head -1 | tr -cd 'A-Za-z0-9_-' | head -c 200)
-  [ -n "$k" ] || return 0
-  for f in "$HOME/.commute/google-api.txt" "$HOME/.nightcommute/gmaps-api.txt" "$HOME/.all.commute/google-api.txt"; do
-    [ -d "$(dirname "$f")" ] || continue
-    printf '%s\n' "$k" > "$f.new" && chmod 600 "$f.new" && mv -f "$f.new" "$f" && n=$((n+1))
-  done
-  printf '%s' "$n"
-}
-
+# The common API-key database: one store (~/.maha.commute/keys/) that every app
+# reads, Google and Gemini both. This is "the common one" a key is loaded into.
+# A key pasted here is forced in and wins over what an app seeded; an app's own
+# pick only fills the store when it is empty. Keys are never printed.
 screen_key() {
   local a k
+  while :; do
   clear 2>/dev/null || true
-  printf "\n  ${KEY}GOOGLE KEY${OFF}\n"
-  printf "  ${DIM}one key, shared by all three, never printed${OFF}\n\n"
+  printf "\n  ${KEY}API KEYS${OFF}\n"
+  printf "  ${DIM}one shared store, used by all three, never printed${OFF}\n\n"
   if [ -s "$KEYFILE" ]; then
-    printf "  ${OK}present${OFF} ${DIM}%s characters${OFF}\n" \
+    printf "  ${KEY}Google${OFF}  ${OK}present${OFF} ${DIM}(%s characters)${OFF}\n" \
       "$(tr -d ' \r\n' < "$KEYFILE" | wc -c | tr -d ' ')"
   else
-    printf "  ${DIM}none stored${OFF}\n"
+    printf "  ${KEY}Google${OFF}  ${DIM}none stored${OFF}\n"
   fi
-  printf "\n  ${KEY}Enter${OFF} ${DIM}back${OFF}  ${KEY}p${OFF} ${DIM}paste one${OFF}  ${KEY}x${OFF} ${DIM}forget it${OFF}\n\n  ${AM}>${OFF} "
+  if [ -s "$GEMFILE" ]; then
+    printf "  ${KEY}Gemini${OFF}  ${OK}present${OFF} ${DIM}(%s characters)${OFF}\n" \
+      "$(tr -d ' \r\n' < "$GEMFILE" | wc -c | tr -d ' ')"
+  else
+    printf "  ${KEY}Gemini${OFF}  ${DIM}none stored${OFF}\n"
+  fi
+  printf "\n  ${KEY}g${OFF} ${DIM}set Google${OFF}  ${KEY}e${OFF} ${DIM}set Gemini${OFF}  ${KEY}x${OFF} ${DIM}forget both${OFF}  ${KEY}Enter${OFF} ${DIM}back${OFF}\n\n  ${AM}>${OFF} "
   IFS= read -r a || a=""
   case "$a" in
-    p|P) printf "\n  ${DIM}paste, then Enter${OFF}\n  ${AM}>${OFF} "
+    g|G) printf "\n  ${DIM}paste the Google key, then Enter${OFF}\n  ${AM}>${OFF} "
          IFS= read -r k || k=""
          k=$(printf '%s' "$k" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
          if [ -n "$k" ]; then
-           mkdir -p "$KEYDIR"; printf '%s\n' "$k" > "$KEYFILE"; chmod 600 "$KEYFILE"
-           printf "\n  ${OK}stored${OFF}, ${DIM}given to %s apps${OFF}\n" "$(share_key)"
+           mkdir -p "$KEYDIR"; chmod 700 "$KEYDIR" 2>/dev/null || true
+           printf '%s\n' "$k" > "$KEYFILE"; chmod 600 "$KEYFILE"
+           bash "$APPHOME/install-one.sh" --sync-key force >/dev/null 2>&1 || true
+           printf "\n  ${OK}stored, and given to every app that is here${OFF}\n"
          else
            printf "\n  ${DIM}nothing was changed${OFF}\n"
          fi
          anykey ;;
-    x|X) rm -f "$KEYFILE"; printf "\n  ${SAND}forgotten here${OFF}\n"; anykey ;;
+    e|E) printf "\n  ${DIM}paste the Gemini key, then Enter${OFF}\n  ${AM}>${OFF} "
+         IFS= read -r k || k=""
+         k=$(printf '%s' "$k" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
+         if [ -n "$k" ]; then
+           mkdir -p "$KEYDIR"; chmod 700 "$KEYDIR" 2>/dev/null || true
+           printf '%s\n' "$k" > "$GEMFILE"; chmod 600 "$GEMFILE"
+           printf "\n  ${OK}stored. Every app reads it from here${OFF}\n"
+         else
+           printf "\n  ${DIM}nothing was changed${OFF}\n"
+         fi
+         anykey ;;
+    x|X) rm -f "$KEYFILE" "$GEMFILE"; printf "\n  ${SAND}both forgotten here${OFF}\n"; anykey ;;
+    q|Q|"") return 0 ;;
   esac
+  done
 }
 
 case "${1:-}" in
@@ -744,25 +777,37 @@ case "${1:-}" in
   info)           screen_info; exit 0 ;;
   install|add)    screen_install; exit 0 ;;
   key)            screen_key; exit 0 ;;
-  sharekey)       share_key >/dev/null; exit 0 ;;
-  gtfs)           screen_gtfs; exit 0 ;;
   keytest|keys)   exec "$PY" "$APPHOME/keytest.py" ;;
   refresh)        exec "$PY" "$APPHOME/stream.py" refresh --check ;;
   check|doctor)   exec "$PY" "$APPHOME/stream.py" check ;;
   update|-update|--update) exec bash "$APPHOME/update.sh" ;;
   uninstall|wipe) exec bash "$APPHOME/uninstall.sh" ;;
   -h|--help)
-    printf 'maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|gtfs|keytest|refresh|check|update|uninstall]\n'
+    printf 'maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]\n'
     exit 0 ;;
 esac
 
-FOCUS=1
+# The screen is a status board: it redraws by itself when an app comes up or
+# goes away, so a server started from another window shows up here without a
+# keypress. It redraws only when the picture would change, never on a timer,
+# because a screen that repaints every few seconds flickers and eats the
+# key being typed.
+state_sig() { local id o=""; for id in $(app_ids); do running "$id" && o="$o$id,"; done; printf '%s' "$o"; }
+SIG=$(state_sig)
+REDRAW=1
 while :; do
-  draw
+  [ "$REDRAW" = 1 ] && { draw; SIG=$(state_sig); }
+  REDRAW=1
   # End of input is not a keypress. Reading EOF used to leave c empty, which
   # matched the Enter case and started an app, so piping anything into the
   # launcher launched something. EOF means the person is gone: leave.
-  if ! read -rsn1 c 2>/dev/null; then
+  # A TIMEOUT (status above 128) is not EOF: it is the moment to look again.
+  read -rsn1 -t 4 c 2>/dev/null; rc=$?
+  if [ "$rc" -gt 128 ]; then
+    NEWSIG=$(state_sig)
+    if [ "$NEWSIG" != "$SIG" ]; then SIG="$NEWSIG"; else REDRAW=0; fi
+    continue
+  elif [ "$rc" -ne 0 ]; then
     if ! read -r c 2>/dev/null; then printf "\n\n"; exit 0; fi
   fi
   # An arrow arrives as escape, bracket, letter. The two extra reads carry a
@@ -777,30 +822,27 @@ while :; do
   fi
   SELAPP=$(app_at "$SEL")
   case "$c" in
-    # A number goes to its quadrant AND fills it. An empty quadrant is a
-    # server that is not running, so pressing its number starts it; a
-    # quadrant that is already filled opens its page again. One meaning for
-    # the number, whatever state the quadrant is in: put me in this app.
-    1|2|3)
+    # 0 is the launcher: nothing lit, and the keys act on all of it.
+    0) SEL=0 ;;
+    # A number LIGHTS an app. If it is idle it is started first, which is how
+    # an app gets running; if it is already running the number only moves the
+    # light, so with two apps up, 1 and 3 swap between them without opening a
+    # page each time. Enter or o opens the page.
+    1|2|3|4)
       SEL="$c"
       NEW=$(app_at "$SEL")
-      [ -n "$NEW" ] && start_app "$NEW" ;;
-    4)   SEL=4; screen_gtfs ;;
-    prev) SEL=$((SEL-1)); [ "$SEL" -lt 1 ] && SEL=4 ;;
-    next) SEL=$((SEL+1)); [ "$SEL" -gt 4 ] && SEL=1 ;;
+      if [ -n "$NEW" ] && ! running "$NEW"; then start_app "$NEW"; fi ;;
+    prev) SEL=$((SEL-1)); [ "$SEL" -lt 0 ] && SEL=4 ;;
+    next) SEL=$((SEL+1)); [ "$SEL" -gt 4 ] && SEL=0 ;;
 
     # the verbs, on the focused quadrant
-    "")  if [ -n "$SELAPP" ]; then start_app "$SELAPP"; elif [ "$SEL" = 4 ]; then screen_gtfs; fi ;;
-    o|O) [ "$SEL" = 4 ] && { printf "\n"; gtfs_open; sleep 1; }
-         [ -n "$SELAPP" ] && { if running "$SELAPP"; then
+    "")  [ -n "$SELAPP" ] && start_app "$SELAPP" ;;
+    o|O) [ -n "$SELAPP" ] && { if running "$SELAPP"; then
            LAST="$SELAPP"; open_url "http://127.0.0.1:$(app_port "$SELAPP")/?run=$RUN"
          else start_app "$SELAPP"; fi; } ;;
-    s)   [ "$SEL" = 4 ] && { printf "\n"; gtfs_stop; sleep 1; }
-         [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; sleep 1; } ;;
-    R)   [ "$SEL" = 4 ] && { printf "\n"; gtfs_stop; gtfs_open; sleep 1; }
-         [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; start_app "$SELAPP"; } ;;
-    l|L) [ "$SEL" = 4 ] && screen_log gtfs
-         [ -n "$SELAPP" ] && screen_log "$SELAPP" ;;
+    s)   [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; sleep 1; } ;;
+    R)   [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; start_app "$SELAPP"; } ;;
+    l|L) [ -n "$SELAPP" ] && screen_log "$SELAPP" ;;
 
     # the things that belong to no single app
     h|H) screen_help ;;
@@ -809,14 +851,13 @@ while :; do
     t|T) printf "\n"; "$PY" "$APPHOME/keytest.py"; anykey ;;
     i|I) screen_install ;;
     k|K) screen_key ;;
-    u|U) printf "\n"; bash "$APPHOME/update.sh"; anykey ;;
+    u|U) update_focus ;;
     S)   stop_all ;;
     w|W|x|X) printf "\n"; bash "$APPHOME/uninstall.sh"; anykey ;;
     q|Q) printf "\n"
-         _left=0
-         for id in $(app_ids); do running "$id" && _left=1; done
-         gtfs_running && _left=1
-         [ "$_left" = 1 ] && printf "  ${DIM}servers left running. S stops them.${OFF}\n"
+         for id in $(app_ids); do
+           running "$id" && { printf "  ${DIM}servers left running. S stops them.${OFF}\n"; break; }
+         done
          printf "\n"; exit 0 ;;
   esac
 done

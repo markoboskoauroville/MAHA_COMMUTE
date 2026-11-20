@@ -16,6 +16,28 @@ set -e
 APP="${1:-}"
 FLAG="${2:---offline}"
 
+# --sync-key [force]: copy the shared key into every installed app's own key
+# file. Without "force" an app that already holds a key is left alone (it may be
+# a different one, and it was put there by hand); with it (the person pasted a
+# new key in the launcher) every app gets it. Never prints the key.
+key_ok() { [ -f "$1" ] && [ "$(grep -v '^[[:space:]]*$' "$1" 2>/dev/null | head -1 | tr -cd 'A-Za-z0-9_-' | head -c 200 | wc -c | tr -d ' ')" -ge 20 ]; }
+sync_key() {   # sync_key FORCE
+  local force="$1" id row dir name dst
+  key_ok "$KEYFILE" || return 0
+  for id in $(printf '%s\n' "$MAHA_APPS" | cut -d'|' -f1); do
+    row=$(printf '%s\n' "$MAHA_APPS" | grep "^$id|" || true)
+    dir="$HOME/$(printf '%s' "$row" | cut -d'|' -f3)"
+    name=$(printf '%s' "$row" | cut -d'|' -f9)
+    [ -d "$dir" ] && [ -n "$name" ] || continue
+    dst="$dir/$name"
+    if [ "$force" = "force" ] || ! key_ok "$dst"; then
+      grep -v '^[[:space:]]*$' "$KEYFILE" | head -1 | tr -cd 'A-Za-z0-9_-' | head -c 200 > "$dst.new"
+      printf '\n' >> "$dst.new"; chmod 600 "$dst.new"; mv -f "$dst.new" "$dst"
+    fi
+  done
+}
+if [ "$APP" = "--sync-key" ]; then sync_key "${2:-}"; exit 0; fi
+
 if [ -t 1 ]; then
   AM="\033[38;5;214m"; OK="\033[1;32m"; BAD="\033[1;31m"
   DIM="\033[0;90m"; KEY="\033[1;37m"; OFF="\033[0m"
@@ -165,6 +187,7 @@ MAHA_SHIM_TEXT
 }
 # END SHIM
 write_shim "$APP" "$CMD"
+sync_key ""
 
 mkdir -p "$STAMPDIR"
 printf '%s\n' "$VER" > "$STAMPDIR/$APP"

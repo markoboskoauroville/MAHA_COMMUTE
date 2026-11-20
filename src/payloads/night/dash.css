@@ -1,0 +1,165 @@
+
+/* ===========================================================================
+   THE STATION DASHBOARD, night.commute v15
+
+   Spliced into night.html at build time by tools/payload_v25.py. It is not in
+   the payload, because src/payloads holds the files as they were handed over
+   and every change to one of them is a visible transformation with a witness
+   and a test.
+
+   THE SAME DASHBOARD all.commute GREW, ON THE NIGHT NETWORK
+
+   Marko asked for night.commute to have a dashboard for each station, the same
+   as all.commute: tap a station and one full-screen panel slides up for that
+   station alone — its photograph, what has just left, what is coming, and
+   WATCH. The look is all.commute's, down to the card and the arrival rows; the
+   data under it is night.commute's own, the four night trams and the live
+   feed it already reads.
+
+   WHY THE CLASSES ARE PREFIXED nd-
+
+   night.commute already owns a .card (the cards in the setup sheet), a .btn and
+   a handful of other short names. all.commute's dashboard CSS uses those same
+   short names for different things, so copying them in verbatim would restyle
+   the setup sheet. Every class here therefore wears an nd- prefix: the look is
+   borrowed, the names are this app's own, and nothing already on the page moves.
+
+   The colours are night.commute's (var(--line31..34) for the route pills,
+   var(--cyan) for accents), with the three status colours all.commute uses
+   added below, since night's :root did not carry them.
+   =========================================================================== */
+
+:root {
+  --nd-green:#3fb950; --nd-gold:#d4a017; --nd-red:#f85149;
+}
+
+/* ---- the full-screen panel ---- */
+#ndDash{position:fixed;inset:0;z-index:800;background:var(--bg);
+  transform:translateY(100%);transition:transform .22s ease;
+  display:flex;flex-direction:column;}
+#ndDash.show{transform:translateY(0);}
+.nd-dhead{display:flex;align-items:center;gap:10px;padding:14px 14px 10px;
+  padding-top:calc(14px + env(safe-area-inset-top));
+  background:color-mix(in srgb,var(--c,var(--cyan)) 14%,var(--bg));
+  border-bottom:2px solid var(--c,var(--border));}
+.nd-dtitle{flex:1;min-width:0;}
+.nd-dtitle b{display:block;font-size:1.08rem;letter-spacing:.02em;line-height:1.2;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.nd-dtitle .nd-sub{color:var(--muted);font-size:.78rem;font-weight:600;margin-top:3px;}
+.nd-dhead .nd-close{margin-left:auto;flex:none;width:38px;height:38px;border-radius:11px;
+  border:1px solid var(--border);background:transparent;color:var(--text);
+  font-size:1.05rem;cursor:pointer;line-height:1;}
+.nd-dbody{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  padding:12px 12px calc(28px + env(safe-area-inset-bottom));}
+
+/* the line badges in the header: which lines this station is on */
+.nd-badges{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px;}
+.nd-badge{font:800 .7rem/1 system-ui,sans-serif;color:#0b0f1a;border-radius:7px;
+  padding:3px 8px;letter-spacing:.02em;}
+
+/* ---- the one card the dashboard holds ---- */
+.nd-card{border:2px solid var(--c,var(--border));border-radius:16px;margin-bottom:14px;
+  overflow:hidden;background:var(--card);}
+.nd-card.on{box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 30%,transparent);}
+.nd-chead{display:flex;align-items:center;gap:9px;padding:11px 12px;
+  background:color-mix(in srgb,var(--c,var(--cyan)) 14%,transparent);}
+.nd-cnm{flex:1;min-width:0;font-weight:800;font-size:.95rem;line-height:1.2;}
+.nd-cnm i{display:block;font-style:normal;font-weight:600;font-size:.74rem;
+  color:var(--muted);margin-top:2px;}
+.nd-wbtn{flex:none;border:1.5px solid var(--c,var(--cyan));background:transparent;
+  color:var(--c,var(--cyan));border-radius:999px;padding:7px 14px;
+  font:800 .74rem/1 system-ui,sans-serif;cursor:pointer;letter-spacing:.04em;}
+.nd-wbtn.on{background:var(--c,var(--cyan));color:#0b0f1a;}
+
+/* ---- from here / to here, which feed the journey planner ---- */
+.nd-acts{display:flex;gap:8px;padding:0 0 12px;}
+.nd-act{flex:1;border:1px solid var(--border);background:#1b2238;color:var(--text);
+  border-radius:11px;padding:11px;font:800 .8rem/1 system-ui,sans-serif;cursor:pointer;}
+.nd-act:active{transform:scale(.98);}
+.nd-act.isset{border-color:var(--cyan);color:var(--cyan);background:rgba(124,92,255,.14);}
+
+/* ---- the Street View photograph ---- */
+.nd-svwrap{position:relative;display:block;cursor:pointer;}
+.nd-sv{display:block;width:100%;height:132px;object-fit:cover;background:#0a0e14;
+  border-top:1px solid color-mix(in srgb,var(--c,var(--cyan)) 30%,transparent);
+  border-bottom:1px solid color-mix(in srgb,var(--c,var(--cyan)) 30%,transparent);}
+.nd-sv360{position:absolute;right:10px;bottom:10px;display:flex;align-items:center;gap:5px;
+  padding:6px 11px;border-radius:999px;background:rgba(11,15,26,.82);
+  border:1px solid rgba(255,255,255,.28);color:#fff;
+  font:800 .72rem/1 system-ui,sans-serif;letter-spacing:.06em;}
+.nd-svpin{position:absolute;top:50%;left:50%;transform:translate(-50%,-100%);
+  pointer-events:none;filter:drop-shadow(0 2px 8px rgba(0,0,0,.75));
+  display:flex;flex-direction:column;align-items:center;}
+.nd-svpinlabel{background:rgba(11,15,26,.82);color:var(--c,var(--cyan));
+  border:1.5px solid var(--c,var(--cyan));border-radius:7px;padding:2px 7px;
+  font:800 .7rem/1.5 system-ui,sans-serif;letter-spacing:.04em;white-space:nowrap;
+  margin-bottom:5px;}
+.nd-svpin::before{content:"";display:block;width:26px;height:26px;border-radius:50%;
+  background:var(--c,var(--cyan));border:3px solid #fff;
+  box-shadow:0 0 0 0 color-mix(in srgb,var(--c,var(--cyan)) 60%,transparent);
+  animation:ndpulse 2.2s ease-out infinite;}
+.nd-svpin::after{content:"";display:block;width:0;height:0;
+  border-left:9px solid transparent;border-right:9px solid transparent;
+  border-top:12px solid var(--c,var(--cyan));margin:0 auto;}
+@keyframes ndpulse{
+  0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--c,var(--cyan)) 60%,transparent);}
+  60%{box-shadow:0 0 0 10px rgba(0,0,0,0);}
+  100%{box-shadow:0 0 0 0 rgba(0,0,0,0);}}
+.nd-svnone{padding:9px 12px;color:var(--muted);font-size:.74rem;font-weight:600;
+  border-top:1px solid var(--border);border-bottom:1px solid var(--border);}
+
+/* ---- the arrivals board ---- */
+.nd-sec{padding:10px 13px 4px;font:800 .66rem/1 system-ui,sans-serif;
+  letter-spacing:.09em;color:var(--muted);text-transform:uppercase;}
+.nd-arr{padding:4px 0;}
+.nd-arow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;
+  padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.045);}
+.nd-arow:last-child{border-bottom:0;}
+.nd-arow.gone{opacity:.5;}
+.nd-arow.gone .nd-tm b{color:var(--muted);}
+.nd-rt{display:inline-flex;align-items:center;justify-content:center;min-width:34px;
+  height:28px;padding:0 7px;border-radius:8px;background:var(--r,#5ad1ff);color:#0b0f1a;
+  font:800 .92rem/1 system-ui,sans-serif;border:1.5px solid var(--r,#5ad1ff);}
+.nd-od{min-width:0;font-size:.82rem;font-weight:700;line-height:1.25;}
+.nd-od i{display:block;font-style:normal;font-weight:600;font-size:.72rem;color:var(--muted);
+  margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.nd-od .nd-live{color:var(--accent);font-weight:800;}
+.nd-od .nd-late{color:var(--nd-red);font-weight:800;}
+.nd-od .nd-ok{color:var(--nd-green);font-weight:800;}
+.nd-tm{text-align:right;white-space:nowrap;}
+.nd-tm b{display:block;font-size:1.02rem;font-weight:800;}
+.nd-tm b.soon{color:var(--nd-green);} .nd-tm b.now{color:var(--accent);}
+.nd-tm small{display:block;color:var(--muted);font-size:.7rem;font-weight:700;margin-top:1px;}
+.nd-empty{padding:16px 12px;color:var(--muted);font-size:.82rem;font-weight:600;text-align:center;}
+
+/* ---- the watch bar, at the bottom, when a station is watched ---- */
+#ndWatchbar{position:fixed;left:12px;right:12px;z-index:640;display:none;flex-wrap:wrap;
+  bottom:calc(14px + env(safe-area-inset-bottom));align-items:center;gap:8px 10px;
+  padding:10px 12px;border-radius:14px;max-width:616px;margin:0 auto;
+  background:rgba(20,26,42,.95);border:2px solid var(--c,var(--border));cursor:pointer;}
+body.nd-watching #ndWatchbar{display:flex;}
+#ndWatchbar .nd-wstar{flex:none;color:var(--accent);font-size:1rem;}
+#ndWatchbar .nd-wname{font-weight:800;font-size:.92rem;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#ndWatchbar .nd-wx{flex:none;width:30px;height:30px;border-radius:9px;
+  border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}
+#ndWatchbar .nd-wrides{order:3;flex:1 0 100%;display:flex;flex-wrap:wrap;gap:6px;}
+.nd-wride{display:inline-flex;align-items:center;gap:5px;font-weight:800;font-size:.8rem;
+  color:var(--text);background:rgba(255,255,255,.05);border-radius:8px;padding:4px 8px;}
+.nd-wride .nd-rt{min-width:26px;height:22px;font-size:.76rem;border-radius:6px;}
+.nd-wride .nd-m{color:var(--cyan);}
+
+/* ---- the 360 viewer, over the dashboard ---- */
+#ndPano{position:fixed;inset:0;z-index:950;background:#000;display:none;}
+#ndPano.show{display:block;}
+#ndPanoView{position:absolute;inset:0;}
+.nd-panobar{position:absolute;top:0;left:0;right:0;z-index:2;display:flex;align-items:center;
+  gap:10px;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;
+  background:linear-gradient(to bottom,rgba(0,0,0,.65),transparent);color:#fff;}
+.nd-panobar span{flex:1;min-width:0;font-weight:800;font-size:.95rem;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-shadow:0 1px 3px #000;}
+.nd-panobar button{flex:none;width:38px;height:38px;border-radius:11px;
+  border:1px solid rgba(255,255,255,.35);background:rgba(0,0,0,.4);color:#fff;
+  font-size:1.05rem;cursor:pointer;}
+.nd-panomsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  padding:28px;text-align:center;color:#cdd6e4;font-size:.9rem;font-weight:600;line-height:1.5;}

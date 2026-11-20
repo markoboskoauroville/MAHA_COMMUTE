@@ -65,16 +65,14 @@ have() { command -v "$1" >/dev/null 2>&1; }
 HAVE_PY=0;   have python  && HAVE_PY=1
 have python3 && HAVE_PY=1
 HAVE_OPEN=0; have termux-open-url && HAVE_OPEN=1
+# termux-open-url comes from termux-tools, which every Termux has, so it says
+# nothing about the termux-api PACKAGE (field test v21, F9). termux-location is
+# the command only that package brings.
+HAVE_TAPI=0; have termux-location && HAVE_TAPI=1
 HAVE_FUSER=0; have fuser && HAVE_FUSER=1
 HAVE_SHA=0;  have sha256sum && HAVE_SHA=1
 HAVE_PGREP=0; have pgrep && HAVE_PGREP=1
 HAVE_B64=0;  have base64 && HAVE_B64=1
-# v21: the GTFS monitor's page is Flask, served by waitress (termux-app.md).
-# Optional: without them key 4 still downloads, checks and shows in the terminal.
-HAVE_FLASK=0
-for _py in python python3; do
-  command -v "$_py" >/dev/null 2>&1 && "$_py" -c 'import flask, waitress' >/dev/null 2>&1 && HAVE_FLASK=1
-done
 REQ_MISSING=0
 [ "$HAVE_PY" = "0" ] && REQ_MISSING=$((REQ_MISSING+1))
 
@@ -89,12 +87,11 @@ dep_row() {
 }
 printf "\n  ${KEY}what this phone has${OFF}\n"
 dep_row "python"       "$HAVE_PY"    "all three servers"        "req"
-dep_row "termux-api"   "$HAVE_OPEN"  "opens the page by itself" "opt"
+dep_row "termux-api"   "$HAVE_TAPI"  "GPS and notifications"    "opt"
 dep_row "fuser"        "$HAVE_FUSER" "frees a busy port"        "opt"
 dep_row "procps"       "$HAVE_PGREP" "finds and stops servers"  "opt"
 dep_row "sha256sum"    "$HAVE_SHA"   "checks the payloads"      "opt"
 dep_row "base64"       "$HAVE_B64"   "used by all.commute"      "opt"
-dep_row "flask"        "$HAVE_FLASK" "the GTFS monitor page"    "opt"
 printf "\n"
 
 # ---------------------------------------------------------------
@@ -123,7 +120,7 @@ fi
 # ---------------------------------------------------------------
 NEED=""
 [ "$HAVE_PY" = "0" ]    && NEED="$NEED python"
-[ "$HAVE_OPEN" = "0" ]  && NEED="$NEED termux-api"
+[ "$HAVE_TAPI" = "0" ]  && NEED="$NEED termux-api"
 [ "$HAVE_FUSER" = "0" ] && NEED="$NEED psmisc"
 [ "$HAVE_PGREP" = "0" ] && NEED="$NEED procps"
 
@@ -139,12 +136,10 @@ else
   done
   command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 && HAVE_PY=1
 fi
-# Flask and waitress are pip packages, not pkg ones, so they come after python.
-if [ "$MODE" != "offline" ] && [ "$HAVE_FLASK" = "0" ] && [ "$HAVE_PY" = "1" ]; then
-  step "installing flask and waitress"
-  _py=$(command -v python || command -v python3)
-  if "$_py" -m pip install -q flask waitress >/dev/null 2>&1; then HAVE_FLASK=1; done_
-  else fail_ "not fetched, key 4 still works in the terminal"; fi
+# The package is only half of Termux:API: the commands talk to an APP, which is
+# a separate install from F-Droid. Say so, plainly, when pm can tell us it is not.
+if have pm && ! pm list packages 2>/dev/null | grep -q 'package:com.termux.api$'; then
+  printf "  ${DIM}the Termux:API app (F-Droid) is not installed. GPS through Termux needs it.${OFF}\n"
 fi
 # ---------------------------------------------------------------
 # storage, asked for rather than left to the person
@@ -191,7 +186,7 @@ fi
 step "google maps key"
 mkdir -p "$KEYDIR"; chmod 700 "$KEYDIR" 2>/dev/null || true
 FOUND=""
-if [ -s "$KEYFILE" ]; then
+if maha_key_ok "$KEYFILE"; then
   FOUND="the shared store"
 else
   for c in "$HOME/.commute/google-api.txt" \
@@ -201,19 +196,11 @@ else
            "$HOME/storage/downloads/google-api.txt" \
            "$HOME/storage/downloads/Google-maps-api.txt" \
            "$HOME/downloads/google-api.txt"; do
-    # v21: a file only counts when a key comes OUT of it. An install without a
-    # key leaves blank key files in the apps' folders, and the old test (-s)
-    # took the first of them as "found", stored an empty key and stopped
-    # looking, so a key put in Downloads later was never picked up (seen on
-    # the Pixel 7 emulator, 7.10.2026).
-    if [ -s "$c" ] && [ -r "$c" ]; then
-      _k=$(grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key)
-      if [ -n "$_k" ]; then
-        printf '%s\n' "$_k" > "$KEYFILE"
-        chmod 600 "$KEYFILE"
-        FOUND="$c"
-        break
-      fi
+    if maha_key_ok "$c"; then
+      grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key > "$KEYFILE"
+      chmod 600 "$KEYFILE"
+      FOUND="$c"
+      break
     fi
   done
 fi
@@ -228,6 +215,38 @@ fi
 if [ "$ASK_KEY" = "1" ]; then
   printf "  ${DIM}no google key here yet. The apps work without one: the maps${OFF}\n"
   printf "  ${DIM}draw, the photographs do not.${OFF} ${SAND}maha-commute key${OFF} ${DIM}adds one.${OFF}\n"
+fi
+
+# ---------------------------------------------------------------
+# the gemini key, into the same common store, the same way: the shared
+# store wins, then any app already on the phone, then a file in Downloads.
+# Never printed. Gemini reads the PDF timetables and the ZET notices; the
+# maps and the schedule work without it. If one is already stored it is
+# left alone.
+# ---------------------------------------------------------------
+step "gemini key"
+if maha_key_ok "$GEMFILE"; then
+  printf " ${OK}found${OFF} ${DIM}(the shared store)${OFF}\n"
+else
+  GFOUND=""
+  for c in "$HOME/.commute/gemini-api.txt" \
+           "$HOME/.nightcommute/gemini-api.txt" \
+           "$HOME/.all.commute/gemini-api.txt" \
+           "./gemini-api.txt" \
+           "$HOME/storage/downloads/gemini-api.txt" \
+           "$HOME/downloads/gemini-api.txt"; do
+    if maha_key_ok "$c"; then
+      grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key > "$GEMFILE"
+      chmod 600 "$GEMFILE"
+      GFOUND="$c"
+      break
+    fi
+  done
+  if [ -n "$GFOUND" ]; then
+    printf " ${OK}found${OFF} ${DIM}(%s)${OFF}\n" "$GFOUND"
+  else
+    skip_
+  fi
 fi
 
 # ---------------------------------------------------------------
@@ -267,6 +286,7 @@ rm -f "$PAYDIR"/*.new 2>/dev/null || true
   printf 'PAYDIR="$APPHOME/payloads"\n'
   printf 'KEYDIR="$APPHOME/keys"\n'
   printf 'KEYFILE="$KEYDIR/google-api.txt"\n'
+  printf 'GEMFILE="$KEYDIR/gemini-api.txt"\n'
   printf 'STAMPDIR="$APPHOME/installed"\n'
   printf 'MAHA_APPS="%s"\n' "$MAHA_APPS"
 } > "$APPHOME/env.sh.new"
@@ -291,27 +311,6 @@ done_
 
 step "the install routine"
 maha_emit_install_one | install_command "$APPHOME/install-one.sh"
-done_
-
-step "the shared GTFS"
-# One schedule for all three apps (v21). The apps look for this file and
-# fall back to their own download only when it is not there.
-mkdir -p "$APPHOME/gtfs"
-maha_emit_gtfs > "$APPHOME/gtfs/gtfs.py.new"
-mv -f "$APPHOME/gtfs/gtfs.py.new" "$APPHOME/gtfs/gtfs.py"
-# The first install adopts the newest copy an app already holds, so nobody
-# downloads twelve megabytes that are already on the phone.
-if [ ! -f "$APPHOME/gtfs/zet_gtfs.zip" ]; then
-  _best=""
-  for _z in "$HOME/.commute/zet_gtfs.zip" "$HOME/.all.commute/zet_gtfs.zip" "$HOME/.nightcommute/zet_gtfs.zip"; do
-    [ -s "$_z" ] || continue
-    if [ -z "$_best" ] || [ "$_z" -nt "$_best" ]; then _best="$_z"; fi
-  done
-  if [ -n "$_best" ] && head -c 2 "$_best" | grep -q PK; then
-    cp -f "$_best" "$APPHOME/gtfs/zet_gtfs.zip.part" && mv -f "$APPHOME/gtfs/zet_gtfs.zip.part" "$APPHOME/gtfs/zet_gtfs.zip"
-    printf " ${DIM}adopted %s${OFF}" "${_best#$HOME/}"
-  fi
-fi
 done_
 
 step "the stream checker"
@@ -400,9 +399,10 @@ for id in $CHOSEN; do
   fi
 done
 
-# v21: the shared key goes to every installed app, including the ones left
-# alone above, so a key found on this run reaches apps installed on an earlier one.
-"$BIN/maha-commute" sharekey >/dev/null 2>&1 || true
+# The key reaches every app that is here, from the one shared store. It is done
+# after the apps, not inside them, so a key found late (or an app reinstalled on
+# its own) still gets it (field test v21, F2: all.commute never received it).
+bash "$APPHOME/install-one.sh" --sync-key >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------
 # what happened

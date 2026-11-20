@@ -11,7 +11,7 @@
 # everything, or nothing. The full wipe asks for a typed word.
 #
 # Generated from src/70_uninstall.sh by tools/build_uninstaller.sh.
-# built 2026-10-07 04:45 UTC
+# built 2026-10-08 13:13 UTC
 # uninstall.sh, written by the MAHA COMMUTE installer.
 #
 #   maha-commute uninstall        the panel, decide item by item
@@ -195,7 +195,7 @@ if [ "$W" != "wipe" ]; then
 fi
 
 printf "\n  ${DIM}stopping anything that is running${OFF}\n"
-for proc in commute_server.py night_server.py all_commute_server.py gtfs.py; do
+for proc in commute_server.py night_server.py all_commute_server.py; do
   pkill -f "$proc" 2>/dev/null && printf "  ${OK}stopped${OFF} ${DIM}%s${OFF}\n" "$proc"
 done
 sleep 1

@@ -28,16 +28,16 @@ number fills it by starting that server.
   +---------------------+---------------------+
   on day.commute:  Enter=open  stop  Restart  log
 
-  1help    2refresh 3check   4test    5install
-  6update  7key     8StopAll 9wipe    0quit
+  help    refresh check   test    install
+  update  key     StopAll wipe    quit
 
-  1 2 3 4 fill a quadrant, arrows move without starting
+  1-4 light an app (starts it if idle), 0 the launcher
 ```
 
 Three lines to a quadrant, always three, whatever state it is in. The label,
 then what it is doing, then what it is for.
 
-## Filling a quadrant
+## Lighting a quadrant
 
 **An empty quadrant is a server that is not running.** Its number starts
 that server, and the quadrant fills in front of you: the second line changes
@@ -47,7 +47,7 @@ The number means the same thing in every state, which is the point:
 
 | the quadrant is | pressing its number |
 |---|---|
-| running | opens its page again |
+| running | only moves the light there. Enter or `o` opens its page |
 | installed, not running | starts it, and the quadrant fills |
 | not installed | offers to install it, from the payload already on the phone |
 | free, no app | moves there and does nothing, because there is nothing to do |
@@ -56,8 +56,23 @@ The number means the same thing in every state, which is the point:
 day.commute on this phone and on every other one, so the number never has to
 be looked up and the hand learns it once.
 
-Arrows move between quadrants without starting anything, for when you want
-to look before you press.
+Arrows move the light without starting anything, for when you want to look
+before you press.
+
+**0 is the launcher.** It lights nothing. The keys that belong to no single
+app act on all of it.
+
+**A running app says RUNNING**, with its port and how long it has been up, and
+the screen redraws by itself when an app comes up or goes away (it looks every
+four seconds and repaints only when something changed), so a server started
+from another window appears without a keypress. With day and all both up, `1`
+and `3` swap the light between them and reopen nothing.
+
+**`u` follows what is running.** An update replaces files a running server is
+serving from, so with nothing running `u` updates the whole launcher; with apps
+running it updates only the lit app (`update.sh --app ID`) and leaves the
+others alone. With nothing lit it says so, and `S` then `u` is the way to
+update all of it.
 
 ## The verbs
 

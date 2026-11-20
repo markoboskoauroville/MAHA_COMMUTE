@@ -66,6 +66,11 @@ import payload_v18 as V18
 import payload_v19 as V19
 import payload_v20 as V20
 import payload_v21 as V21
+import payload_v22 as V22
+import payload_v23 as V23
+import payload_v24 as V24
+import payload_v25 as V25
+import payload_v26 as V26
 NIGHT_LIVE = os.path.join(HERE, "..", "src", "payloads", "night")
 
 
@@ -109,6 +114,10 @@ WITNESS = {
         'function computeRoute(target)',          # a chip fills a field and re-plans
         'id="tab-plan"',                          # where the chips are inserted
         'class="picker"',                         # and just above which one
+        # and what the v15 station dashboard builds its board out of
+        'function realTimes(ln,a,b,n)',           # the scheduled departures it shows
+        'function nowNightSecs()',                # the clock it counts against
+        'function secClk(sec)',                   # how a departure time is written
     ],
 }
 
@@ -250,9 +259,7 @@ FIXES['night'] += V18.NIGHT_FIXES
 FIXES['day'] += V19.DAY_FIXES
 # v20, see payload_v20.py (all.commute's part is patch_all, below)
 FIXES['day'] += V20.DAY_FIXES
-# v21, see payload_v21.py: the one shared GTFS
-FIXES['day'] += V21.DAY_FIXES
-FIXES['night'] += V21.NIGHT_FIXES
+# v21, see payload_v21.py (all.commute's part is V21.patch_all, below)
 
 SNIPPET = '''
 /* ---- MAHA COMMUTE, reset on a new run ---------------------------------
@@ -303,11 +310,18 @@ def main():
                          "the payload changed upstream and has to be re-read" % (pat, got, want))
             src = re.sub(pat, repl, src)
         src = V20.patch_all(src)
-        for old, new in V21.ALL_FIXES:
-            if src.count(old) != 1:
-                sys.exit("patch_payload: all, a v21 anchor matches %d times, not once:\n    %s"
-                         % (src.count(old), old.splitlines()[0][:70]))
-            src = src.replace(old, new, 1)
+        src = V21.patch_all(src)
+        src = V22.patch_all(src)
+        src = V23.patch_all(src)
+        src = V24.patch_all(src)
+        src = V26.patch_all(src)
+    if app == "day":
+        src = V22.patch_day(src)
+        src = V26.patch_day(src)
+    if app == "night":
+        src = V22.patch_night(src)
+        src = V25.patch_night(src)
+        src = V26.patch_night(src)
 
     keys = RESET.get(app, [])
     if not keys:

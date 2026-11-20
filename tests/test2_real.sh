@@ -110,7 +110,7 @@ yes_ "the payloads verify"               "( cd '$A/payloads' && sha256sum -c --s
 yes_ "day is stamped"                    "[ -s '$A/installed/day' ]"
 yes_ "night is stamped"                  "[ -s '$A/installed/night' ]"
 no_  "all is not stamped"                "[ -f '$A/installed/all' ]"
-yes_ "the stamp says v16"                "[ \"\$(cat '$A/installed/day')\" = v16 ]"
+yes_ "the stamp says v19"                "[ \"\$(cat '$A/installed/day')\" = v19 ]"
 yes_ "maha.commute is installed"          "[ -x '$PREFIX/bin/maha.commute' ]"
 yes_ "maha.commute-update is installed"   "[ -x '$PREFIX/bin/maha.commute-update' ]"
 yes_ "maha.commute opens the same launcher" "maha.commute --help 2>&1 | grep -q 'maha.commute'"
