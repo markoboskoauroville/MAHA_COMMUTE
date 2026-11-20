@@ -162,13 +162,23 @@ function ndSvUrl(name){
     (h != null ? "&heading=" + Math.round(h) : "") +
     "&fov=78&pitch=4&key=" + encodeURIComponent(ND_KEY);
 }
+// The photo did not load: no imagery at the stop, or -- the common case -- a
+// Google key that is not authorised for the Street View Static API. Replace the
+// WHOLE frame with the note, so the location pin and the 360 badge (both
+// absolutely positioned inside it) do not collapse onto the card below and
+// cover the WATCH button.
+function ndSvFail(img){
+  const w = img.closest(".nd-svwrap");
+  if (w) w.outerHTML =
+    '<div class="nd-svnone">No Street View here, or the Google key is not authorised for it.</div>';
+}
 function ndPhotoHTML(name){
   if (!ND_KEY_READY) return '<div class="nd-svnone">Loading the photograph…</div>';
   const url = ndSvUrl(name);
   if (!url) return '<div class="nd-svnone">Add a Google key in ⚙ to see the stop.</div>';
   return '<span class="nd-svwrap" data-pano="' + esc(name) + '">' +
     '<img class="nd-sv" src="' + esc(url) + '" alt="' + esc(name) + '" loading="lazy"' +
-    ' onerror="this.style.display=\'none\'">' +
+    ' onerror="ndSvFail(this)">' +
     '<span class="nd-svpin"><span class="nd-svpinlabel">' + esc(name) + '</span></span>' +
     '<span class="nd-sv360">◉ 360°</span></span>';
 }
@@ -181,6 +191,7 @@ function ndOpenPano(name){
   document.getElementById("ndPanoName").textContent = name;
   view.innerHTML = '<div class="nd-panomsg">Loading the 360 view…</div>';
   ov.classList.add("show");
+  document.body.classList.add("nd-panoopen");
   Promise.resolve(typeof GEng !== "undefined" && GEng.ensure ? GEng.ensure() : false)
     .then(ok => {
       if (!ok || !window.google || !google.maps){
@@ -206,6 +217,7 @@ function ndOpenPano(name){
 }
 function ndClosePano(){
   document.getElementById("ndPano").classList.remove("show");
+  document.body.classList.remove("nd-panoopen");
   document.getElementById("ndPanoView").innerHTML = "";
 }
 
@@ -323,6 +335,7 @@ function openStationDash(name){
   ND_SEL = name;
   ND_SIG = "";
   document.getElementById("ndDash").classList.add("show");
+  document.body.classList.add("nd-dashopen");
   if (!ND_HIST){ try { history.pushState({ ndDash: 1 }, ""); ND_HIST = true; } catch (e) {} }
   renderNightDash();
   if (typeof liveWanted === "function" && liveWanted() && typeof livePoll === "function") livePoll();
@@ -332,6 +345,7 @@ function openStationDash(name){
 function closeStationDash(fromBack){
   ND_SEL = null;
   document.getElementById("ndDash").classList.remove("show");
+  document.body.classList.remove("nd-dashopen");
   if (ND_TIMER){ clearInterval(ND_TIMER); ND_TIMER = null; }
   if (!fromBack && ND_HIST){ ND_HIST = false; try { history.back(); } catch (e) {} }
   else ND_HIST = false;
