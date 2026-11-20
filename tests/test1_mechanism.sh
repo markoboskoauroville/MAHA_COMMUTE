@@ -911,7 +911,7 @@ printf '%s' "$ap" | grep -qF 'clickTolerance: 10' && ok || bad "all: a tap that 
 printf '%s' "$ap" | grep -qF '() => armStation(s), on ? 1000 : 500);' && ok || bad "all: a Google-engine pin arms like a Leaflet one"
 printf '%s' "$ap" | grep -qF 'preventMapHitsAndGesturesFrom(this.div)' && ok || bad "all: a Google-engine pin does not leak its tap to the map"
 printf '%s' "$ap" | grep -qF 'history.pushState({ dash: 1 }' && ok || bad "all: back closes the dashboard"
-printf '%s' "$ap" | grep -qF 'APP_VERSION = "v43"' && ok || bad "all: answers v43"
+printf '%s' "$ap" | grep -qF 'APP_VERSION = "v44"' && ok || bad "all: answers v44 (v21)"
 printf '%s' "$ap" | grep -q 'Tap <b>DASHBOARD</b>' && bad "all: nothing tells you to tap a button that is gone" || ok
 # the dashboard renders the station that was opened, and only that one
 if command -v node >/dev/null 2>&1; then
@@ -943,7 +943,7 @@ printf '%s' "$dp" | grep -qF 'pkill -f commute_server.py' && bad "day.commute st
 printf '%s' "$dp" | grep -qF 'if pgrep -f "$SERVER" >/dev/null 2>&1; then' && ok || bad "day.commute status asks about its own server"
 printf '%s' "$dp" | grep -qF 'already running${OFF}' && ok || bad "a second day.commute opens the first instead of doubling it"
 printf '%s' "$dp" | grep -qF '_mine = _pf.read().strip() == str(port)' && ok || bad "a day server only deletes its own port file"
-printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v17"' && ok || bad "day answers v17"
+printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v18"' && ok || bad "day answers v18 (v21)"
 # the menu: up is the process AND the port it wrote down
 (
   T=$(mktemp -d); HOME="$T"; mkdir -p "$T/.commute"
@@ -962,6 +962,85 @@ printf '%s' "$dp" | grep -qF 'COMMUTE_VERSION="v17"' && ok || bad "day answers v
 ) > /tmp/.mc_run.$$ 2>&1
 R5=$(tr '\n' ' ' < /tmp/.mc_run.$$); rm -f /tmp/.mc_run.$$
 eq "all.commute running is not day.commute running"  "DOWN1 DOWN2 DOWN3 " "$R5"
+
+# ---- v21: one shared GTFS, quadrant 4 -----------------------------------
+GT=$(mktemp -d)
+R6=$(MAHA_GTFS_DIR="$GT" python3 - src/45_gtfs.py <<'PYEOF' 2>&1
+import importlib.util, io, json, os, sys, zipfile, urllib.request, datetime
+sp = importlib.util.spec_from_file_location("g", sys.argv[1]); g = importlib.util.module_from_spec(sp); sp.loader.exec_module(g)
+today = datetime.date.today().strftime("%Y%m%d")
+def feed(bad_ref=False):
+    b = io.BytesIO()
+    with zipfile.ZipFile(b, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("agency.txt", "agency_name,agency_timezone\nZET,Europe/Zagreb\n")
+        z.writestr("stops.txt", "stop_id,stop_name,stop_lat,stop_lon\nA,Alpha,45.81,15.97\nB,Beta,45.82,15.98\n")
+        z.writestr("routes.txt", "route_id,route_short_name,route_type\n6,6,0\n")
+        z.writestr("trips.txt", "route_id,service_id,trip_id\n6,S,T1\n")
+        z.writestr("calendar.txt", "service_id,monday,tuesday,wednesday,thursday,friday,saturday,sunday,start_date,end_date\n"
+                   "S,1,1,1,1,1,1,1,20200101,20991231\n")
+        z.writestr("calendar_dates.txt", "service_id,date,exception_type\nS,%s,1\n" % today)
+        z.writestr("stop_times.txt", "trip_id,arrival_time,departure_time,stop_id,stop_sequence\n"
+                   "T1,08:00:00,08:00:00,A,1\nT1,08:05:00,08:05:00,%s,2\n" % ("ZZ" if bad_ref else "B"))
+    return b.getvalue()
+good = feed()
+out = {}
+out["good"] = g.quick_check(good)[0]
+out["notzip"] = g.quick_check(b"<html>maintenance</html>")[0]
+out["cut"] = g.quick_check(good[: len(good) // 2])[0]
+nost = io.BytesIO()
+with zipfile.ZipFile(nost, "w") as z: z.writestr("agency.txt", "agency_name,agency_timezone\nZET,x\n")
+out["missing"] = g.quick_check(nost.getvalue())[1]
+# fetch: the server hands out a good feed first, then a damaged one
+class R:
+    def __init__(s, d): s.d = io.BytesIO(d); s.headers = {"Content-Length": str(len(d)), "ETag": "e"}
+    def read(s, n=-1): return s.d.read(n)
+    def close(s): pass
+serve = [good]
+urllib.request.urlopen = lambda req, timeout=0: R(serve[0])
+d, ch = g.fetch(who="day", max_age=0); out["first"] = (len(d) == len(good), ch)
+serve[0] = good[:-40]
+d, ch = g.fetch(who="day", max_age=0, force=True)
+out["kept"] = open(g.ZIP, "rb").read() == good
+out["refused_logged"] = any(h["event"] == "refused" for h in g.history())
+d, ch = g.fetch(who="all", max_age=600); out["all_changed"] = ch
+d, ch = g.fetch(who="day", max_age=600); out["day_again"] = ch
+rep = g.deep_check(g.ZIP); out["level_good"] = rep["level"]; out["today"] = rep["service"]["days"][0]["trips"]
+open(g.ZIP, "wb").write(feed(bad_ref=True)); out["level_badref"] = g.deep_check(g.ZIP)["level"]
+print(json.dumps(out))
+PYEOF
+)
+rm -rf "$GT"
+eq "gtfs: a sound feed passes the quick check"      '"good": true'     "$(printf '%s' "$R6" | grep -o '"good": [a-z]*')"
+eq "gtfs: a web page is not a GTFS"                 '"notzip": false'  "$(printf '%s' "$R6" | grep -o '"notzip": [a-z]*')"
+eq "gtfs: a download cut in half is refused"        '"cut": false'     "$(printf '%s' "$R6" | grep -o '"cut": [a-z]*')"
+eq "gtfs: a missing table is named"                 '"missing": "stops.txt is missing"' "$(printf '%s' "$R6" | grep -o '"missing": "[^"]*"')"
+eq "gtfs: the first fetch lands and is new to day"  '"first": [true, true]' "$(printf '%s' "$R6" | grep -o '"first": \[[a-z]*, [a-z]*\]')"
+eq "gtfs: a damaged download leaves the good file"  '"kept": true'     "$(printf '%s' "$R6" | grep -o '"kept": [a-z]*')"
+eq "gtfs: and the refusal is in the history"        '"refused_logged": true' "$(printf '%s' "$R6" | grep -o '"refused_logged": [a-z]*')"
+eq "gtfs: all.commute learns it changed on its own" '"all_changed": true' "$(printf '%s' "$R6" | grep -o '"all_changed": [a-z]*')"
+eq "gtfs: day is not told twice"                    '"day_again": false' "$(printf '%s' "$R6" | grep -o '"day_again": [a-z]*')"
+eq "gtfs: the deep check passes a sound feed"       '"level_good": "ok"' "$(printf '%s' "$R6" | grep -o '"level_good": "[a-z]*"')"
+eq "gtfs: and counts today's trips"                 '"today": 1'       "$(printf '%s' "$R6" | grep -o '"today": [0-9]*')"
+eq "gtfs: a stop that does not exist is a failure"  '"level_badref": "bad"' "$(printf '%s' "$R6" | grep -o '"level_badref": "[a-z]*"')"
+for a in day:13-install-day-commute-termux-v13.sh night:9-night_commute_v9.sh all:39-install-all_commute-termux-v39.sh; do
+  pp=$(python3 tools/patch_payload.py "src/payloads/${a#*:}" "${a%%:*}")
+  printf '%s' "$pp" | grep -qF "who=\"${a%%:*}\"" && ok || bad "${a%%:*}: asks the shared GTFS first"
+  printf '%s' "$pp" | grep -qF 'def _own_get_gtfs(force=False):' && ok || bad "${a%%:*}: keeps its own download as the fallback"
+done
+grep -qF '    4)   SEL=4; screen_gtfs ;;' src/20_menu.sh && ok || bad "menu: 4 is the GTFS"
+grep -qF 'if [ -z "$id" ] && [ "$slot" = 4 ]; then gtfs_cell; return; fi' src/20_menu.sh && ok || bad "menu: quadrant 4 shows the schedule"
+grep -qF 'maha_emit_gtfs > "$APPHOME/gtfs/gtfs.py.new"' src/40_main.sh && ok || bad "the installer writes the shared gtfs.py"
+(
+  T=$(mktemp -d); HOME="$T"; KEYFILE="$T/k.txt"; mkdir -p "$T/.commute" "$T/.all.commute"
+  printf '\n' > "$T/.commute/google-api.txt"
+  printf 'AIzaTESTTESTTESTTESTTESTTESTTESTTEST123\n' > "$KEYFILE"
+  eval "$(sed -n '/^share_key() {/,/^}/p' src/20_menu.sh)"
+  n=$(share_key); printf '%s %s %s' "$n" "$(tr -d '\n' < "$T/.commute/google-api.txt" | wc -c | tr -d ' ')" "$( [ -e "$T/.nightcommute/gmaps-api.txt" ] && echo made || echo skipped)"
+  rm -rf "$T"
+) > /tmp/.mc_key.$$ 2>&1
+eq "the shared key reaches the installed apps, and only those" "2 39 skipped" "$(cat /tmp/.mc_key.$$)"; rm -f /tmp/.mc_key.$$
+grep -qF '"$BIN/maha-commute" sharekey' src/40_main.sh && ok || bad "the installer hands the key to apps it left alone"
+grep -qF '_k=$(grep -v' src/40_main.sh && grep -qF 'if [ -n "$_k" ]; then' src/40_main.sh && ok || bad "a blank key file is not a found key"
 
 printf '\n  %s passed, %s failed\n\n' "$pass" "$fail"
 [ "$fail" = "0" ]

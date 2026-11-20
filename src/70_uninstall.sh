@@ -182,7 +182,7 @@ if [ "$W" != "wipe" ]; then
 fi
 
 printf "\n  ${DIM}stopping anything that is running${OFF}\n"
-for proc in commute_server.py night_server.py all_commute_server.py; do
+for proc in commute_server.py night_server.py all_commute_server.py gtfs.py; do
   pkill -f "$proc" 2>/dev/null && printf "  ${OK}stopped${OFF} ${DIM}%s${OFF}\n" "$proc"
 done
 sleep 1

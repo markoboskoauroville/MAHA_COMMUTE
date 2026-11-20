@@ -5,14 +5,14 @@
 # look, it is the way mc lets a pair of panels share one set of keys.
 #
 # FOUR QUADRANTS, one app each. A quadrant is empty when its app is not
-# running and empty when there is no app for it at all: the fourth is free
-# and stays drawn, because a slot that appears when a fourth app arrives is
-# a screen that moves under the hand. Nothing appears, nothing disappears.
+# running. The fourth is the schedule all three share (v21, Marko 7.10.2026):
+# 4 downloads the newest ZET GTFS, checks it, shows it in the terminal and
+# opens the GTFS monitor page. Nothing appears, nothing disappears.
 #
 #   +-----------------+-----------------+
 #   | 1 day.commute   | 2 night.commute |
 #   +-----------------+-----------------+
-#   | 3 all.commute   | 4 free          |
+#   | 3 all.commute   | 4 GTFS          |
 #   +-----------------+-----------------+
 #
 # 1 2 3 4 FILL a quadrant. An empty quadrant is an app that is not running,
@@ -183,10 +183,17 @@ start_app() {
   # it cannot compete with this menu for a keypress and it does not die when
   # the menu is quit. Inheriting the terminal is how a backgrounded server
   # ends up eating the key you pressed for something else.
-  ( cd "$HOME" && setsid nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-    echo $! > "$RUNDIR/$id.pid" ) 2>/dev/null ||
-  ( cd "$HOME" && nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
-    echo $! > "$RUNDIR/$id.pid" )
+  # v21: setsid is asked for BEFORE it is used. The old "setsid ... & || nohup"
+  # never reached its fallback: a command not found inside a background job is
+  # not the subshell's failure, so on a phone without setsid (util-linux is not
+  # in Termux by default) nothing was started at all and the wait below ran out.
+  if command -v setsid >/dev/null 2>&1; then
+    ( cd "$HOME" && setsid nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+      echo $! > "$RUNDIR/$id.pid" )
+  else
+    ( cd "$HOME" && nohup "$(launcher_of "$id")" </dev/null > "$RUNDIR/$id.log" 2>&1 &
+      echo $! > "$RUNDIR/$id.pid" )
+  fi
 
   # A FIRST start is not a restart. day.commute fetches an eleven megabyte
   # schedule from ZET and builds its caches before it binds anything, which
@@ -255,8 +262,84 @@ stop_all() {
   printf "\n"
   local id any=0
   for id in $(app_ids); do running "$id" && { stop_app "$id"; any=1; }; done
+  gtfs_running && { gtfs_stop; any=1; }
   [ "$any" = 0 ] && printf "  ${DIM}nothing was running${OFF}\n"
   anykey
+}
+
+# ---------------------------------------------------------------
+# quadrant 4: the shared GTFS
+#
+# gtfs.py in ~/.maha.commute/gtfs is the one schedule all three apps read.
+# Its status.txt is one line, version|level|date|port, so drawing the
+# quadrant never starts python. The monitor is found by its process AND its
+# answering port, the same rule as the apps.
+# ---------------------------------------------------------------
+GTFSDIR="$APPHOME/gtfs"; GTFS="$GTFSDIR/gtfs.py"
+gtfs_port() { [ -f "$GTFSDIR/port" ] && tr -d ' \n' < "$GTFSDIR/port" 2>/dev/null; }
+gtfs_running() {
+  local p; proc_alive "gtfs.py serve" || return 1
+  p=$(gtfs_port); [ -n "$p" ] && port_live "$p"
+}
+gtfs_cell() {
+  local ver="" lvl="" day="" w
+  q1='4 GTFS'
+  [ -f "$GTFSDIR/status.txt" ] && IFS='|' read -r ver lvl day _ < "$GTFSDIR/status.txt"
+  if [ ! -f "$GTFSDIR/zet_gtfs.zip" ]; then
+    q2='no schedule yet'; q3='4 fetches it'; qstate='absent'
+  else
+    case "$lvl" in ok) w='healthy' ;; warn) w='look' ;; bad) w='BROKEN' ;; *) w='unchecked' ;; esac
+    q2="v${ver:-?} $w ${day}"
+    if gtfs_running; then q3="page on $(gtfs_port)"; qstate='running'
+    else q3='4 fetch check show'; qstate='ready'; fi
+  fi
+}
+gtfs_open() {
+  local i a
+  if gtfs_running; then open_url "http://127.0.0.1:$(gtfs_port)/"; return 0; fi
+  if ! "$PY" -c 'import flask' >/dev/null 2>&1; then
+    printf "\n  ${SAND}the monitor page needs Flask.${OFF}\n"
+    printf "  ${KEY}y${OFF} ${DIM}installs flask and waitress now, any other key skips${OFF}\n  ${AM}>${OFF} "
+    read -rsn1 a 2>/dev/null || read -r a; printf "\n"
+    case "$a" in y|Y) "$PY" -m pip install flask waitress || return 1 ;; *) return 1 ;; esac
+  fi
+  rm -f "$GTFSDIR/port"
+  if command -v setsid >/dev/null 2>&1; then
+    ( cd "$HOME" && setsid nohup "$PY" "$GTFS" serve --no-open </dev/null > "$RUNDIR/gtfs.log" 2>&1 &
+      echo $! > "$RUNDIR/gtfs.pid" )
+  else
+    ( cd "$HOME" && nohup "$PY" "$GTFS" serve --no-open </dev/null > "$RUNDIR/gtfs.log" 2>&1 &
+      echo $! > "$RUNDIR/gtfs.pid" )
+  fi
+  printf "  ${DIM}starting the monitor page${OFF}"
+  for i in $(seq 1 40); do
+    gtfs_running && break
+    printf "."; sleep 0.25
+  done
+  if gtfs_running; then
+    printf " ${OK}up on %s${OFF}\n" "$(gtfs_port)"
+    open_url "http://127.0.0.1:$(gtfs_port)/"
+  else
+    printf " ${BAD}it did not answer${OFF}\n"; tail -4 "$RUNDIR/gtfs.log" 2>/dev/null | sed 's/^/    /'
+  fi
+}
+gtfs_stop() {
+  pkill -f "gtfs.py serve" 2>/dev/null
+  [ -f "$RUNDIR/gtfs.pid" ] && kill "$(cat "$RUNDIR/gtfs.pid")" 2>/dev/null
+  rm -f "$RUNDIR/gtfs.pid"; sleep 1
+  if gtfs_running; then printf "  ${BAD}the monitor would not stop${OFF}\n"
+  else printf "  ${OK}the GTFS monitor stopped${OFF}\n"; fi
+}
+# Key 4: download the newest, check it, show it, then open the page.
+screen_gtfs() {
+  clear 2>/dev/null || true
+  if [ ! -f "$GTFS" ]; then
+    printf "\n  ${BAD}%s is missing. Run the installer again.${OFF}\n" "$GTFS"; anykey; return
+  fi
+  "$PY" "$GTFS" update
+  printf "\n"
+  gtfs_open
+  anykey "any key, back to the quadrants"
 }
 
 # ---------------------------------------------------------------
@@ -358,6 +441,7 @@ uptime_of() {
 cell() {
   local slot="$1" id cmd
   id=$(app_at "$slot")
+  if [ -z "$id" ] && [ "$slot" = 4 ]; then gtfs_cell; return; fi
   if [ -z "$id" ]; then
     q1=$(printf '%d free' "$slot"); q2=''; q3='room for a fourth'
     qstate='empty'; return
@@ -419,7 +503,7 @@ draw() {
 
   # The verbs, which act on whichever quadrant has the focus.
   if [ -z "$sel_id" ]; then
-    printf "  ${DIM}quadrant 4 is free. The verbs wait for an app.${OFF}\n\n"
+    printf "  ${DIM}on ${OFF}${KEY}GTFS${OFF}${DIM}:${OFF}  ${KEY}Enter${OFF}${SAND}=fetch+check${OFF}  ${KEY}o${OFF}${SAND}pen${OFF}  ${KEY}s${OFF}${SAND}top${OFF}  ${KEY}l${OFF}${SAND}og${OFF}\n\n"
   else
     printf "  ${DIM}on ${OFF}${KEY}%s${OFF}${DIM}:${OFF}  " "$(field "$(app_row "$sel_id")" 2)"
     if [ "$sel_inst" != 1 ]; then
@@ -445,7 +529,8 @@ draw() {
 screen_log() {
   local id="$1" f="$RUNDIR/$1.log"
   clear 2>/dev/null || true
-  printf "\n  ${KEY}%s${OFF} ${DIM}in its own words${OFF}\n\n" "$(field "$(app_row "$id")" 2)"
+  local nm; nm=$(field "$(app_row "$id")" 2); [ -z "$nm" ] && nm="the GTFS monitor"
+  printf "\n  ${KEY}%s${OFF} ${DIM}in its own words${OFF}\n\n" "$nm"
   if [ -s "$f" ]; then
     tail -20 "$f" | cut -c1-46 | sed 's/^/  /'
   else
@@ -508,8 +593,10 @@ screen_help() {
 
   MAHA COMMUTE
 
-  Four quadrants, one app each. The fourth is free and stays
-  drawn, so the screen does not move when a fourth app arrives.
+  Four quadrants. 1 2 3 are the apps. 4 is the ZET schedule
+  all three share: it downloads the newest, checks every table
+  for damage, shows the data here, and opens the GTFS monitor
+  page (health, lines, stops and their departures, raw tables).
 
   1 2 3 4 fill a quadrant. An empty quadrant is a server that
   is not running, so its number starts it and the quadrant
@@ -593,6 +680,22 @@ screen_install() {
   done
 }
 
+# v21: the shared key is handed to every installed app, in the file that app
+# reads (day and all google-api.txt, night gmaps-api.txt). Before, a key only
+# reached an app when that app was installed, so a key added later sat in the
+# store and no app ever saw it (found on the Pixel 7 emulator, 7.10.2026).
+share_key() {
+  local k f n=0
+  [ -s "$KEYFILE" ] || return 0
+  k=$(grep -v '^[[:space:]]*$' "$KEYFILE" | head -1 | tr -cd 'A-Za-z0-9_-' | head -c 200)
+  [ -n "$k" ] || return 0
+  for f in "$HOME/.commute/google-api.txt" "$HOME/.nightcommute/gmaps-api.txt" "$HOME/.all.commute/google-api.txt"; do
+    [ -d "$(dirname "$f")" ] || continue
+    printf '%s\n' "$k" > "$f.new" && chmod 600 "$f.new" && mv -f "$f.new" "$f" && n=$((n+1))
+  done
+  printf '%s' "$n"
+}
+
 screen_key() {
   local a k
   clear 2>/dev/null || true
@@ -612,7 +715,7 @@ screen_key() {
          k=$(printf '%s' "$k" | tr -cd 'A-Za-z0-9_.-' | head -c 200)
          if [ -n "$k" ]; then
            mkdir -p "$KEYDIR"; printf '%s\n' "$k" > "$KEYFILE"; chmod 600 "$KEYFILE"
-           printf "\n  ${OK}stored${OFF}\n"
+           printf "\n  ${OK}stored${OFF}, ${DIM}given to %s apps${OFF}\n" "$(share_key)"
          else
            printf "\n  ${DIM}nothing was changed${OFF}\n"
          fi
@@ -641,13 +744,15 @@ case "${1:-}" in
   info)           screen_info; exit 0 ;;
   install|add)    screen_install; exit 0 ;;
   key)            screen_key; exit 0 ;;
+  sharekey)       share_key >/dev/null; exit 0 ;;
+  gtfs)           screen_gtfs; exit 0 ;;
   keytest|keys)   exec "$PY" "$APPHOME/keytest.py" ;;
   refresh)        exec "$PY" "$APPHOME/stream.py" refresh --check ;;
   check|doctor)   exec "$PY" "$APPHOME/stream.py" check ;;
   update|-update|--update) exec bash "$APPHOME/update.sh" ;;
   uninstall|wipe) exec bash "$APPHOME/uninstall.sh" ;;
   -h|--help)
-    printf 'maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|keytest|refresh|check|update|uninstall]\n'
+    printf 'maha.commute [day|night|all|-update|focus APP|open APP|restart APP|log APP|status|info|stop [app]|install|key|gtfs|keytest|refresh|check|update|uninstall]\n'
     exit 0 ;;
 esac
 
@@ -676,21 +781,26 @@ while :; do
     # server that is not running, so pressing its number starts it; a
     # quadrant that is already filled opens its page again. One meaning for
     # the number, whatever state the quadrant is in: put me in this app.
-    1|2|3|4)
+    1|2|3)
       SEL="$c"
       NEW=$(app_at "$SEL")
       [ -n "$NEW" ] && start_app "$NEW" ;;
+    4)   SEL=4; screen_gtfs ;;
     prev) SEL=$((SEL-1)); [ "$SEL" -lt 1 ] && SEL=4 ;;
     next) SEL=$((SEL+1)); [ "$SEL" -gt 4 ] && SEL=1 ;;
 
     # the verbs, on the focused quadrant
-    "")  [ -n "$SELAPP" ] && start_app "$SELAPP" ;;
-    o|O) [ -n "$SELAPP" ] && { if running "$SELAPP"; then
+    "")  if [ -n "$SELAPP" ]; then start_app "$SELAPP"; elif [ "$SEL" = 4 ]; then screen_gtfs; fi ;;
+    o|O) [ "$SEL" = 4 ] && { printf "\n"; gtfs_open; sleep 1; }
+         [ -n "$SELAPP" ] && { if running "$SELAPP"; then
            LAST="$SELAPP"; open_url "http://127.0.0.1:$(app_port "$SELAPP")/?run=$RUN"
          else start_app "$SELAPP"; fi; } ;;
-    s)   [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; sleep 1; } ;;
-    R)   [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; start_app "$SELAPP"; } ;;
-    l|L) [ -n "$SELAPP" ] && screen_log "$SELAPP" ;;
+    s)   [ "$SEL" = 4 ] && { printf "\n"; gtfs_stop; sleep 1; }
+         [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; sleep 1; } ;;
+    R)   [ "$SEL" = 4 ] && { printf "\n"; gtfs_stop; gtfs_open; sleep 1; }
+         [ -n "$SELAPP" ] && { printf "\n"; stop_app "$SELAPP"; start_app "$SELAPP"; } ;;
+    l|L) [ "$SEL" = 4 ] && screen_log gtfs
+         [ -n "$SELAPP" ] && screen_log "$SELAPP" ;;
 
     # the things that belong to no single app
     h|H) screen_help ;;
@@ -703,9 +813,10 @@ while :; do
     S)   stop_all ;;
     w|W|x|X) printf "\n"; bash "$APPHOME/uninstall.sh"; anykey ;;
     q|Q) printf "\n"
-         for id in $(app_ids); do
-           running "$id" && { printf "  ${DIM}servers left running. S stops them.${OFF}\n"; break; }
-         done
+         _left=0
+         for id in $(app_ids); do running "$id" && _left=1; done
+         gtfs_running && _left=1
+         [ "$_left" = 1 ] && printf "  ${DIM}servers left running. S stops them.${OFF}\n"
          printf "\n"; exit 0 ;;
   esac
 done

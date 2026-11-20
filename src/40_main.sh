@@ -69,6 +69,12 @@ HAVE_FUSER=0; have fuser && HAVE_FUSER=1
 HAVE_SHA=0;  have sha256sum && HAVE_SHA=1
 HAVE_PGREP=0; have pgrep && HAVE_PGREP=1
 HAVE_B64=0;  have base64 && HAVE_B64=1
+# v21: the GTFS monitor's page is Flask, served by waitress (termux-app.md).
+# Optional: without them key 4 still downloads, checks and shows in the terminal.
+HAVE_FLASK=0
+for _py in python python3; do
+  command -v "$_py" >/dev/null 2>&1 && "$_py" -c 'import flask, waitress' >/dev/null 2>&1 && HAVE_FLASK=1
+done
 REQ_MISSING=0
 [ "$HAVE_PY" = "0" ] && REQ_MISSING=$((REQ_MISSING+1))
 
@@ -88,6 +94,7 @@ dep_row "fuser"        "$HAVE_FUSER" "frees a busy port"        "opt"
 dep_row "procps"       "$HAVE_PGREP" "finds and stops servers"  "opt"
 dep_row "sha256sum"    "$HAVE_SHA"   "checks the payloads"      "opt"
 dep_row "base64"       "$HAVE_B64"   "used by all.commute"      "opt"
+dep_row "flask"        "$HAVE_FLASK" "the GTFS monitor page"    "opt"
 printf "\n"
 
 # ---------------------------------------------------------------
@@ -131,6 +138,13 @@ else
     if pkg install -y "$pkgname" >/dev/null 2>&1; then done_; else fail_ "not fetched"; fi
   done
   command -v python >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1 && HAVE_PY=1
+fi
+# Flask and waitress are pip packages, not pkg ones, so they come after python.
+if [ "$MODE" != "offline" ] && [ "$HAVE_FLASK" = "0" ] && [ "$HAVE_PY" = "1" ]; then
+  step "installing flask and waitress"
+  _py=$(command -v python || command -v python3)
+  if "$_py" -m pip install -q flask waitress >/dev/null 2>&1; then HAVE_FLASK=1; done_
+  else fail_ "not fetched, key 4 still works in the terminal"; fi
 fi
 # ---------------------------------------------------------------
 # storage, asked for rather than left to the person
@@ -187,11 +201,19 @@ else
            "$HOME/storage/downloads/google-api.txt" \
            "$HOME/storage/downloads/Google-maps-api.txt" \
            "$HOME/downloads/google-api.txt"; do
-    if [ -s "$c" ]; then
-      grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key > "$KEYFILE"
-      chmod 600 "$KEYFILE"
-      FOUND="$c"
-      break
+    # v21: a file only counts when a key comes OUT of it. An install without a
+    # key leaves blank key files in the apps' folders, and the old test (-s)
+    # took the first of them as "found", stored an empty key and stopped
+    # looking, so a key put in Downloads later was never picked up (seen on
+    # the Pixel 7 emulator, 7.10.2026).
+    if [ -s "$c" ] && [ -r "$c" ]; then
+      _k=$(grep -v '^[[:space:]]*$' "$c" | head -1 | maha_clean_key)
+      if [ -n "$_k" ]; then
+        printf '%s\n' "$_k" > "$KEYFILE"
+        chmod 600 "$KEYFILE"
+        FOUND="$c"
+        break
+      fi
     fi
   done
 fi
@@ -269,6 +291,27 @@ done_
 
 step "the install routine"
 maha_emit_install_one | install_command "$APPHOME/install-one.sh"
+done_
+
+step "the shared GTFS"
+# One schedule for all three apps (v21). The apps look for this file and
+# fall back to their own download only when it is not there.
+mkdir -p "$APPHOME/gtfs"
+maha_emit_gtfs > "$APPHOME/gtfs/gtfs.py.new"
+mv -f "$APPHOME/gtfs/gtfs.py.new" "$APPHOME/gtfs/gtfs.py"
+# The first install adopts the newest copy an app already holds, so nobody
+# downloads twelve megabytes that are already on the phone.
+if [ ! -f "$APPHOME/gtfs/zet_gtfs.zip" ]; then
+  _best=""
+  for _z in "$HOME/.commute/zet_gtfs.zip" "$HOME/.all.commute/zet_gtfs.zip" "$HOME/.nightcommute/zet_gtfs.zip"; do
+    [ -s "$_z" ] || continue
+    if [ -z "$_best" ] || [ "$_z" -nt "$_best" ]; then _best="$_z"; fi
+  done
+  if [ -n "$_best" ] && head -c 2 "$_best" | grep -q PK; then
+    cp -f "$_best" "$APPHOME/gtfs/zet_gtfs.zip.part" && mv -f "$APPHOME/gtfs/zet_gtfs.zip.part" "$APPHOME/gtfs/zet_gtfs.zip"
+    printf " ${DIM}adopted %s${OFF}" "${_best#$HOME/}"
+  fi
+fi
 done_
 
 step "the stream checker"
@@ -356,6 +399,10 @@ for id in $CHOSEN; do
     FAILED="$FAILED $id"
   fi
 done
+
+# v21: the shared key goes to every installed app, including the ones left
+# alone above, so a key found on this run reaches apps installed on an earlier one.
+"$BIN/maha-commute" sharekey >/dev/null 2>&1 || true
 
 # ---------------------------------------------------------------
 # what happened
